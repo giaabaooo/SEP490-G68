@@ -1,0 +1,211 @@
+/* Import font chữ Inter để giống thiết kế Figma nhất */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.login-wrapper {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at center, #f0f4fb 0%, #e1e9f4 100%);
+  font-family: 'Inter', sans-serif;
+}
+
+.login-card {
+  display: flex;
+  background: #fff;
+  width: 820px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+/* === BÊN TRÁI === */
+.login-left {
+  flex: 1;
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.brand-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1d4ed8;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+
+.desc {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+/* === ĐƯỜNG KẺ GIỮA === */
+.divider {
+  width: 1px;
+  background-color: #f3f4f6;
+  margin: 40px 0;
+}
+
+/* === BÊN PHẢI === */
+.login-right {
+  flex: 1;
+  padding: 48px;
+}
+
+.tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 32px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tab {
+  padding-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  cursor: pointer;
+  position: relative;
+}
+
+.tab.active {
+  color: #111827;
+}
+
+.tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #1d4ed8;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #111827;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.input-group input::placeholder {
+  color: #9ca3af;
+}
+
+.input-group input:focus {
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.1);
+}
+
+/* Trạng thái đã nhập liệu của Email (Ảnh 2) */
+.input-filled {
+  background-color: #eff6ff !important;
+  border-color: #bfdbfe !important;
+}
+
+/* === TRẠNG THÁI LỖI (Ảnh 2) === */
+.has-error input {
+  background-color: #fef2f2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.has-error input:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.1);
+}
+
+.password-input-wrapper {
+  position: relative;
+}
+
+.eye-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.error-text {
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 2px;
+  font-weight: 500;
+}
+
+/* Nút bấm */
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  background-color: #1d4ed8;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: background-color 0.2s;
+}
+
+.btn-submit:hover {
+  background-color: #1e40af;
+}
+
+/* Chú thích phía dưới */
+.hint {
+  margin-top: 24px;
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+.hint strong {
+  color: #374151;
+}
