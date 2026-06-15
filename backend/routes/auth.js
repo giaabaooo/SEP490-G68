@@ -171,7 +171,7 @@ router.post(
       res.status(500).json({
         message:
           error.message
-        });
+      });
     }
   }
 );
@@ -265,9 +265,9 @@ router.get(
       await User.findById(
         req.user.id
       )
-      .select(
-        "-password"
-      );
+        .select(
+          "-password"
+        );
 
     res.json(
       user

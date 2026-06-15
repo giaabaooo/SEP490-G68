@@ -1,22 +1,47 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Đã sửa lại đường dẫn: bỏ chữ /components/ đi vì các file này đứng ngay cạnh App.jsx
-import Login from './Login';
-import Register from './Register';
-import Home from './Home';
+// Import Layouts
+import PublicLayout from './components/layout/PublicLayout';
+import MainLayout from './components/layout/MainLayout';
+
+// Import Pages
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
+import Home from './pages/Home/Home';
+import ComingSoon from './pages/ComingSoon/ComingSoon';
 
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Khi vào trang mặc định, tự động chuyển hướng sang trang Login */}
-        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to="/home" />} />
         
-        {/* Khai báo đường dẫn cho từng trang */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/home" element={<Home />} />
+        {/* Nhóm các trang KHÔNG CÓ Navbar (Login, Register) */}
+        <Route element={<PublicLayout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Route>
+
+        {/* Nhóm các trang CÓ Navbar & Footer */}
+        <Route element={<MainLayout />}>
+          <Route path="/home" element={<Home />} />
+          
+          {/* === CÁC TRANG DÀNH CHO EMPLOYER (Đang phát triển) === */}
+          <Route path="/dashboard" element={<ComingSoon />} />
+          <Route path="/job-postings" element={<ComingSoon />} />
+          <Route path="/applications" element={<ComingSoon />} />
+          <Route path="/skill-tests" element={<ComingSoon />} />
+
+          {/* === CÁC TRANG DÀNH CHO CANDIDATE (Đang phát triển) === */}
+          <Route path="/jobs" element={<ComingSoon />} />
+          <Route path="/ai-cv" element={<ComingSoon />} />
+          <Route path="/practice" element={<ComingSoon />} />
+          <Route path="/courses" element={<ComingSoon />} />
+
+          {/* === CÁC TRANG DÙNG CHUNG (Đang phát triển) === */}
+          <Route path="/profile" element={<ComingSoon />} />
+        </Route>
       </Routes>
     </Router>
   );
