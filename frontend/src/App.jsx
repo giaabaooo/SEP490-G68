@@ -27,20 +27,25 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
           
-          {/* === CÁC TRANG DÀNH CHO EMPLOYER (Đang phát triển) === */}
+          {/* === CÁC TRANG DÀNH CHO ADMIN (Đang phát triển) === */}
+          <Route path="/admin" element={<ComingSoon />} />
+          
+          {/* === CÁC TRANG DÀNH CHO EMPLOYER/BUSINESS (Đang phát triển) === */}
+          <Route path="/business" element={<ComingSoon />} />
           <Route path="/dashboard" element={<ComingSoon />} />
           <Route path="/job-postings" element={<ComingSoon />} />
           <Route path="/applications" element={<ComingSoon />} />
           <Route path="/skill-tests" element={<ComingSoon />} />
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE (Đang phát triển) === */}
+          <Route path="/candidate" element={<ComingSoon />} />
           <Route path="/jobs" element={<ComingSoon />} />
           <Route path="/ai-cv" element={<ComingSoon />} />
           <Route path="/practice" element={<ComingSoon />} />
           <Route path="/courses" element={<ComingSoon />} />
 
           {/* === CÁC TRANG DÙNG CHUNG (Đang phát triển) === */}
-          <Route path="/profile" element={<ComingSoon />} />
+          <Route path="/profile" element={<Home />} />
         </Route>
       </Routes>
     </Router>

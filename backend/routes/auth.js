@@ -1,6 +1,7 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
 
 const User = require("../models/User");
 const Otp = require("../models/Otp");
@@ -9,6 +10,11 @@ const router = express.Router();
 
 const sendEmail =
   require("../utils/sendEmail");
+
+// Google OAuth Client
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID
+);
 
 
 // ===== ĐĂNG KÝ =====
@@ -19,10 +25,15 @@ router.post("/register", async (req, res) => {
       email,
       password,
       role,
-      companyName,
-      companySize,
-      address
+      companyName
     } = req.body;
+
+    // Validate role
+    if (!role || !["candidate", "business"].includes(role)) {
+      return res.status(400).json({
+        message: "Role phải là 'candidate' hoặc 'business'"
+      });
+    }
 
     const existed =
       await User.findOne({
@@ -62,9 +73,8 @@ router.post("/register", async (req, res) => {
         email,
         password: hash,
         role,
-        companyName,
-        companySize,
-        address
+        companyName: role === "business" ? (companyName || "") : "",
+        status: "pending"
       }
     });
 
@@ -136,7 +146,8 @@ router.post(
       const user =
         await User.create({
           ...otpRecord.data,
-          isVerified: true
+          isVerified: true,
+          status: "active"
         });
 
       await Otp.deleteOne({
@@ -217,6 +228,25 @@ router.post(
           });
       }
 
+      // Check status
+      if (user.status === "banned") {
+        return res
+          .status(403)
+          .json({
+            message:
+              "Tài khoản của bạn đã bị khóa"
+          });
+      }
+
+      if (user.status === "pending") {
+        return res
+          .status(403)
+          .json({
+            message:
+              "Tài khoản đang chờ xác nhận. Vui lòng liên hệ admin"
+          });
+      }
+
       const token =
         jwt.sign(
           {
@@ -252,6 +282,10 @@ const auth =
   require(
     "../middleware/auth"
   );
+const authorize =
+  require(
+    "../middleware/authorize"
+  );
 
 router.get(
   "/me",
@@ -274,6 +308,203 @@ router.get(
     );
   }
 );
+
+// ===== PROTECTED ROUTES EXAMPLES =====
+
+// Chỉ admin có thể access
+router.get(
+  "/admin-only",
+  auth,
+  authorize(['admin']),
+  async (req, res) => {
+    res.json({
+      message: "Đây là trang admin"
+    });
+  }
+);
+
+// Chỉ business có thể access
+router.get(
+  "/business-only",
+  auth,
+  authorize(['business']),
+  async (req, res) => {
+    res.json({
+      message: "Đây là trang business"
+    });
+  }
+);
+
+// Chỉ candidate có thể access
+router.get(
+  "/candidate-only",
+  auth,
+  authorize(['candidate']),
+  async (req, res) => {
+    res.json({
+      message: "Đây là trang candidate"
+    });
+  }
+);
+
+// Admin và Business đều có thể access
+router.get(
+  "/employer-only",
+  auth,
+  authorize(['admin', 'business']),
+  async (req, res) => {
+    res.json({
+      message: "Đây là trang employer"
+    });
+  }
+);
+
+
+// ===== GOOGLE LOGIN =====
+router.post("/google-login", async (req, res) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        message: "Token is required"
+      });
+    }
+
+    // Get user info from Google API using access token
+    let response;
+    try {
+      response = await fetch('https://www.googleapis.com/oauth2/v1/userinfo', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+    } catch (fetchError) {
+      console.error("Fetch Google userinfo error:", fetchError);
+      return res.status(400).json({
+        message: "Failed to fetch Google user info"
+      });
+    }
+
+    if (!response.ok) {
+      console.error("Google API response not ok:", response.status);
+      return res.status(400).json({
+        message: "Invalid or expired token"
+      });
+    }
+
+    const payload = await response.json();
+    const { email, name, picture, id: googleId } = payload;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email not found in Google token"
+      });
+    }
+
+    // Kiểm tra user đã tồn tại chưa
+    let user = await User.findOne({ email });
+    let isNewUser = false;
+
+    if (!user) {
+      user = await User.create({
+        email,
+        fullName: name || "Google User",
+        role: "candidate",
+        status: "active",
+        isVerified: true,
+        googleId
+      });
+
+      isNewUser = true;
+
+      console.log("New Google user created");
+    } else {
+      // Update googleId nếu chưa có
+      if (!user.googleId) {
+        user.googleId = googleId;
+        await user.save();
+      }
+
+      // Check status
+      if (user.status === "banned") {
+        return res.status(403).json({
+          message: "Tài khoản của bạn đã bị khóa"
+        });
+      }
+
+      if (user.status === "pending") {
+        return res.status(403).json({
+          message: "Tài khoản đang chờ xác nhận. Vui lòng liên hệ admin"
+        });
+      }
+    }
+
+    // Tạo JWT Token
+    const jwtToken = jwt.sign(
+      {
+        id: user._id,
+        role: user.role
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d"
+      }
+    );
+
+    res.json({
+      message: "Google login thành công",
+      token: jwtToken,
+      isNewUser: isNewUser,
+      user: {
+        _id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(500).json({
+      message: error.message || "Google login failed",
+      error: process.env.NODE_ENV === 'development' ? error.toString() : undefined
+    });
+  }
+});
+
+
+// ===== UPDATE USER ROLE =====
+router.post("/update-role", auth, async (req, res) => {
+  try {
+    const { role } = req.body;
+    const userId = req.user.id;
+
+    // Validate role
+    if (!role || !["candidate", "business"].includes(role)) {
+      return res.status(400).json({
+        message: "Role phải là 'candidate' hoặc 'business'"
+      });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { role },
+      { new: true }
+    ).select("-password");
+
+    res.json({
+      message: "Cập nhật role thành công",
+      user
+    });
+  } catch (error) {
+    console.error("Update role error:", error);
+    res.status(500).json({
+      message: error.message || "Update role failed"
+    });
+  }
+});
 
 module.exports =
   router;

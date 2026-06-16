@@ -33,16 +33,24 @@ const Register = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      const endpoint = role === 'candidate' ? 'http://localhost:5000/api/auth/register' : 'http://localhost:5000/api/auth/register-business';
-      const body = role === 'candidate' 
-        ? { fullName: formData.fullName, email: formData.email, password: formData.password }
-        : { fullName: formData.fullName, email: formData.email, password: formData.password, companyName: formData.companyName };
+      
+      const body = {
+        fullName: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        role: role
+      };
+      
+      if (role === 'business') {
+        body.companyName = formData.companyName || '';
+      }
 
-      const registerRes = await fetch(endpoint, {
+      const registerRes = await fetch('http://localhost:5000/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+      
       const registerData = await registerRes.json();
       if (!registerRes.ok) throw new Error(registerData.message);
       
@@ -100,6 +108,10 @@ const Register = () => {
         .input-group label { font-size: 12px; font-weight: 600; color: #374151; }
         .input-group input, .input-group select { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; color: #111827; outline: none; background: #fff; transition: all 0.2s; }
         .input-group input:focus { border-color: #1d4ed8; box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.1); }
+        .role-selector { display: flex; gap: 12px; margin-top: 8px; }
+        .role-btn { flex: 1; padding: 12px 16px; border: 2px solid #d1d5db; border-radius: 6px; text-align: center; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #4b5563; background-color: #f9fafb; }
+        .role-btn:hover { border-color: #1d4ed8; color: #1d4ed8; }
+        .role-btn.active { border-color: #1d4ed8; background-color: #eff6ff; color: #1d4ed8; }
         .btn-submit { width: 100%; padding: 12px; background-color: #1d4ed8; color: #fff; font-weight: 600; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; margin-top: 10px; transition: background-color 0.2s; }
         .btn-submit:hover { background-color: #1e40af; }
         .otp-step { animation: fadeIn 0.3s ease; }
@@ -146,6 +158,32 @@ const Register = () => {
                   <label>Mật khẩu</label>
                   <input type="password" name="password" value={formData.password} onChange={handleChange} required />
                 </div>
+                
+                <div className="input-group">
+                  <label>Tôi muốn tham gia với vai trò:</label>
+                  <div className="role-selector">
+                    <div
+                      className={`role-btn ${role === 'candidate' ? 'active' : ''}`}
+                      onClick={() => setRole('candidate')}
+                    >
+                      Ứng viên
+                    </div>
+                    <div
+                      className={`role-btn ${role === 'business' ? 'active' : ''}`}
+                      onClick={() => setRole('business')}
+                    >
+                      Nhà tuyển dụng
+                    </div>
+                  </div>
+                </div>
+
+                {role === 'business' && (
+                  <div className="input-group">
+                    <label>Tên công ty</label>
+                    <input type="text" name="companyName" value={formData.companyName} onChange={handleChange} />
+                  </div>
+                )}
+
                 <button type="submit" className="btn-submit">
                   {loading ? 'Đang xử lý...' : 'Tạo tài khoản'}
                 </button>

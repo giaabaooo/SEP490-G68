@@ -4,49 +4,64 @@ const userSchema = new mongoose.Schema(
   {
     fullName: {
       type: String,
-      required: true
+      required: true,
     },
 
     email: {
       type: String,
       required: true,
       unique: true,
-      lowercase: true
+      lowercase: true,
     },
 
+    // CHỈ yêu cầu password nếu KHÔNG phải login Google
     password: {
       type: String,
-      required: true
+      required: function () {
+        return !this.googleId;
+      },
+      default: undefined,
     },
 
     role: {
       type: String,
-      enum: ["candidate", "business"],
-      default: "candidate"
+      enum: ["admin", "candidate", "business"],
+      default: "candidate",
+    },
+
+    status: {
+      type: String,
+      enum: ["active", "banned", "pending"],
+      default: "pending",
+    },
+
+    googleId: {
+      type: String,
+      default: "",
     },
 
     companyName: {
       type: String,
-      default: ""
+      default: "",
     },
 
     companySize: {
       type: String,
-      default: ""
+      default: "",
     },
 
     address: {
       type: String,
-      default: ""
+      default: "",
     },
 
     isVerified: {
       type: Boolean,
-      default: false
-    }
+      default: false,
+    },
   },
   {
-    timestamps: true
+    timestamps: true,
   }
 );
 
