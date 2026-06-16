@@ -10,6 +10,7 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import Home from './pages/Home/Home';
 import ComingSoon from './pages/ComingSoon/ComingSoon';
+import Profile from './pages/Profile/Profile';
 
 function App() {
   return (
@@ -45,7 +46,7 @@ function App() {
           <Route path="/courses" element={<ComingSoon />} />
 
           {/* === CÁC TRANG DÙNG CHUNG (Đang phát triển) === */}
-          <Route path="/profile" element={<Home />} />
+          <Route path="/profile" element={<Profile />} />
         </Route>
       </Routes>
     </Router>

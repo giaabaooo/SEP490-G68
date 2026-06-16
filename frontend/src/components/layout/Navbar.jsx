@@ -27,9 +27,8 @@ const Navbar = () => {
         </Link>
       </div>
 
-      {/* Điều chỉnh NavLink dựa trên Role của người dùng */}
       <div className="nav-center">
-        {role === 'employer' ? (
+        {role === 'business' ? (
           <>
             <NavLink to="/dashboard" className="nav-link">Dashboard</NavLink>
             <NavLink to="/job-postings" className="nav-link">Tin Tuyển Dụng</NavLink>
@@ -39,7 +38,7 @@ const Navbar = () => {
         ) : (
           <>
             <NavLink to="/jobs" className="nav-link">Việc Làm</NavLink>
-            <NavLink to="/ai-cv" className="nav-link">Hồ Sơ & AI CV</NavLink>
+            <NavLink to="/profile" className="nav-link">Hồ Sơ & AI CV</NavLink>
             <NavLink to="/practice" className="nav-link">Luyện Tập & Phỏng Vấn</NavLink>
             <NavLink to="/courses" className="nav-link">Khóa Học & Mentor</NavLink>
           </>
