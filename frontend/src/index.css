@@ -1,27 +1,22 @@
 /* src/index.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-body {
-  font-family: 'Inter', sans-serif;
-  background-color: #f8fafc;
-  color: #333;
-}
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f8fafc;
+    color: #333;
+  }
 
-/* Fix lỗi mảng đen và dồn trang của Vite */
-#root {
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-a {
-  text-decoration: none;
-  color: inherit;
+  /* Đảm bảo root chiếm toàn bộ màn hình để các layout hoạt động đúng */
+  #root {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
 }
