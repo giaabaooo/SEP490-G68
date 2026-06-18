@@ -10,7 +10,7 @@ import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import Home from './pages/Home/Home';
 import ComingSoon from './pages/ComingSoon/ComingSoon';
-
+import Onboarding from './pages/Auth/Onboarding';
 function App() {
   return (
     <Router>
@@ -21,6 +21,7 @@ function App() {
         <Route element={<PublicLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/onboarding" element={<Onboarding />} />
         </Route>
 
         {/* Nhóm các trang CÓ Navbar & Footer */}
