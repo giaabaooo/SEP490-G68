@@ -7,6 +7,7 @@ const connectDB = require("./config/db");
 
 const authRoutes =
   require("./routes/auth");
+const profileRoutes = require("./routes/profile");
 
 const app = express();
 
@@ -14,14 +15,14 @@ connectDB();
 
 app.use(
   cors({
-    origin:
-      'http://localhost:5173'
+    origin: 'http://localhost:5173'
   })
 );
 
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
 
 app.get("/", (req, res) => {
   res.send("Careerio API Running");
