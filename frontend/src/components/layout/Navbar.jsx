@@ -85,7 +85,7 @@ const Navbar = () => {
           ) : (
             <>
               <NavLink to="/jobs" className="nav-link">Việc Làm</NavLink>
-              <NavLink to="/ai-cv" className="nav-link">Hồ Sơ & AI CV</NavLink>
+              <NavLink to="/profile" className="nav-link">Hồ Sơ & AI CV</NavLink>
               <NavLink to="/practice" className="nav-link">Luyện Tập & Phỏng Vấn</NavLink>
               <NavLink to="/courses" className="nav-link">Khóa Học & Mentor</NavLink>
             </>

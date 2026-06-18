@@ -55,6 +55,58 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    phone: {
+      type: String,
+      default: "",
+    },
+
+    avatar: {
+      type: String,
+      default: "",
+    },
+
+    title: {
+      type: String,
+      default: "",
+    },
+
+    aboutMe: {
+      type: String,
+      default: "",
+    },
+
+    skills: {
+      type: [String],
+      default: [],
+    },
+
+    experience: [
+      {
+        company: { type: String, default: "" },
+        role: { type: String, default: "" },
+        startDate: { type: String, default: "" },
+        endDate: { type: String, default: "" },
+        current: { type: Boolean, default: false },
+        description: { type: String, default: "" },
+      },
+    ],
+
+    education: [
+      {
+        school: { type: String, default: "" },
+        degree: { type: String, default: "" },
+        major: { type: String, default: "" },
+        startDate: { type: String, default: "" },
+        endDate: { type: String, default: "" },
+        description: { type: String, default: "" },
+      },
+    ],
+
+    cvUrl: {
+      type: String,
+      default: "",
+    },
+
     isVerified: {
       type: Boolean,
       default: false,
