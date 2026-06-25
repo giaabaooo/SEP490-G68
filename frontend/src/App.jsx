@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 // Import Layouts
 import PublicLayout from './components/layout/PublicLayout';
 import MainLayout from './components/layout/MainLayout';
+import HRLayout from './components/layout/HRLayout';
 
 // Import Pages
 import Login from './pages/Auth/Login';
@@ -40,10 +41,6 @@ function App() {
           {/* === CÁC TRANG DÀNH CHO EMPLOYER/BUSINESS (Đã cập nhật) === */}
           <Route path="/business" element={<ComingSoon />} />
           
-          {/* Gắn trực tiếp trang HR Dashboard và Post Job vào đây */}
-          <Route path="/hr/dashboard" element={<HRDashboard />} />
-          <Route path="/hr/post-job" element={<PostJob />} />
-          
           <Route path="/job-postings" element={<ComingSoon />} />
           <Route path="/applications" element={<ComingSoon />} />
           <Route path="/skill-tests" element={<ComingSoon />} />
@@ -57,6 +54,12 @@ function App() {
 
           {/* === CÁC TRANG DÙNG CHUNG === */}
           <Route path="/profile" element={<Profile />} />
+        </Route>
+
+        {/* Nhóm các trang HR với Navbar riêng */}
+        <Route element={<HRLayout />}>
+          <Route path="/hr/dashboard" element={<HRDashboard />} />
+          <Route path="/hr/post-job" element={<PostJob />} />
         </Route>
       </Routes>
     </Router>
