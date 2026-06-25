@@ -13,6 +13,10 @@ import ComingSoon from './pages/ComingSoon/ComingSoon';
 import Onboarding from './pages/Auth/Onboarding';
 import Profile from './pages/Profile/Profile';
 
+// === IMPORT TRANG HR ===
+import HRDashboard from './pages/HR/HRDashboard';
+import PostJob from './pages/HR/PostJob';
+
 function App() {
   return (
     <Router>
@@ -30,24 +34,28 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
           
-          {/* === CÁC TRANG DÀNH CHO ADMIN (Đang phát triển) === */}
+          {/* === CÁC TRANG DÀNH CHO ADMIN === */}
           <Route path="/admin" element={<ComingSoon />} />
           
-          {/* === CÁC TRANG DÀNH CHO EMPLOYER/BUSINESS (Đang phát triển) === */}
+          {/* === CÁC TRANG DÀNH CHO EMPLOYER/BUSINESS (Đã cập nhật) === */}
           <Route path="/business" element={<ComingSoon />} />
-          <Route path="/dashboard" element={<ComingSoon />} />
+          
+          {/* Gắn trực tiếp trang HR Dashboard và Post Job vào đây */}
+          <Route path="/hr/dashboard" element={<HRDashboard />} />
+          <Route path="/hr/post-job" element={<PostJob />} />
+          
           <Route path="/job-postings" element={<ComingSoon />} />
           <Route path="/applications" element={<ComingSoon />} />
           <Route path="/skill-tests" element={<ComingSoon />} />
 
-          {/* === CÁC TRANG DÀNH CHO CANDIDATE (Đang phát triển) === */}
+          {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/candidate" element={<ComingSoon />} />
           <Route path="/jobs" element={<ComingSoon />} />
           <Route path="/ai-cv" element={<ComingSoon />} />
           <Route path="/practice" element={<ComingSoon />} />
           <Route path="/courses" element={<ComingSoon />} />
 
-          {/* === CÁC TRANG DÙNG CHUNG (Đang phát triển) === */}
+          {/* === CÁC TRANG DÙNG CHUNG === */}
           <Route path="/profile" element={<Profile />} />
         </Route>
       </Routes>
