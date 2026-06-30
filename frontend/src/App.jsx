@@ -13,6 +13,7 @@ import Home from './pages/Home/Home';
 import ComingSoon from './pages/ComingSoon/ComingSoon';
 import Onboarding from './pages/Auth/Onboarding';
 import Profile from './pages/Profile/Profile';
+import HRProfile from './pages/HR/HRProfile';
 
 // === IMPORT TRANG HR ===
 import HRDashboard from './pages/HR/HRDashboard';
@@ -45,6 +46,7 @@ function App() {
           <Route path="/job-postings" element={<PostJob />} />
           <Route path="/applications" element={<ComingSoon />} />
           <Route path="/skill-tests" element={<ComingSoon />} />
+          <Route path="/hr-profile" element={<HRProfile />} />
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/candidate" element={<ComingSoon />} />
