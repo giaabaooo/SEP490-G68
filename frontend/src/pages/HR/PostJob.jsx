@@ -17,7 +17,7 @@ const PostJob = () => {
     e.preventDefault();
     toast.success('Đăng tin tuyển dụng thành công!');
     setTimeout(() => {
-      navigate('/hr/dashboard');
+      navigate('/dashboard');
     }, 1500);
   };
 
@@ -26,7 +26,7 @@ const PostJob = () => {
       <div className="max-w-4xl mx-auto">
         
         <button 
-          onClick={() => navigate('/hr/dashboard')}
+          onClick={() => navigate('/dashboard')}
           className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 transition-colors group bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit"
         >
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> 
@@ -89,7 +89,7 @@ const PostJob = () => {
             </div>
 
             <div className="flex justify-end pt-6 border-t border-slate-100">
-              <button type="button" onClick={() => navigate('/hr/dashboard')} className="px-8 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-4">
+              <button type="button" onClick={() => navigate('/dashboard')} className="px-8 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-4">
                 Hủy
               </button>
               <button type="submit" className="px-8 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5">

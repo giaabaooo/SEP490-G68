@@ -40,8 +40,9 @@ function App() {
           
           {/* === CÁC TRANG DÀNH CHO EMPLOYER/BUSINESS (Đã cập nhật) === */}
           <Route path="/business" element={<ComingSoon />} />
+          <Route path="/dashboard" element={<HRDashboard />} />
           
-          <Route path="/job-postings" element={<ComingSoon />} />
+          <Route path="/job-postings" element={<PostJob />} />
           <Route path="/applications" element={<ComingSoon />} />
           <Route path="/skill-tests" element={<ComingSoon />} />
 
@@ -57,10 +58,10 @@ function App() {
         </Route>
 
         {/* Nhóm các trang HR với Navbar riêng */}
-        <Route element={<HRLayout />}>
+        {/* <Route element={<HRLayout />}>
           <Route path="/hr/dashboard" element={<HRDashboard />} />
           <Route path="/hr/post-job" element={<PostJob />} />
-        </Route>
+        </Route> */}
       </Routes>
     </Router>
   );
