@@ -1,17 +1,20 @@
 require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
 
 const connectDB = require("./config/db");
+// Import hàm seedAdmin (Điều chỉnh đường dẫn theo cấu trúc thư mục của bạn)
+const seedAdmin = require("./scripts/seedAdmin"); 
 
-const authRoutes =
-  require("./routes/auth");
+const authRoutes = require("./routes/auth");
 const profileRoutes = require("./routes/profile");
 
 const app = express();
 
-connectDB();
+// Kết nối DB, sau đó chạy Seed Admin
+connectDB().then(() => {
+  seedAdmin();
+});
 
 app.use(
   cors({
