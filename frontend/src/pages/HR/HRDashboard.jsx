@@ -17,7 +17,7 @@ const HRDashboard = () => {
         </div>
         
         <button 
-          onClick={() => navigate('/hr/post-job')} 
+          onClick={() => navigate('/job-postings')} 
           className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold shadow-md shadow-blue-500/20 flex items-center transition-all hover:scale-[1.02] shrink-0"
         >
           <PlusCircle className="w-5 h-5 mr-2" />
