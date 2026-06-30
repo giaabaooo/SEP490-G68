@@ -38,7 +38,15 @@ const Login = () => {
       localStorage.setItem('user', JSON.stringify(data.user));
       
       toast.success('Đăng nhập thành công!');
-      setTimeout(() => navigate('/home', { replace: true }), 800);
+      
+      // Phân quyền chuyển hướng
+      setTimeout(() => {
+        if (data.user.role === 'admin') {
+          navigate('/admin-dashboard', { replace: true }); // Thay '/admin-dashboard' bằng route thực tế của bạn
+        } else {
+          navigate('/home', { replace: true });
+        }
+      }, 800);
     } catch (error) {
       toast.error('Lỗi kết nối. Vui lòng thử lại');
     } finally {
