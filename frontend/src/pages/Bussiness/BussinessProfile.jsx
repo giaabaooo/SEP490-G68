@@ -1,33 +1,71 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 
 const HRProfile = () => {
-  // Trạng thái chuyển đổi giữa Chế độ Xem (View) và Chế độ Sửa (Edit)
-  const [isEditing, setIsEditing] = useState(false);
+  const token = localStorage.getItem('token');
 
-  // profileData: Dữ liệu chuẩn đã được lưu (Đóng vai trò như dữ liệu fetch từ DB)
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+
   const [profileData, setProfileData] = useState({
-    email: 'hr.demo@careerio.com', 
-    companyName: 'Công ty Cổ phần Công nghệ Careerio',
-    website: 'https://careerio.com',
-    address: 'Tòa nhà FPT, Khu Công nghệ cao Hòa Lạc, Thạch Thất, Hà Nội'
+    email: '',
+    companyName: '',
+    website: '',
+    address: ''
   });
 
-  // formData: Dữ liệu tạm thời khi người dùng đang gõ vào form
   const [formData, setFormData] = useState({ ...profileData });
 
-  // Xử lý khi bắt đầu ấn "Chỉnh sửa"
+  useEffect(() => {
+    if (!token) {
+      toast.error('Vui lòng đăng nhập để xem hồ sơ doanh nghiệp.');
+      setLoading(false);
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:5000/api/profile', {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Không thể tải hồ sơ doanh nghiệp');
+        }
+
+        const data = await response.json();
+        const nextProfile = {
+          email: data.email || '',
+          companyName: data.companyName || '',
+          website: data.website || '',
+          address: data.address || ''
+        };
+
+        setProfileData(nextProfile);
+        setFormData(nextProfile);
+      } catch (error) {
+        console.error(error);
+        toast.error(error.message || 'Có lỗi xảy ra khi tải hồ sơ doanh nghiệp.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [token]);
+
   const handleEditClick = () => {
-    setFormData({ ...profileData }); // Reset lại form đúng với dữ liệu hiện tại
+    setFormData({ ...profileData });
     setIsEditing(true);
   };
 
-  // Xử lý khi ấn "Hủy"
   const handleCancel = () => {
     setIsEditing(false);
   };
 
-  // Cập nhật state khi gõ input
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -36,21 +74,48 @@ const HRProfile = () => {
     }));
   };
 
-  // Xử lý khi ấn "Lưu thay đổi"
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.companyName.trim() || !formData.address.trim()) {
-      toast.error('Vui lòng nhập đầy đủ Tên công ty và Địa chỉ!');
+    if (!formData.companyName.trim()) {
+      toast.error('Vui lòng nhập Tên công ty!');
       return;
     }
 
-    // Tương lai: Gọi API cập nhật dữ liệu vào database tại đây
-    // await api.updateRecruiterProfile(formData);
+    try {
+      const response = await fetch('http://localhost:5000/api/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          companyName: formData.companyName.trim(),
+          website: formData.website.trim(),
+          address: formData.address.trim()
+        })
+      });
 
-    setProfileData({ ...formData }); // Cập nhật lại giao diện xem
-    setIsEditing(false); // Đóng form
-    toast.success('Cập nhật hồ sơ Nhà tuyển dụng thành công!');
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Cập nhật hồ sơ thất bại');
+      }
+
+      const nextProfile = {
+        email: data.user?.email || profileData.email,
+        companyName: data.user?.companyName || '',
+        website: data.user?.website || '',
+        address: data.user?.address || ''
+      };
+
+      setProfileData(nextProfile);
+      setFormData(nextProfile);
+      setIsEditing(false);
+      toast.success('Cập nhật hồ sơ Nhà tuyển dụng thành công!');
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'Có lỗi xảy ra khi lưu hồ sơ doanh nghiệp.');
+    }
   };
 
   return (
@@ -195,15 +260,18 @@ const HRProfile = () => {
           <h2>Hồ sơ Nhà tuyển dụng</h2>
           <p>Quản lý thông tin doanh nghiệp của bạn trên hệ thống.</p>
         </div>
-        {!isEditing && (
+        {!isEditing && !loading && (
           <button className="btn btn-primary" onClick={handleEditClick}>
             Chỉnh sửa hồ sơ
           </button>
         )}
       </div>
 
-      {/* RENDER DỰA TRÊN TRẠNG THÁI ISEDITING */}
-      {!isEditing ? (
+      {loading ? (
+        <div style={{ textAlign: 'center', color: '#64748b', padding: '24px 0' }}>
+          Đang tải hồ sơ...
+        </div>
+      ) : !isEditing ? (
         /* ================= CHẾ ĐỘ XEM (VIEW MODE) ================= */
         <div className="info-grid">
           <div className="info-item">
