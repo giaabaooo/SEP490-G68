@@ -77,7 +77,15 @@ const Register = () => {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       toast.success('Đăng ký thành công!');
-      setTimeout(() => navigate('/home'), 1500);
+      
+      // ĐÃ SỬA: Điều hướng dựa trên role vừa đăng ký
+      setTimeout(() => {
+        if (data.user.role === 'business') {
+          navigate('/business/dashboard', { replace: true });
+        } else {
+          navigate('/home', { replace: true });
+        }
+      }, 1500);
     } catch (err) {
       toast.error(err.message || 'OTP không hợp lệ');
     } finally {
