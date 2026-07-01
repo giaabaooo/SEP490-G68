@@ -1,11 +1,10 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 
 // Import Layouts
 import PublicLayout from './components/layout/PublicLayout';
 import MainLayout from './components/layout/MainLayout';
-// ĐỔI TÊN Ở ĐÂY: từ HRLayout thành BusinessLayout
 import BusinessLayout from './components/layout/BusinessLayout';
 
 // Import Pages
@@ -16,10 +15,10 @@ import ComingSoon from './pages/ComingSoon/ComingSoon';
 import Onboarding from './pages/Auth/Onboarding';
 import Profile from './pages/Profile/Profile';
 
-// === IMPORT TRANG BUSINESS (Đã đổi từ HR) ===
-import BusinessDashboard from './pages/Business/BusinessDashboard';
-import PostJob from './pages/Business/PostJob';
-
+// === IMPORT TRANG BUSINESS ===
+import BusinessDashboard from './pages/Bussiness/BusinessDashboard';
+import PostJob from './pages/Bussiness/PostJob';
+import BussinessProfile from './pages/Bussiness/BussinessProfile';
 function App() {
   return (
     <Router>
@@ -33,17 +32,13 @@ function App() {
           <Route path="/onboarding" element={<Onboarding />} />
         </Route>
 
-        {/* Nhóm các trang CÓ Navbar & Footer */}
+        {/* Nhóm các trang CÓ Navbar & Footer (Candidate & Chung) */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
           
           {/* === CÁC TRANG DÀNH CHO ADMIN === */}
           <Route path="/admin" element={<ComingSoon />} />
           
-          <Route path="/job-postings" element={<ComingSoon />} />
-          <Route path="/applications" element={<ComingSoon />} />
-          <Route path="/skill-tests" element={<ComingSoon />} />
-
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/candidate" element={<ComingSoon />} />
           <Route path="/jobs" element={<ComingSoon />} />
@@ -55,10 +50,19 @@ function App() {
           <Route path="/profile" element={<Profile />} />
         </Route>
 
-        {/* Nhóm các trang BUSINESS với Navbar riêng (Thay thế HR) */}
+        {/* Nhóm các trang BUSINESS với Navbar riêng */}
         <Route element={<BusinessLayout />}>
-          <Route path="/business/dashboard" element={<BusinessDashboard />} />
-          <Route path="/business/post-job" element={<PostJob />} />
+          <Route path="/bussiness/dashboard" element={<BusinessDashboard />} />
+          <Route path="/bussiness/post-job" element={<PostJob />} />
+          
+          
+          <Route path="/bussiness/profile" element={<BussinessProfile />} />
+
+          {/* Các tính năng chưa code sẽ hiển thị ComingSoon */}
+          <Route path="/bussiness/job-postings" element={<ComingSoon />} />
+          <Route path="/bussiness/applications" element={<ComingSoon />} />
+          <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
+          <Route path="/bussiness/settings" element={<ComingSoon />} />
         </Route>
       </Routes>
     </Router>

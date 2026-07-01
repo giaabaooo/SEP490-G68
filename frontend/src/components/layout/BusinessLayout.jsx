@@ -28,10 +28,10 @@ const BusinessLayout = () => {
   };
 
   const navItems = [
-    { label: 'Dashboard', path: '/business/dashboard', icon: LayoutDashboard },
-    { label: 'Tạo Tin Tuyển Dụng', path: '/business/post-job', icon: FileText },
-    { label: 'Ngân hàng CV', path: '/business/applications', icon: Users },
-    { label: 'AI Screening', path: '/business/skill-tests', icon: Wand2 },
+    { label: 'Dashboard', path: '/bussiness/dashboard', icon: LayoutDashboard },
+    { label: 'Tạo Tin Tuyển Dụng', path: '/bussiness/post-job', icon: FileText },
+    { label: 'Ngân hàng CV', path: '/bussiness/applications', icon: Users },
+    { label: 'AI Screening', path: '/bussiness/skill-tests', icon: Wand2 },
   ];
 
   return (
@@ -88,11 +88,11 @@ const BusinessLayout = () => {
               </div>
               
               <div className="p-2">
-                <Link to="/business/profile" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors">
+                <Link to="/bussiness/profile" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors">
                   <User className="w-4 h-4" />
                   Hồ sơ doanh nghiệp
                 </Link>
-                <Link to="/business/settings" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors">
+                <Link to="/bussiness/settings" className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:text-blue-600 rounded-lg transition-colors">
                   <Briefcase className="w-4 h-4" />
                   Cài đặt tài khoản
                 </Link>

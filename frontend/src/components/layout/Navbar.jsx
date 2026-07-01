@@ -78,7 +78,7 @@ const Navbar = () => {
           {role === 'business' ? (
             <>
               <NavLink to="/dashboard" className="nav-link">Dashboard</NavLink>
-              <NavLink to="/job-postings" className="nav-link">Tin Tuyển Dụng</NavLink>
+              <NavLink to="/job-postings" className="nav-link">Quản Lý Tuyển Dụng</NavLink>
               <NavLink to="/applications" className="nav-link">Quản Lý Ứng Viên</NavLink>
               <NavLink to="/skill-tests" className="nav-link">Kho Bài Test</NavLink>
             </>

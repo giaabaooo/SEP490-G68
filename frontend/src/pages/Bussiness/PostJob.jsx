@@ -17,7 +17,7 @@ const PostJob = () => {
     e.preventDefault();
     toast.success('Đăng tin tuyển dụng thành công!');
     setTimeout(() => {
-      // ĐÃ SỬA ĐƯỜNG DẪN
+      // Đã chuẩn hóa về Dashboard của Business
       navigate('/business/dashboard');
     }, 1500);
   };
@@ -90,7 +90,7 @@ const PostJob = () => {
             </div>
 
             <div className="flex justify-end pt-6 border-t border-slate-100">
-              <button type="button" onClick={() => navigate('/hr/dashboard')} className="px-8 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-4">
+              <button type="button" onClick={() => navigate('/business/dashboard')} className="px-8 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-4">
                 Hủy
               </button>
               <button type="submit" className="px-8 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5">
