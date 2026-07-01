@@ -45,6 +45,11 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    website: {
+      type: String,
+      default: "",
+    },
+
     companySize: {
       type: String,
       default: "",
