@@ -478,30 +478,40 @@ router.post("/google-login", async (req, res) => {
 // ===== UPDATE USER ROLE =====
 router.post("/update-role", auth, async (req, res) => {
   try {
-    const { role } = req.body;
+    const { role, phone, companyName } = req.body;
     const userId = req.user.id;
 
-    // Validate role
+    // Validate role theo đúng logic hệ thống
     if (!role || !["candidate", "business"].includes(role)) {
       return res.status(400).json({
         message: "Role phải là 'candidate' hoặc 'business'"
       });
     }
 
+    // Build dữ liệu cập nhật
+    const updateData = { role };
+    
+    if (phone) updateData.phone = phone;
+    
+    // Chỉ lưu tên doanh nghiệp nếu role là business
+    if (role === "business" && companyName) {
+      updateData.companyName = companyName;
+    }
+
     const user = await User.findByIdAndUpdate(
       userId,
-      { role },
-      { new: true }
+      { $set: updateData },
+      { new: true, runValidators: true }
     ).select("-password");
 
     res.json({
-      message: "Cập nhật role thành công",
+      message: "Hoàn tất hồ sơ thành công",
       user
     });
   } catch (error) {
-    console.error("Update role error:", error);
+    console.error("Update onboarding error:", error);
     res.status(500).json({
-      message: error.message || "Update role failed"
+      message: error.message || "Update failed"
     });
   }
 });

@@ -12,8 +12,18 @@ const Login = () => {
 
   // Ngăn user đã login quay lại trang này
   useEffect(() => {
-    if (localStorage.getItem('token')) {
-      navigate('/home', { replace: true });
+    const userStr = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    
+    if (token && userStr) {
+       try {
+         const user = JSON.parse(userStr);
+         if (user.role === 'admin') navigate('/admin', { replace: true });
+         else if (user.role === 'business') navigate('/business/dashboard', { replace: true });
+         else navigate('/home', { replace: true });
+       } catch (e) {
+         navigate('/home', { replace: true });
+       }
     }
   }, [navigate]);
 
@@ -39,12 +49,14 @@ const Login = () => {
       
       toast.success('Đăng nhập thành công!');
       
-      // Phân quyền chuyển hướng
+      // ĐÃ SỬA: Phân quyền chuyển hướng
       setTimeout(() => {
         if (data.user.role === 'admin') {
-          navigate('/admin-dashboard', { replace: true }); // Thay '/admin-dashboard' bằng route thực tế của bạn
+          navigate('/admin', { replace: true }); // Chuyển về trang Admin
+        } else if (data.user.role === 'business') {
+          navigate('/business/dashboard', { replace: true }); // Chuyển về Dashboard cho HR/Doanh nghiệp
         } else {
-          navigate('/home', { replace: true });
+          navigate('/home', { replace: true }); // Candidate về Home
         }
       }, 800);
     } catch (error) {
@@ -79,7 +91,17 @@ const Login = () => {
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
           toast.success('Đăng nhập thành công!');
-          setTimeout(() => navigate('/home', { replace: true }), 800);
+          
+          // ĐÃ SỬA TẠI ĐÂY: Áp dụng luồng phân quyền tương tự như hàm handleLogin
+          setTimeout(() => {
+            if (data.user.role === 'admin') {
+              navigate('/admin', { replace: true });
+            } else if (data.user.role === 'business') {
+              navigate('/business/dashboard', { replace: true });
+            } else {
+              navigate('/home', { replace: true });
+            }
+          }, 800);
         }
       } catch (error) {
         toast.error('Lỗi kết nối. Vui lòng thử lại');
