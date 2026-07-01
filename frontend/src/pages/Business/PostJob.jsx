@@ -17,7 +17,8 @@ const PostJob = () => {
     e.preventDefault();
     toast.success('Đăng tin tuyển dụng thành công!');
     setTimeout(() => {
-      navigate('/hr/dashboard');
+      // ĐÃ SỬA ĐƯỜNG DẪN
+      navigate('/business/dashboard');
     }, 1500);
   };
 
@@ -26,7 +27,7 @@ const PostJob = () => {
       <div className="max-w-4xl mx-auto">
         
         <button 
-          onClick={() => navigate('/hr/dashboard')}
+          onClick={() => navigate('/business/dashboard')}
           className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 transition-colors group bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit"
         >
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> 

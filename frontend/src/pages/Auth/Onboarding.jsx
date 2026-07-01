@@ -19,45 +19,61 @@ const Onboarding = () => {
     }
   }, [navigate]);
 
-  const handleSubmit = async (e) => {
+ const handleSubmitOnboarding = async (e) => {
     e.preventDefault();
-    if (!formData.phone || formData.phone.length < 10) {
-      toast.error('Vui lòng nhập số điện thoại hợp lệ');
-      return;
-    }
-    if (formData.role === 'business' && !formData.companyName) {
-      toast.error('Vui lòng nhập tên công ty');
+    setLoading(true); // Nhớ set loading khi bắt đầu gọi API
+    
+    // Lấy token tạm thời lưu từ bước Google Login
+    const token = sessionStorage.getItem('tempToken');
+    
+    if (!token) {
+      toast.error('Không tìm thấy phiên đăng nhập. Vui lòng thử lại.');
+      setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
-      const token = sessionStorage.getItem('tempToken');
-      
-      const response = await fetch('http://localhost:5000/api/auth/complete-onboarding', {
+      const response = await fetch('http://localhost:5000/api/auth/update-role', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}` 
         },
-        body: JSON.stringify(formData),
+        // ĐÃ SỬA LỖI Ở ĐÂY: Truyền dữ liệu động từ state formData
+        body: JSON.stringify({
+          role: formData.role, 
+          phone: formData.phone,
+          // Chỉ gửi companyName nếu user chọn role là business
+          companyName: formData.role === 'business' ? formData.companyName : "" 
+        })
       });
 
       const data = await response.json();
 
-      if (!response.ok) throw new Error(data.message);
+      if (!response.ok) {
+        toast.error(data.message || 'Cập nhật thất bại');
+        return;
+      }
 
-      // Chuyển token từ session sang local
+      // Thành công: Chuyển token
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(data.user));
-      sessionStorage.removeItem('isNewGoogleUser');
       sessionStorage.removeItem('tempToken');
+      sessionStorage.removeItem('isNewGoogleUser');
 
-      toast.success('Hoàn tất hồ sơ thành công!');
-      setTimeout(() => navigate('/home'), 1000);
+      toast.success('Hồ sơ đã hoàn tất!');
+      
+      // ĐÃ SỬA ĐƯỜNG DẪN Ở ĐÂY: Điều hướng dựa trên role về đúng nhánh Business
+      setTimeout(() => {
+         if (data.user.role === 'business') {
+            navigate('/business/dashboard', { replace: true }); 
+         } else {
+            navigate('/home', { replace: true });
+         }
+      }, 800);
 
     } catch (error) {
-      toast.error(error.message || 'Có lỗi xảy ra');
+      toast.error('Lỗi kết nối Server');
     } finally {
       setLoading(false);
     }
@@ -86,7 +102,7 @@ const Onboarding = () => {
           <h1 className="onboard-title">Hoàn tất hồ sơ</h1>
           <p className="onboard-desc">Vì đây là lần đầu bạn đăng nhập bằng Google, vui lòng bổ sung thông tin sau để tiếp tục.</p>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmitOnboarding}>
             <div className="input-group">
               <label>Vai trò của bạn</label>
               <div className="role-selector">
