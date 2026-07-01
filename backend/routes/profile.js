@@ -33,7 +33,10 @@ router.put("/", auth, async (req, res) => {
       skills,
       experience,
       education,
-      cvUrl
+      cvUrl,
+      companyName,
+      website,
+      email
     } = req.body;
 
     // Build update object
@@ -48,6 +51,11 @@ router.put("/", auth, async (req, res) => {
     if (experience !== undefined) updateData.experience = experience;
     if (education !== undefined) updateData.education = education;
     if (cvUrl !== undefined) updateData.cvUrl = cvUrl;
+    if (companyName !== undefined) updateData.companyName = companyName;
+    if (website !== undefined) updateData.website = website;
+
+    // Email is immutable on this profile update route
+    void email;
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
