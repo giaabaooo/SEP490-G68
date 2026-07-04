@@ -1,103 +1,74 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify'; 
+import { PlusCircle, MoreVertical } from 'lucide-react';
 
 const PostJob = () => {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
-    title: '', salary: '', deadline: '', description: '', requirements: ''
-  });
 
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    toast.success('Đăng tin tuyển dụng thành công!');
-    setTimeout(() => {
-      // Đã chuẩn hóa về Dashboard của Business
-      navigate('/business/dashboard');
-    }, 1500);
-  };
+  // Dữ liệu mock (sau này sẽ fetch từ database bảng Jobs)
+  const jobs = [
+    { id: 1, title: 'Senior React Developer', salary: '20,000,000 - 30,000,000', deadline: '2026-08-15', status: 'Active' },
+    { id: 2, title: 'Node.js Backend Lead', salary: '30,000,000 - 45,000,000', deadline: '2026-08-20', status: 'Active' },
+    { id: 3, title: 'UI/UX Designer', salary: '15,000,000 - 25,000,000', deadline: '2026-09-01', status: 'Draft' },
+  ];
 
   return (
     <div className="animate-fade-in pb-12">
-      <div className="max-w-4xl mx-auto">
+      {/* Header & Nút Tạo Job Mới */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight">
+            Danh sách <span className="text-blue-600">Công việc</span>
+          </h1>
+          <p className="text-slate-500 text-base">Quản lý các chiến dịch tuyển dụng của bạn</p>
+        </div>
         
+        {/* NÚT TẠO JOB MỚI ĐƯỢC CHUYỂN SANG ĐÂY */}
         <button 
-          onClick={() => navigate('/business/dashboard')}
-          className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 transition-colors group bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit"
+          onClick={() => navigate('/bussiness/create')} 
+          className="bg-slate-900 hover:bg-blue-600 text-white px-7 py-3.5 rounded-2xl font-bold shadow-xl shadow-slate-900/10 flex items-center transition-all hover:-translate-y-1 active:translate-y-0 shrink-0"
         >
-          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> 
-          Quay lại Dashboard
+          <PlusCircle className="w-5 h-5 mr-2" />
+          Tạo Job Mới
         </button>
+      </div>
 
-        <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-200">
-          <div className="mb-8 border-b border-slate-100 pb-6">
-            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 mb-3 tracking-tight">Tạo tin tuyển dụng mới</h1>
-            <p className="text-sm md:text-base font-medium text-slate-500 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-indigo-500" />
-              Hệ thống AI sẽ dùng dữ liệu này để tự động chấm điểm CV ứng viên.
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-8">
-            <div>
-              <label className="block text-sm font-bold text-slate-800 mb-2.5">Tiêu đề công việc <span className="text-red-500">*</span></label>
-              <input 
-                type="text" name="title" value={formData.title} onChange={handleChange} required
-                placeholder="VD: Senior React Developer"
-                className="w-full px-5 py-3.5 rounded-2xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm font-medium placeholder:font-normal placeholder:text-slate-400"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <label className="block text-sm font-bold text-slate-800 mb-2.5">Mức lương (VND)</label>
-                <input 
-                  type="text" name="salary" value={formData.salary} onChange={handleChange}
-                  placeholder="VD: 20,000,000 - 30,000,000"
-                  className="w-full px-5 py-3.5 rounded-2xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm font-medium placeholder:font-normal placeholder:text-slate-400"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-800 mb-2.5">Hạn chót <span className="text-red-500">*</span></label>
-                <input 
-                  type="date" name="deadline" value={formData.deadline} onChange={handleChange} required
-                  className="w-full px-5 py-3.5 rounded-2xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm font-medium text-slate-700"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-800 mb-2.5">Mô tả công việc <span className="text-red-500">*</span></label>
-              <textarea 
-                rows="5" name="description" value={formData.description} onChange={handleChange} required
-                placeholder="Mô tả chi tiết về công việc..."
-                className="w-full px-5 py-3.5 rounded-2xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm font-medium resize-none placeholder:font-normal placeholder:text-slate-400"
-              ></textarea>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-slate-800 mb-2.5">Yêu cầu ứng viên <span className="text-red-500">*</span></label>
-              <textarea 
-                rows="5" name="requirements" value={formData.requirements} onChange={handleChange} required
-                placeholder="Kỹ năng, kinh nghiệm, bằng cấp yêu cầu..."
-                className="w-full px-5 py-3.5 rounded-2xl border-2 border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all text-sm font-medium resize-none placeholder:font-normal placeholder:text-slate-400"
-              ></textarea>
-            </div>
-
-            <div className="flex justify-end pt-6 border-t border-slate-100">
-              <button type="button" onClick={() => navigate('/business/dashboard')} className="px-8 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-4">
-                Hủy
-              </button>
-              <button type="submit" className="px-8 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5">
-                Đăng tin ngay
-              </button>
-            </div>
-          </form>
+      {/* Bảng danh sách công việc */}
+      <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto p-2">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="text-[11px] uppercase tracking-[2px] text-slate-400 font-black border-b border-slate-100 bg-slate-50/50">
+                <th className="p-5">Vị trí tuyển dụng</th>
+                <th className="p-5">Mức lương</th>
+                <th className="p-5">Hạn chót</th>
+                <th className="p-5">Trạng thái</th>
+                <th className="p-5 text-center">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {jobs.map((job) => (
+                <tr key={job.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80 transition-colors">
+                  <td className="p-5 font-bold text-slate-800">{job.title}</td>
+                  <td className="p-5 font-medium text-slate-500">{job.salary} VND</td>
+                  <td className="p-5 font-medium text-slate-500">{new Date(job.deadline).toLocaleDateString('vi-VN')}</td>
+                  <td className="p-5">
+                    <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${
+                      job.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                    }`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-2 ${job.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                      {job.status === 'Active' ? 'Hoạt động' : 'Bản nháp'}
+                    </span>
+                  </td>
+                  <td className="p-5 text-center">
+                    <button className="p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-400 hover:text-slate-700">
+                      <MoreVertical className="w-5 h-5" />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
