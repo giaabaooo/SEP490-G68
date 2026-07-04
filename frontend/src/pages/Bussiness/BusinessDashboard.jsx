@@ -19,14 +19,6 @@ const BusinessDashboard = () => {
             <TrendingUp className="w-5 h-5 text-emerald-500" />
           </p>
         </div>
-        
-        <button 
-          onClick={() => navigate('/business/post-job')} 
-          className="bg-slate-900 hover:bg-blue-600 text-white px-7 py-3.5 rounded-2xl font-bold shadow-xl shadow-slate-900/10 flex items-center transition-all hover:-translate-y-1 active:translate-y-0 shrink-0"
-        >
-          <PlusCircle className="w-5 h-5 mr-2" />
-          Tạo Job Mới
-        </button>
       </div>
 
       {/* 4 Stats Cards */}

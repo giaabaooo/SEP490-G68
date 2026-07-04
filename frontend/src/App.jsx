@@ -17,8 +17,12 @@ import Profile from './pages/Profile/Profile';
 
 // === IMPORT TRANG BUSINESS ===
 import BusinessDashboard from './pages/Bussiness/BusinessDashboard';
-import PostJob from './pages/Bussiness/PostJob';
 import BussinessProfile from './pages/Bussiness/BussinessProfile';
+
+//  THAY ĐỔI 1: Cập nhật lại Import cho đúng tên file mới
+import PostJob from './pages/Bussiness/PostJob'; // Trang danh sách công việc
+import Create from './pages/Bussiness/Create';   // Trang form điền tạo công việc mới
+
 function App() {
   return (
     <Router>
@@ -53,8 +57,10 @@ function App() {
         {/* Nhóm các trang BUSINESS với Navbar riêng */}
         <Route element={<BusinessLayout />}>
           <Route path="/bussiness/dashboard" element={<BusinessDashboard />} />
-          <Route path="/bussiness/post-job" element={<PostJob />} />
           
+          {/*  THAY ĐỔI 2: Chỉnh sửa lại Route theo cấu trúc tên mới */}
+          <Route path="/bussiness/post-job" element={<PostJob />} />
+          <Route path="/bussiness/create" element={<Create />} />
           
           <Route path="/bussiness/profile" element={<BussinessProfile />} />
 
