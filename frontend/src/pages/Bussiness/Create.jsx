@@ -13,13 +13,40 @@ const Create = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    toast.success('Đăng tin tuyển dụng thành công!');
-    setTimeout(() => {
-      // Đã chuẩn hóa về Dashboard của Business
-      navigate('/bussiness/post-job');
-    }, 1500);
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Vui lòng đăng nhập trước');
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const res = await fetch('http://localhost:5000/api/jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          requirements: formData.requirements,
+          salary: formData.salary,
+          deadline: formData.deadline,
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Tạo công việc thất bại');
+
+      toast.success('Đăng tin tuyển dụng thành công!');
+      setTimeout(() => navigate('/bussiness/post-job'), 1000);
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -90,7 +117,7 @@ const Create = () => {
             </div>
 
             <div className="flex justify-end pt-6 border-t border-slate-100">
-              <button type="button" onClick={() => navigate('/business/dashboard')} className="px-8 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-4">
+              <button type="button" onClick={() => navigate('/bussiness/post-job')} className="px-8 py-3.5 rounded-2xl text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors mr-4">
                 Hủy
               </button>
               <button type="submit" className="px-8 py-3.5 rounded-2xl text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-500/30 transition-all hover:-translate-y-0.5">

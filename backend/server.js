@@ -8,6 +8,7 @@ const seedAdmin = require("./scripts/seedAdmin");
 
 const authRoutes = require("./routes/auth");
 const profileRoutes = require("./routes/profile");
+const jobRoutes = require("./routes/jobs");
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use(express.json());
 
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/jobs", jobRoutes);
 
 app.get("/", (req, res) => {
   res.send("Careerio API Running");
