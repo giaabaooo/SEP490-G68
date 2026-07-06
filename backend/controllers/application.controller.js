@@ -15,8 +15,27 @@ exports.list = async (req, res) => {
       sort = '-appliedAt',
     } = req.query;
 
+    const user = req.user || {};
+
     const q = {};
-    if (jobId) q.jobId = jobId;
+    // If requester is a business (recruiter), restrict to their jobs only
+    if (user.role === 'business') {
+      // find job ids owned by this recruiter
+      const jobs = await Job.find({ recruiterId: user.id }).select('_id');
+      const jobIds = jobs.map((j) => j._id.toString());
+
+      // If client requested a specific jobId, ensure it's owned by recruiter
+      if (jobId) {
+        if (!jobIds.includes(jobId.toString())) {
+          return res.status(403).json({ message: 'Access denied to requested job applications' });
+        }
+        q.jobId = jobId;
+      } else {
+        q.jobId = { $in: jobIds };
+      }
+    } else {
+      if (jobId) q.jobId = jobId;
+    }
     if (status) q.status = status;
 
     // If search by candidate name, find matching users first
@@ -54,7 +73,18 @@ exports.getById = async (req, res) => {
     const { id } = req.params;
     const app = await Application.findById(id)
       .populate('userId', 'fullName avatar cvUrl email')
-      .populate('jobId', 'title description');
+      .populate('jobId', 'title description recruiterId');
+
+    const user = req.user || {};
+
+    // If recruiter, ensure the application belongs to one of their jobs
+    if (user.role === 'business') {
+      if (!app) return res.status(404).json({ message: 'Application not found' });
+      const recruiterId = app.jobId?.recruiterId?.toString();
+      if (recruiterId !== user.id.toString()) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+    }
 
     if (!app) return res.status(404).json({ message: 'Application not found' });
 
