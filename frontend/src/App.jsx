@@ -1,4 +1,4 @@
-import React from 'react';
+//import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 
@@ -14,6 +14,7 @@ import Home from './pages/Home/Home';
 import ComingSoon from './pages/ComingSoon/ComingSoon';
 import Onboarding from './pages/Auth/Onboarding';
 import Profile from './pages/Profile/Profile';
+import UserManagement from './pages/Admin/UserManagement';
 
 // Import các trang Auth bổ sung
 import ForgotPassword from './pages/Auth/ForgotPassword';
@@ -22,16 +23,16 @@ import ChangePassword from './pages/Auth/ChangePassword';
 // === IMPORT TRANG BUSINESS ===
 import BusinessDashboard from './pages/Bussiness/BusinessDashboard';
 import BussinessProfile from './pages/Bussiness/BussinessProfile';
-import PostJob from './pages/Bussiness/PostJob'; 
-import Create from './pages/Bussiness/Create';   
-import CVList from './pages/Bussiness/CVList'; 
+import PostJob from './pages/Bussiness/PostJob';
+import Create from './pages/Bussiness/Create';
+import CVList from './pages/Bussiness/CVList';
 
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<AuthGuard />} />
-        
+
         {/* Nhóm các trang KHÔNG CÓ Navbar (Login, Register, Forgot Password...) */}
         <Route element={<PublicLayout />}>
           <Route path="/login" element={<Login />} />
@@ -44,10 +45,10 @@ function App() {
         {/* Nhóm các trang CÓ Navbar & Footer (Candidate & Chung) */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
-          
+
           {/* === CÁC TRANG DÀNH CHO ADMIN === */}
-          <Route path="/admin" element={<ComingSoon />} />
-          
+          <Route path="/admin" element={<UserManagement />} />
+
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/candidate" element={<ComingSoon />} />
           <Route path="/jobs" element={<ComingSoon />} />
@@ -68,7 +69,7 @@ function App() {
 
           {/*  cập nhật đường dẫn thành /bussiness/cvlist */}
           <Route path="/bussiness/cvlist" element={<CVList />} />
-          
+
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
           <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
           <Route path="/bussiness/settings" element={<ComingSoon />} />
