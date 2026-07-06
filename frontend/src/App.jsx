@@ -1,5 +1,5 @@
-//import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 
 // Import Layouts
@@ -27,13 +27,18 @@ import PostJob from './pages/Bussiness/PostJob';
 import Create from './pages/Bussiness/Create';
 import CVList from './pages/Bussiness/CVList';
 
+// === IMPORT TRANG CANDIDATE (MỚI THÊM) ===
+import ManageCV from './pages/Candidate/ManageCV';
+import TemplateCV from './pages/Candidate/TemplateCV';
+import EditCV from './pages/Candidate/EditCV';
+
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<AuthGuard />} />
 
-        {/* Nhóm các trang KHÔNG CÓ Navbar (Login, Register, Forgot Password...) */}
+        {/* Nhóm các trang KHÔNG CÓ Navbar */}
         <Route element={<PublicLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -42,7 +47,7 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
         </Route>
 
-        {/* Nhóm các trang CÓ Navbar & Footer (Candidate & Chung) */}
+        {/* Nhóm các trang CÓ Navbar & Footer (Chung & Candidate) */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
 
@@ -50,11 +55,15 @@ function App() {
           <Route path="/admin" element={<UserManagement />} />
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
-          <Route path="/candidate" element={<ComingSoon />} />
-          <Route path="/jobs" element={<ComingSoon />} />
-          <Route path="/ai-cv" element={<ComingSoon />} />
-          <Route path="/practice" element={<ComingSoon />} />
-          <Route path="/courses" element={<ComingSoon />} />
+          {/* Đã cập nhật URL chuẩn nhận diện Role */}
+          <Route path="/candidate/manage-cv" element={<ManageCV />} />
+          <Route path="/candidate/cv-templates" element={<TemplateCV />} />
+          <Route path="/candidate/cv-builder" element={<EditCV />} />
+          <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
+
+          <Route path="/candidate/jobs" element={<ComingSoon />} />
+          <Route path="/candidate/practice" element={<ComingSoon />} />
+          <Route path="/candidate/courses" element={<ComingSoon />} />
 
           {/* === CÁC TRANG DÙNG CHUNG === */}
           <Route path="/profile" element={<Profile />} />
