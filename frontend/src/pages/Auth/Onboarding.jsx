@@ -11,7 +11,6 @@ const Onboarding = () => {
     companyName: ''
   });
 
-  // Kiểm tra xem user có phải đang trong luồng onboarding không (Dựa vào flag isNewGoogleUser)
   useEffect(() => {
     const isNew = sessionStorage.getItem('isNewGoogleUser');
     if (!isNew) {
@@ -21,9 +20,8 @@ const Onboarding = () => {
 
  const handleSubmitOnboarding = async (e) => {
     e.preventDefault();
-    setLoading(true); // Nhớ set loading khi bắt đầu gọi API
+    setLoading(true);
     
-    // Lấy token tạm thời lưu từ bước Google Login
     const token = sessionStorage.getItem('tempToken');
     
     if (!token) {
@@ -39,11 +37,9 @@ const Onboarding = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}` 
         },
-        // ĐÃ SỬA LỖI Ở ĐÂY: Truyền dữ liệu động từ state formData
         body: JSON.stringify({
           role: formData.role, 
           phone: formData.phone,
-          // Chỉ gửi companyName nếu user chọn role là business
           companyName: formData.role === 'business' ? formData.companyName : "" 
         })
       });
@@ -55,7 +51,6 @@ const Onboarding = () => {
         return;
       }
 
-      // Thành công: Chuyển token
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(data.user));
       sessionStorage.removeItem('tempToken');
@@ -63,7 +58,6 @@ const Onboarding = () => {
 
       toast.success('Hồ sơ đã hoàn tất!');
       
-      // ĐÃ SỬA ĐƯỜNG DẪN Ở ĐÂY: Điều hướng dựa trên role về đúng nhánh Business
       setTimeout(() => {
          if (data.user.role === 'business') {
             navigate('/business/dashboard', { replace: true }); 
@@ -85,6 +79,7 @@ const Onboarding = () => {
       <style>{`
         .onboard-wrap { min-height: 100vh; display: flex; justify-content: center; align-items: center; background: #f0f4fb; padding: 20px;}
         .onboard-card { background: white; padding: 40px; border-radius: 12px; width: 100%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); }
+        .logo-container { text-align: center; margin-bottom: 24px; }
         .onboard-title { font-size: 24px; font-weight: 700; color: #1e293b; margin-bottom: 10px; text-align: center; }
         .onboard-desc { font-size: 14px; color: #64748b; margin-bottom: 30px; text-align: center; }
         .input-group { margin-bottom: 20px; }
@@ -99,6 +94,9 @@ const Onboarding = () => {
 
       <div className="onboard-wrap">
         <div className="onboard-card">
+          <div className="logo-container">
+            <img src="/logo-careerio.png" alt="Careerio Logo" style={{ height: '40px', width: 'auto', objectFit: 'contain' }} />
+          </div>
           <h1 className="onboard-title">Hoàn tất hồ sơ</h1>
           <p className="onboard-desc">Vì đây là lần đầu bạn đăng nhập bằng Google, vui lòng bổ sung thông tin sau để tiếp tục.</p>
 
