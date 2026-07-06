@@ -10,11 +10,15 @@ const authController = require("../controllers/auth.controller");
 // Auth
 router.post("/register", authController.register);
 router.post("/verify-otp", authController.verifyOtp);
+router.post("/forgot-password", authController.forgotPassword);
+router.post("/verify-reset-otp", authController.verifyResetOtp);
+router.post("/reset-password", authController.resetPassword);
 router.post("/login", authController.login);
 router.post("/google-login", authController.googleLogin);
 
 // User
 router.get("/me", auth, authController.getMe);
+router.post("/change-password", auth, authController.changePassword);
 router.post("/update-role", auth, authController.updateRole);
 
 // Protected Routes

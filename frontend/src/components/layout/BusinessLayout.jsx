@@ -30,7 +30,7 @@ const BusinessLayout = () => {
   const navItems = [
     { label: 'Dashboard', path: '/bussiness/dashboard', icon: LayoutDashboard },
     { label: 'Tạo Tin Tuyển Dụng', path: '/bussiness/post-job', icon: FileText },
-    { label: 'Ngân hàng CV', path: '/bussiness/applications', icon: Users },
+    { label: 'Ngân hàng CV', path: '/bussiness/cvlist', icon: Users },
     { label: 'AI Screening', path: '/bussiness/skill-tests', icon: Wand2 },
   ];
 
