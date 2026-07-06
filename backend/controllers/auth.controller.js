@@ -129,6 +129,164 @@ exports.verifyOtp = async (req, res) => {
   }
 };
 
+// ===== FORGOT PASSWORD =====
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        message: "Email là bắt buộc"
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Không tìm thấy tài khoản với email này"
+      });
+    }
+
+    const otp = Math.floor(
+      100000 + Math.random() * 900000
+    ).toString();
+
+    await Otp.deleteMany({
+      email: normalizedEmail,
+      "data.purpose": "reset-password"
+    });
+
+    await Otp.create({
+      email: normalizedEmail,
+      otp,
+      data: {
+        purpose: "reset-password"
+      }
+    });
+
+    await sendEmail(
+      normalizedEmail,
+      "Mã OTP đặt lại mật khẩu Careerio",
+      `
+      <div style="font-family:Arial">
+        <h2>Đặt lại mật khẩu Careerio</h2>
+        <p>Mã OTP của bạn:</p>
+        <h1 style="color:#2563eb;letter-spacing:5px">${otp}</h1>
+        <p>Mã hết hạn sau 5 phút</p>
+      </div>
+      `
+    );
+
+    res.json({
+      message: "Đã gửi mã OTP để đặt lại mật khẩu"
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    });
+  }
+};
+
+// ===== VERIFY RESET OTP =====
+exports.verifyResetOtp = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        message: "Email và OTP là bắt buộc"
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const otpRecord = await Otp.findOne({
+      email: normalizedEmail,
+      otp,
+      "data.purpose": "reset-password"
+    });
+
+    if (!otpRecord) {
+      return res.status(400).json({
+        message: "OTP không hợp lệ hoặc đã hết hạn"
+      });
+    }
+
+    await Otp.deleteOne({
+      _id: otpRecord._id
+    });
+
+    res.json({
+      message: "OTP hợp lệ",
+      email: normalizedEmail
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    });
+  }
+};
+
+// ===== RESET PASSWORD =====
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({
+        message: "Email và mật khẩu mới là bắt buộc"
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        message: "Mật khẩu mới phải có ít nhất 6 ký tự"
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: normalizedEmail });
+
+    if (!user) {
+      return res.status(400).json({
+        message: "Không tìm thấy tài khoản"
+      });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    user.password = hash;
+    await user.save();
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        role: user.role
+      },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d"
+      }
+    );
+
+    res.json({
+      message: "Đặt lại mật khẩu thành công",
+      token,
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    });
+  }
+};
+
 // ===== LOGIN =====
 exports.login = async (req, res) => {
   try {
@@ -197,6 +355,59 @@ exports.getMe = async (req, res) => {
     .select("-password");
 
   res.json(user);
+};
+
+// ===== CHANGE PASSWORD =====
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Vui lòng nhập mật khẩu hiện tại và mật khẩu mới"
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: "Mật khẩu mới phải có ít nhất 6 ký tự"
+      });
+    }
+
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Không tìm thấy người dùng"
+      });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        message: "Tài khoản này chưa có mật khẩu để đổi"
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+
+    if (!isMatch) {
+      return res.status(400).json({
+        message: "Mật khẩu hiện tại không đúng"
+      });
+    }
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    user.password = hash;
+    await user.save();
+
+    res.json({
+      message: "Đổi mật khẩu thành công"
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: error.message
+    });
+  }
 };
 
 // ===== ADMIN =====
