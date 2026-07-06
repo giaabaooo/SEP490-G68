@@ -15,13 +15,16 @@ import ComingSoon from './pages/ComingSoon/ComingSoon';
 import Onboarding from './pages/Auth/Onboarding';
 import Profile from './pages/Profile/Profile';
 
+// Import các trang Auth bổ sung
+import ForgotPassword from './pages/Auth/ForgotPassword';
+import ChangePassword from './pages/Auth/ChangePassword';
+
 // === IMPORT TRANG BUSINESS ===
 import BusinessDashboard from './pages/Bussiness/BusinessDashboard';
 import BussinessProfile from './pages/Bussiness/BussinessProfile';
-
-//  THAY ĐỔI 1: Cập nhật lại Import cho đúng tên file mới
-import PostJob from './pages/Bussiness/PostJob'; // Trang danh sách công việc
-import Create from './pages/Bussiness/Create';   // Trang form điền tạo công việc mới
+import PostJob from './pages/Bussiness/PostJob'; 
+import Create from './pages/Bussiness/Create';   
+import CVList from './pages/Bussiness/CVList'; 
 
 function App() {
   return (
@@ -29,11 +32,13 @@ function App() {
       <Routes>
         <Route path="/" element={<AuthGuard />} />
         
-        {/* Nhóm các trang KHÔNG CÓ Navbar (Login, Register) */}
+        {/* Nhóm các trang KHÔNG CÓ Navbar (Login, Register, Forgot Password...) */}
         <Route element={<PublicLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/change-password" element={<ChangePassword />} />
         </Route>
 
         {/* Nhóm các trang CÓ Navbar & Footer (Candidate & Chung) */}
@@ -57,16 +62,14 @@ function App() {
         {/* Nhóm các trang BUSINESS với Navbar riêng */}
         <Route element={<BusinessLayout />}>
           <Route path="/bussiness/dashboard" element={<BusinessDashboard />} />
-          
-          {/*  THAY ĐỔI 2: Chỉnh sửa lại Route theo cấu trúc tên mới */}
           <Route path="/bussiness/post-job" element={<PostJob />} />
           <Route path="/bussiness/create" element={<Create />} />
-          
           <Route path="/bussiness/profile" element={<BussinessProfile />} />
 
-          {/* Các tính năng chưa code sẽ hiển thị ComingSoon */}
+          {/*  cập nhật đường dẫn thành /bussiness/cvlist */}
+          <Route path="/bussiness/cvlist" element={<CVList />} />
+          
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
-          <Route path="/bussiness/applications" element={<ComingSoon />} />
           <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
           <Route path="/bussiness/settings" element={<ComingSoon />} />
         </Route>

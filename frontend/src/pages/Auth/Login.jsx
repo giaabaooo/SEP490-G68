@@ -49,14 +49,13 @@ const Login = () => {
       
       toast.success('Đăng nhập thành công!');
       
-      // ĐÃ SỬA: Phân quyền chuyển hướng
       setTimeout(() => {
         if (data.user.role === 'admin') {
-          navigate('/admin', { replace: true }); // Chuyển về trang Admin
+          navigate('/admin', { replace: true });
         } else if (data.user.role === 'business') {
-          navigate('/business/dashboard', { replace: true }); // Chuyển về Dashboard cho HR/Doanh nghiệp
+          navigate('/business/dashboard', { replace: true });
         } else {
-          navigate('/home', { replace: true }); // Candidate về Home
+          navigate('/home', { replace: true });
         }
       }, 800);
     } catch (error) {
@@ -92,7 +91,6 @@ const Login = () => {
           localStorage.setItem('user', JSON.stringify(data.user));
           toast.success('Đăng nhập thành công!');
           
-          // ĐÃ SỬA TẠI ĐÂY: Áp dụng luồng phân quyền tương tự như hàm handleLogin
           setTimeout(() => {
             if (data.user.role === 'admin') {
               navigate('/admin', { replace: true });
@@ -139,6 +137,13 @@ const Login = () => {
         
         .form { display: flex; flex-direction: column; gap: 20px; }
         .input-group { display: flex; flex-direction: column; gap: 8px; }
+        
+        /*  THÊM CSS CHO LABEL VÀ FORGOT PASSWORD */
+        .password-header { display: flex; justify-content: space-between; align-items: center; }
+        .action-link { font-size: 13px; color: #3b82f6; font-weight: 600; text-decoration: none; transition: color 0.2s; }
+        .action-link:hover { color: #2563eb; text-decoration: underline; }
+        .change-pass-wrapper { display: flex; justify-content: center; margin-top: -10px; }
+
         .input-group label { font-size: 13px; font-weight: 600; color: #475569; }
         .input-group input { width: 100%; padding: 14px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; color: #0f172a; outline: none; transition: all 0.2s; background: #f8fafc; }
         .input-group input::placeholder { color: #94a3b8; }
@@ -185,13 +190,26 @@ const Login = () => {
                 <label>Địa chỉ Email</label>
                 <input type="email" placeholder="Nhập email của bạn..." value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
+              
               <div className="input-group">
-                <label>Mật khẩu</label>
+                {/*  THÊM NÚT FORGOT PASSWORD Ở ĐÂY */}
+                <div className="password-header">
+                  <label>Mật khẩu</label>
+                  <Link to="/forgot-password" className="action-link">Quên mật khẩu?</Link>
+                </div>
                 <input type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
+              
               <button type="submit" className="btn-submit" disabled={loading}>
                 {loading ? 'Đang xử lý...' : 'Đăng nhập vào hệ thống'}
               </button>
+
+              {/*  THÊM NÚT ĐỔI MẬT KHẨU Ở ĐÂY */}
+              <div className="change-pass-wrapper">
+                 <Link to="/change-password" className="action-link" style={{ color: '#64748b', fontSize: '12px' }}>
+                   Bạn muốn đổi mật khẩu?
+                 </Link>
+              </div>
             </form>
             
             <div className="divider-text">
