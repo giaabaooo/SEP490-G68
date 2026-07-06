@@ -99,6 +99,61 @@ const Profile = () => {
     }
   };
 
+  const handleAvatarFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate size and format
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Chỉ chấp nhận file ảnh (.jpg, .jpeg, .png, .gif, .webp)');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) { // 5MB
+      toast.error('Kích thước ảnh tối đa là 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/profile/avatar', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Tải ảnh đại diện lên thất bại');
+      }
+
+      setProfile(data.user);
+      
+      // Update local storage user info
+      const localUser = JSON.parse(localStorage.getItem('user')) || {};
+      const updatedUser = { ...localUser, ...data.user };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+
+      // Sync the info form
+      setInfoForm(prev => ({
+        ...prev,
+        avatar: data.user.avatar || ''
+      }));
+
+      toast.success('Đã cập nhật ảnh đại diện!');
+    } catch (error) {
+      console.error(error);
+      toast.error(error.message || 'Có lỗi xảy ra khi tải ảnh đại diện lên.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // --- Handlers ---
   const handleInfoSubmit = (e) => {
     e.preventDefault();
@@ -284,9 +339,25 @@ const Profile = () => {
           overflow: hidden;
           flex-shrink: 0;
           transition: transform 0.3s ease;
+          position: relative;
+          cursor: pointer;
         }
         .avatar-container:hover {
           transform: scale(1.03);
+        }
+        .avatar-overlay {
+          position: absolute;
+          top: 0; left: 0; right: 0; bottom: 0;
+          background: rgba(15, 23, 42, 0.6);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          color: #ffffff;
+        }
+        .avatar-container:hover .avatar-overlay {
+          opacity: 1;
         }
         .avatar-img {
           width: 100%;
@@ -853,15 +924,32 @@ const Profile = () => {
         <div className="profile-header-card">
           <div className="cover-photo"></div>
           <div className="header-main">
-            <div className="avatar-container">
+            <div className="avatar-container" onClick={() => document.getElementById('avatar-file-input').click()} title="Nhấp để đổi ảnh đại diện">
               {profile.avatar ? (
-                <img src={profile.avatar} alt="Avatar" className="avatar-img" />
+                <img 
+                  src={profile.avatar.startsWith('http') ? profile.avatar : `http://localhost:5000${profile.avatar}`} 
+                  alt="Avatar" 
+                  className="avatar-img" 
+                />
               ) : (
                 <div className="avatar-placeholder">
                   {profile.fullName?.charAt(0).toUpperCase()}
                 </div>
               )}
+              <div className="avatar-overlay">
+                <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
             </div>
+            <input 
+              type="file" 
+              id="avatar-file-input" 
+              accept="image/*" 
+              style={{ display: 'none' }} 
+              onChange={handleAvatarFileChange} 
+            />
             <div className="header-info">
               <h1 className="header-name">{profile.fullName}</h1>
               <p className="header-title">{profile.title || 'Chưa cập nhật vị trí công việc'}</p>
@@ -1155,12 +1243,54 @@ const Profile = () => {
                   </div>
                 </div>
                 <div className="form-group">
-                  <label>Ảnh đại diện (URL)</label>
+                  <label>Ảnh đại diện (URL hoặc tải lên)</label>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <input 
+                      type="text" 
+                      placeholder="Đường dẫn ảnh đại diện hoặc tải lên ảnh mới"
+                      value={infoForm.avatar}
+                      onChange={(e) => setInfoForm({ ...infoForm, avatar: e.target.value })}
+                      style={{ flexGrow: 1 }}
+                    />
+                    <button 
+                      type="button"
+                      className="btn-save" 
+                      style={{ padding: '0 15px', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '42px', marginTop: '0', borderRadius: '12px', boxShadow: 'none' }}
+                      onClick={() => document.getElementById('modal-avatar-file-input').click()}
+                    >
+                      Tải lên file
+                    </button>
+                  </div>
                   <input 
-                    type="text" 
-                    placeholder="Đường dẫn ảnh đại diện công khai"
-                    value={infoForm.avatar}
-                    onChange={(e) => setInfoForm({ ...infoForm, avatar: e.target.value })}
+                    type="file" 
+                    id="modal-avatar-file-input" 
+                    accept="image/*" 
+                    style={{ display: 'none' }} 
+                    onChange={async (e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+                      
+                      const formData = new FormData();
+                      formData.append('avatar', file);
+                      
+                      try {
+                        toast.info('Đang tải ảnh lên...');
+                        const res = await fetch('http://localhost:5000/api/profile/avatar', {
+                          method: 'POST',
+                          headers: {
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: formData
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.message || 'Lỗi tải ảnh');
+                        
+                        setInfoForm(prev => ({ ...prev, avatar: data.avatarUrl }));
+                        toast.success('Tải ảnh lên thành công! Nhấp "Lưu" bên dưới để hoàn thành cập nhật.');
+                      } catch (err) {
+                        toast.error(err.message || 'Không thể tải ảnh lên');
+                      }
+                    }}
                   />
                 </div>
               </div>
