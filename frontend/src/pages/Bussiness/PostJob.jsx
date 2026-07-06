@@ -1,16 +1,38 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, MoreVertical } from 'lucide-react';
 
 const PostJob = () => {
   const navigate = useNavigate();
+  const [jobs, setJobs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Dữ liệu mock (sau này sẽ fetch từ database bảng Jobs)
-  const jobs = [
-    { id: 1, title: 'Senior React Developer', salary: '20,000,000 - 30,000,000', deadline: '2026-08-15', status: 'Active' },
-    { id: 2, title: 'Node.js Backend Lead', salary: '30,000,000 - 45,000,000', deadline: '2026-08-20', status: 'Active' },
-    { id: 3, title: 'UI/UX Designer', salary: '15,000,000 - 25,000,000', deadline: '2026-09-01', status: 'Draft' },
-  ];
+  useEffect(() => {
+    const loadJobs = async () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+
+      try {
+        const res = await fetch('http://localhost:5000/api/jobs', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Không thể tải danh sách công việc');
+
+        setJobs(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadJobs();
+  }, [navigate]);
 
   return (
     <div className="animate-fade-in pb-12">
@@ -47,11 +69,19 @@ const PostJob = () => {
               </tr>
             </thead>
             <tbody className="text-sm">
+              {!loading && jobs.length === 0 && (
+                <tr>
+                  <td colSpan="5" className="p-10 text-center text-slate-500">
+                    Chưa có công việc nào. Hãy tạo tin tuyển dụng đầu tiên.
+                  </td>
+                </tr>
+              )}
+
               {jobs.map((job) => (
-                <tr key={job.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80 transition-colors">
+                <tr key={job._id || job.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80 transition-colors">
                   <td className="p-5 font-bold text-slate-800">{job.title}</td>
-                  <td className="p-5 font-medium text-slate-500">{job.salary} VND</td>
-                  <td className="p-5 font-medium text-slate-500">{new Date(job.deadline).toLocaleDateString('vi-VN')}</td>
+                  <td className="p-5 font-medium text-slate-500">{job.salary || 'Chưa cập nhật'}{job.salary ? ' VND' : ''}</td>
+                  <td className="p-5 font-medium text-slate-500">{job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : '—'}</td>
                   <td className="p-5">
                     <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${
                       job.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
