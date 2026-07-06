@@ -1,3 +1,6 @@
+const dns = require("dns");
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
+
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
@@ -5,7 +8,7 @@ const path = require("path");
 
 const connectDB = require("./config/db");
 // Import hàm seedAdmin (Điều chỉnh đường dẫn theo cấu trúc thư mục của bạn)
-const seedAdmin = require("./scripts/seedAdmin"); 
+const seedAdmin = require("./scripts/seedAdmin");
 const seedCandidate = require("./scripts/seedCandidate");
 
 const authRoutes = require("./routes/auth");
