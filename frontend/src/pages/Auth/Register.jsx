@@ -78,7 +78,6 @@ const Register = () => {
       localStorage.setItem('user', JSON.stringify(data.user));
       toast.success('Đăng ký thành công!');
       
-      // ĐÃ SỬA: Điều hướng dựa trên role vừa đăng ký
       setTimeout(() => {
         if (data.user.role === 'business') {
           navigate('/business/dashboard', { replace: true });
@@ -100,16 +99,30 @@ const Register = () => {
         .register-wrapper { min-height: 100vh; display: flex; justify-content: center; align-items: center; background: #f0f4f8; padding: 20px; font-family: 'Inter', sans-serif; }
         .register-card { display: flex; background: #fff; width: 100%; max-width: 960px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); overflow: hidden; max-height: 90vh; }
         
-        /* Left Side - Themed Gradient */
-        .register-left { flex: 1; padding: 60px 40px; display: flex; flex-direction: column; justify-content: center; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; position: relative; overflow: hidden; }
+        /* Đưa mọi thứ ra giữa panel trái */
+        .register-left { 
+          flex: 1; padding: 60px 40px; display: flex; flex-direction: column; 
+          justify-content: center; align-items: center; text-align: center; 
+          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); 
+          color: white; position: relative; overflow: hidden; 
+        }
         .register-left::after { content: ''; position: absolute; width: 400px; height: 400px; background: rgba(255,255,255,0.1); border-radius: 50%; top: -100px; right: -100px; }
         .register-left::before { content: ''; position: absolute; width: 300px; height: 300px; background: rgba(255,255,255,0.05); border-radius: 50%; bottom: -50px; left: -100px; }
-        .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; position: relative; z-index: 10; }
-        .brand-name { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
-        .title { font-size: 32px; font-weight: 700; color: #ffffff; margin-bottom: 20px; line-height: 1.3; position: relative; z-index: 10; }
-        .desc { font-size: 15px; color: #bfdbfe; line-height: 1.6; position: relative; z-index: 10; }
         
-        /* Right Side - Form */
+        /* Logo nổi bật ở giữa */
+        .brand { margin-bottom: 40px; position: relative; z-index: 10; display: flex; justify-content: center; width: 100%; }
+        .brand-logo-wrapper { 
+          background: #ffffff; padding: 25px 45px; border-radius: 24px; display: inline-flex; 
+          align-items: center; justify-content: center;
+          /* Tạo vòng sáng bằng box-shadow không dùng blur */
+          box-shadow: 0 15px 35px rgba(0,0,0,0.2), 0 0 0 12px rgba(255,255,255,0.1); 
+          transition: transform 0.3s ease; 
+        }
+        .brand-logo-wrapper:hover { transform: translateY(-5px); }
+        
+        .title { font-size: 34px; font-weight: 700; color: #ffffff; margin-bottom: 20px; line-height: 1.35; position: relative; z-index: 10; }
+        .desc { font-size: 16px; color: #bfdbfe; line-height: 1.6; position: relative; z-index: 10; max-width: 90%; }
+        
         .register-right { flex: 1; padding: 40px 50px; background: #ffffff; overflow-y: auto; }
         .register-right::-webkit-scrollbar { width: 6px; }
         .register-right::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
@@ -127,7 +140,6 @@ const Register = () => {
         .input-group input::placeholder { color: #94a3b8; }
         .input-group input:focus { background: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
         
-        /* Chỉnh CSS nút Role */
         .role-selector { display: flex; gap: 12px; margin-top: 4px; }
         .role-btn { flex: 1; padding: 14px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px; text-align: center; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; color: #64748b; background-color: #f8fafc; }
         .role-btn:hover { border-color: #cbd5e1; }
@@ -137,7 +149,6 @@ const Register = () => {
         .btn-submit:hover { background-color: #2563eb; }
         .btn-submit:active { transform: translateY(1px); }
         
-        /* OTP Step Styling */
         .otp-step { animation: fadeIn 0.3s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 400px; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         .otp-title { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 12px; text-align: center; }
@@ -154,12 +165,10 @@ const Register = () => {
           
           <div className="register-left">
             <div className="brand">
-              <Link to="/home" style={{ display: 'flex', alignItems: 'center' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <path d="M20 7H16V5C16 3.89543 15.1046 3 14 3H10C8.89543 3 8 3.89543 8 5V7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7ZM10 5H14V7H10V5ZM20 19H4V12H20V19ZM20 10H4V9H20V10Z" fill="#ffffff" />
-                </svg>
+              <Link to="/home" className="brand-logo-wrapper" style={{ textDecoration: 'none' }}>
+                {/* Logo size khổng lồ */}
+                <img src="/logo-careerio.png" alt="Careerio Logo" style={{ height: '80px', width: 'auto', objectFit: 'contain' }} />
               </Link>
-              <span className="brand-name">Careerio</span>
             </div>
             <h1 className="title">Đánh giá thực chất.<br />Kết nối chính xác.</h1>
             <p className="desc">Hệ sinh thái Marketplace hỗ trợ ứng tuyển và tuyển dụng dựa trên năng lực thực chiến.</p>
