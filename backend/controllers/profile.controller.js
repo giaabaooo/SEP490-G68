@@ -89,3 +89,48 @@ exports.updateProfile = async (req, res) => {
     });
   }
 };
+
+// ===== UPLOAD AVATAR =====
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        message: "Vui lòng chọn một file ảnh"
+      });
+    }
+
+    // Relative static URL path to return and save
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    // Update user's avatar path in the database
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      {
+        $set: { avatar: avatarUrl }
+      },
+      {
+        new: true,
+        runValidators: true
+      }
+    ).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "Người dùng không tồn tại"
+      });
+    }
+
+    res.json({
+      message: "Tải ảnh đại diện thành công",
+      avatarUrl,
+      user
+    });
+
+  } catch (error) {
+    console.error("Upload avatar error:", error);
+
+    res.status(500).json({
+      message: error.message || "Lỗi tải ảnh đại diện lên"
+    });
+  }
+};
