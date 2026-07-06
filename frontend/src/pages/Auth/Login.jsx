@@ -10,7 +10,6 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // Ngăn user đã login quay lại trang này
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -19,7 +18,7 @@ const Login = () => {
        try {
          const user = JSON.parse(userStr);
          if (user.role === 'admin') navigate('/admin', { replace: true });
-         else if (user.role === 'business') navigate('/business/dashboard', { replace: true });
+         else if (user.role === 'business') navigate('/bussiness/dashboard', { replace: true });
          else navigate('/home', { replace: true });
        } catch (e) {
          navigate('/home', { replace: true });
@@ -49,15 +48,10 @@ const Login = () => {
       
       toast.success('Đăng nhập thành công!');
       
-      // ĐÃ SỬA: Phân quyền chuyển hướng
       setTimeout(() => {
-        if (data.user.role === 'admin') {
-          navigate('/admin', { replace: true }); // Chuyển về trang Admin
-        } else if (data.user.role === 'business') {
-          navigate('/business/dashboard', { replace: true }); // Chuyển về Dashboard cho HR/Doanh nghiệp
-        } else {
-          navigate('/home', { replace: true }); // Candidate về Home
-        }
+        if (data.user.role === 'admin') navigate('/admin', { replace: true });
+        else if (data.user.role === 'business') navigate('/bussiness/dashboard', { replace: true });
+        else navigate('/home', { replace: true });
       }, 800);
     } catch (error) {
       toast.error('Lỗi kết nối. Vui lòng thử lại');
@@ -92,15 +86,10 @@ const Login = () => {
           localStorage.setItem('user', JSON.stringify(data.user));
           toast.success('Đăng nhập thành công!');
           
-          // ĐÃ SỬA TẠI ĐÂY: Áp dụng luồng phân quyền tương tự như hàm handleLogin
           setTimeout(() => {
-            if (data.user.role === 'admin') {
-              navigate('/admin', { replace: true });
-            } else if (data.user.role === 'business') {
-              navigate('/business/dashboard', { replace: true });
-            } else {
-              navigate('/home', { replace: true });
-            }
+            if (data.user.role === 'admin') navigate('/admin', { replace: true });
+            else if (data.user.role === 'business') navigate('/bussiness/dashboard', { replace: true });
+            else navigate('/home', { replace: true });
           }, 800);
         }
       } catch (error) {
@@ -120,16 +109,30 @@ const Login = () => {
         .login-wrapper { min-height: 100vh; display: flex; justify-content: center; align-items: center; background: #f0f4f8; padding: 20px; font-family: 'Inter', sans-serif; }
         .login-card { display: flex; background: #fff; width: 100%; max-width: 960px; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08); overflow: hidden; }
         
-        /* Left Side - Themed Gradient */
-        .login-left { flex: 1; padding: 60px 40px; display: flex; flex-direction: column; justify-content: center; background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); color: white; position: relative; overflow: hidden; }
+        /* Đưa mọi thứ ra giữa panel trái */
+        .login-left { 
+          flex: 1; padding: 60px 40px; display: flex; flex-direction: column; 
+          justify-content: center; align-items: center; text-align: center; 
+          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); 
+          color: white; position: relative; overflow: hidden; 
+        }
         .login-left::after { content: ''; position: absolute; width: 400px; height: 400px; background: rgba(255,255,255,0.1); border-radius: 50%; top: -100px; right: -100px; }
         .login-left::before { content: ''; position: absolute; width: 300px; height: 300px; background: rgba(255,255,255,0.05); border-radius: 50%; bottom: -50px; left: -100px; }
-        .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; position: relative; z-index: 10; }
-        .brand-name { font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px; }
-        .title { font-size: 32px; font-weight: 700; color: #ffffff; margin-bottom: 20px; line-height: 1.3; position: relative; z-index: 10; }
-        .desc { font-size: 15px; color: #bfdbfe; line-height: 1.6; position: relative; z-index: 10; }
         
-        /* Right Side - Form */
+        /* Logo nổi bật ở giữa */
+        .brand { margin-bottom: 40px; position: relative; z-index: 10; display: flex; justify-content: center; width: 100%; }
+        .brand-logo-wrapper { 
+          background: #ffffff; padding: 25px 45px; border-radius: 24px; display: inline-flex; 
+          align-items: center; justify-content: center;
+          /* Tạo vòng sáng bằng box-shadow không dùng blur */
+          box-shadow: 0 15px 35px rgba(0,0,0,0.2), 0 0 0 12px rgba(255,255,255,0.1); 
+          transition: transform 0.3s ease; 
+        }
+        .brand-logo-wrapper:hover { transform: translateY(-5px); }
+        
+        .title { font-size: 34px; font-weight: 700; color: #ffffff; margin-bottom: 20px; line-height: 1.35; position: relative; z-index: 10; }
+        .desc { font-size: 16px; color: #bfdbfe; line-height: 1.6; position: relative; z-index: 10; max-width: 90%; }
+        
         .login-right { flex: 1; padding: 60px 50px; background: #ffffff; }
         .tabs { display: flex; gap: 32px; margin-bottom: 40px; border-bottom: 2px solid #f1f5f9; }
         .tab { padding-bottom: 12px; font-size: 16px; font-weight: 600; color: #94a3b8; cursor: pointer; position: relative; transition: color 0.2s; }
@@ -163,12 +166,10 @@ const Login = () => {
           
           <div className="login-left">
             <div className="brand">
-              <Link to="/home" style={{ display: 'flex', alignItems: 'center' }}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <path d="M20 7H16V5C16 3.89543 15.1046 3 14 3H10C8.89543 3 8 3.89543 8 5V7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7ZM10 5H14V7H10V5ZM20 19H4V12H20V19ZM20 10H4V9H20V10Z" fill="#ffffff" />
-                </svg>
+              <Link to="/home" className="brand-logo-wrapper" style={{ textDecoration: 'none' }}>
+                {/* Logo size khổng lồ */}
+                <img src="/logo-careerio.png" alt="Careerio Logo" style={{ height: '80px', width: 'auto', objectFit: 'contain' }} />
               </Link>
-              <span className="brand-name">Careerio</span>
             </div>
             <h1 className="title">Đánh giá thực chất.<br />Kết nối chính xác.</h1>
             <p className="desc">Hệ sinh thái Marketplace hỗ trợ ứng dụng Trí tuệ Nhân tạo AI vào quy trình tuyển dụng và đánh giá năng lực thực chiến.</p>
