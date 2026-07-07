@@ -45,6 +45,16 @@ const userSchema = new mongoose.Schema(
       default: "",
     },
 
+    taxCode: {
+      type: String,
+      default: "",
+    },
+
+    city: {
+      type: String,
+      default: "",
+    },
+
     website: {
       type: String,
       default: "",
