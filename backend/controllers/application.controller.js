@@ -220,7 +220,7 @@ exports.getStatsSummary = async (req, res) => {
 
     if (user.role === 'business') {
       const jobs = await Job.find({ recruiterId: user.id }).select('_id');
-      const jobIds = jobs.map((j) => j._id.toString());
+      const jobIds = jobs.map((j) => j._id);
       q.jobId = { $in: jobIds };
     }
 
