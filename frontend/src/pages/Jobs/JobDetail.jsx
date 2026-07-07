@@ -8,51 +8,47 @@ import {
 const JobDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Mock data mô phỏng lấy từ API dựa theo ID
-  const job = {
-    id: id,
-    title: 'Senior React Native Developer',
-    company: 'TechCorp Vietnam',
-    logo: 'https://ui-avatars.com/api/?name=TechCorp&background=eff6ff&color=3b82f6',
-    location: 'Tầng 12, Tòa nhà Tech, Cầu Giấy, Hà Nội',
-    salary: '25,000,000 - 40,000,000 VND',
-    type: 'Full-time',
-    experience: '3-5 năm',
-    postedAt: '2 giờ trước',
-    deadline: '30/08/2026',
-    tags: ['React Native', 'JavaScript', 'Mobile', 'Redux'],
-    companySize: '100 - 500 nhân viên',
-    website: 'https://techcorp.vn',
-    description: `Chúng tôi đang tìm kiếm một Senior React Native Developer đầy nhiệt huyết để tham gia vào đội ngũ phát triển sản phẩm cốt lõi. Bạn sẽ đóng vai trò quan trọng trong việc xây dựng và tối ưu hóa các ứng dụng di động có hàng triệu người dùng.`,
-    requirements: [
-      'Ít nhất 3 năm kinh nghiệm làm việc thực tế với React Native.',
-      'Nắm vững JavaScript/TypeScript, ES6+.',
-      'Kinh nghiệm làm việc với Redux, Context API hoặc Zustand.',
-      'Hiểu biết sâu sắc về vòng đời của ứng dụng iOS và Android.',
-      'Có khả năng tối ưu hóa hiệu suất ứng dụng (performance tuning).',
-      'Kỹ năng làm việc nhóm tốt, tư duy giải quyết vấn đề độc lập.'
-    ],
-    benefits: [
-      'Mức lương cạnh tranh, review lương 2 lần/năm.',
-      'Thưởng tháng 13, thưởng dự án, thưởng hiệu quả công việc.',
-      'Bảo hiểm y tế tư nhân cao cấp (Bảo Việt/PTI).',
-      'Môi trường làm việc trẻ trung, năng động, Agile/Scrum.',
-      'Cung cấp MacBook Pro M3 và màn hình rời.',
-      'Trợ cấp ăn trưa, gửi xe, team building hàng tháng.'
-    ]
-  };
-
-  // Giả lập hiệu ứng tải trang
   useEffect(() => {
-    window.scrollTo(0, 0);
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
+    const fetchJob = async () => {
+      window.scrollTo(0, 0);
+      const token = localStorage.getItem('token');
+
+      try {
+        const res = await fetch(`http://localhost:5000/api/jobs/${id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Không thể tải thông tin công việc');
+
+        setJob(data);
+      } catch (error) {
+        console.error(error);
+        setJob(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJob();
   }, [id]);
 
   if (loading) {
     return <div className="min-h-screen flex justify-center items-center text-blue-600 font-bold">Đang tải thông tin...</div>;
+  }
+
+  if (!job) {
+    return (
+      <div className="min-h-screen flex flex-col justify-center items-center text-center px-6">
+        <p className="text-lg font-bold text-slate-700 mb-4">Không tìm thấy tin tuyển dụng này.</p>
+        <button onClick={() => navigate('/jobs')} className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold">
+          Quay lại danh sách
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -68,15 +64,15 @@ const JobDetail = () => {
           </button>
 
           <div className="flex flex-col md:flex-row gap-6 items-start md:items-center bg-white/10 p-6 md:p-8 rounded-[32px] backdrop-blur-md border border-white/10">
-            <img src={job.logo} alt={job.company} className="w-24 h-24 rounded-2xl bg-white p-2 shrink-0 object-cover" />
+            <img src={job.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.companyName || job.company)}&background=eff6ff&color=3b82f6`} alt={job.companyName || job.company} className="w-24 h-24 rounded-2xl bg-white p-2 shrink-0 object-cover" />
             
             <div className="flex-1 text-white">
               <h1 className="text-2xl md:text-4xl font-black mb-2">{job.title}</h1>
-              <p className="text-lg text-blue-300 font-bold mb-4">{job.company}</p>
+              <p className="text-lg text-blue-300 font-bold mb-4">{job.companyName || job.company}</p>
               
               <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-300">
-                <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {job.location}</div>
-                <div className="flex items-center gap-1.5 text-emerald-400"><DollarSign className="w-4 h-4" /> {job.salary}</div>
+                <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {job.location || job.companyLocation}</div>
+                <div className="flex items-center gap-1.5 text-emerald-400"><DollarSign className="w-4 h-4" /> {job.salary || 'Thỏa thuận'}</div>
                 <div className="flex items-center gap-1.5"><Briefcase className="w-4 h-4" /> {job.experience}</div>
               </div>
             </div>
@@ -107,7 +103,7 @@ const JobDetail = () => {
             {/* Tags */}
             <div className="flex flex-wrap gap-2 mb-8 pb-8 border-b border-slate-100">
               <span className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl">{job.type}</span>
-              {job.tags.map(tag => (
+              {(job.tags || []).map(tag => (
                 <span key={tag} className="px-4 py-2 bg-blue-50 text-blue-600 text-sm font-bold rounded-xl">{tag}</span>
               ))}
             </div>
@@ -122,7 +118,7 @@ const JobDetail = () => {
             <div className="mb-10">
               <h2 className="text-xl font-black text-slate-900 mb-4">Yêu cầu ứng viên</h2>
               <ul className="space-y-3">
-                {job.requirements.map((req, idx) => (
+                {(job.requirements || []).map((req, idx) => (
                   <li key={idx} className="flex items-start gap-3 text-slate-600 leading-relaxed">
                     <div className="mt-1 bg-slate-100 p-1 rounded-full text-slate-400 shrink-0">
                       <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
@@ -137,7 +133,7 @@ const JobDetail = () => {
             <div>
               <h2 className="text-xl font-black text-slate-900 mb-4">Quyền lợi dành cho bạn</h2>
               <ul className="space-y-3">
-                {job.benefits.map((benefit, idx) => (
+                {(job.benefits || []).map((benefit, idx) => (
                   <li key={idx} className="flex items-start gap-3 text-slate-600 leading-relaxed">
                     <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                     {benefit}
@@ -161,7 +157,7 @@ const JobDetail = () => {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ngày đăng</p>
-                  <p className="font-bold text-slate-800">{job.postedAt}</p>
+                  <p className="font-bold text-slate-800">{job.postedAt ? new Date(job.postedAt).toLocaleDateString('vi-VN') : 'Vừa đăng'}</p>
                 </div>
               </div>
               <div className="flex gap-4">
@@ -170,7 +166,7 @@ const JobDetail = () => {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Hạn ứng tuyển</p>
-                  <p className="font-bold text-slate-800">{job.deadline}</p>
+                  <p className="font-bold text-slate-800">{job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}</p>
                 </div>
               </div>
             </div>
@@ -186,9 +182,9 @@ const JobDetail = () => {
           {/* Box Công ty */}
           <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-200">
             <div className="flex items-center gap-4 mb-6">
-              <img src={job.logo} alt={job.company} className="w-14 h-14 rounded-xl border border-slate-100" />
+              <img src={job.companyLogo || `https://ui-avatars.com/api/?name=${encodeURIComponent(job.companyName || job.company)}&background=eff6ff&color=3b82f6`} alt={job.companyName || job.company} className="w-14 h-14 rounded-xl border border-slate-100" />
               <div>
-                <h3 className="font-black text-slate-900">{job.company}</h3>
+                <h3 className="font-black text-slate-900">{job.companyName || job.company}</h3>
                 <Link to="#" className="text-sm font-bold text-blue-600 hover:underline">Xem trang công ty</Link>
               </div>
             </div>
@@ -196,15 +192,15 @@ const JobDetail = () => {
             <div className="space-y-4 text-sm font-medium text-slate-600">
               <div className="flex items-start gap-3">
                 <Building className="w-5 h-5 text-slate-400 shrink-0" />
-                <span>Trụ sở: {job.location}</span>
+                <span>Trụ sở: {job.location || job.companyLocation}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Users className="w-5 h-5 text-slate-400 shrink-0" />
-                <span>Quy mô: {job.companySize}</span>
+                <span>Quy mô: {job.companySize || 'Chưa cập nhật'}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Globe className="w-5 h-5 text-slate-400 shrink-0" />
-                <a href={job.website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{job.website}</a>
+                <a href={job.website || '#'} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{job.website || 'Chưa cập nhật'}</a>
               </div>
             </div>
           </div>
