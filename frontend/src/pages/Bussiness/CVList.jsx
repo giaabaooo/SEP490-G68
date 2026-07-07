@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, Eye, CheckCircle, XCircle, Download, Sparkles, Clock } from 'lucide-react';
 
 const CVList = () => {
-  // Dữ liệu mock (Dựa theo bảng Applications trong DB)
-  const [applications] = useState([
-    { id: 1, name: 'Trần Văn A', position: 'Senior React Developer', aiScore: 92, status: 'Interviewing', appliedAt: '2026-07-05', avatar: 'https://ui-avatars.com/api/?name=Tran+Van+A&background=eff6ff&color=3b82f6' },
-    { id: 2, name: 'Nguyễn Thị B', position: 'Node.js Backend Lead', aiScore: 88, status: 'Testing', appliedAt: '2026-07-04', avatar: 'https://ui-avatars.com/api/?name=Nguyen+Thi+B&background=f0fdf4&color=22c55e' },
-    { id: 3, name: 'Lê Hoàng C', position: 'Senior React Developer', aiScore: 65, status: 'Applied', appliedAt: '2026-07-06', avatar: 'https://ui-avatars.com/api/?name=Le+Hoang+C&background=f8fafc&color=64748b' },
-    { id: 4, name: 'Vũ Đức D', position: 'UI/UX Designer', aiScore: 42, status: 'Rejected', appliedAt: '2026-07-01', avatar: 'https://ui-avatars.com/api/?name=Vu+Duc+D&background=fef2f2&color=ef4444' },
-  ]);
+  const [applications, setApplications] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
+  const [total, setTotal] = useState(0);
+
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
 
   const [activeFilter, setActiveFilter] = useState('All');
   const filters = ['All', 'Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'];
@@ -30,6 +32,61 @@ const CVList = () => {
     return 'text-slate-500 bg-slate-50 border-slate-100';
   };
 
+  // Debounce search input
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 500);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const fetchApplications = useCallback(async (signal) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      if (activeFilter && activeFilter !== 'All') params.append('status', activeFilter);
+      params.append('page', page);
+      params.append('limit', limit);
+
+      const token = localStorage.getItem('token');
+      const url = `${API_BASE}/api/applications?${params.toString()}`;
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        signal,
+      });
+
+      if (!res.ok) {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+          const jsonErr = await res.json().catch(() => ({}));
+          throw new Error(jsonErr.message || `Request failed ${res.status}`);
+        }
+        const text = await res.text().catch(() => res.statusText);
+        throw new Error(`Server returned non-JSON response: ${text.slice(0,200)}`);
+      }
+
+      const contentType = res.headers.get('content-type') || '';
+      const json = contentType.includes('application/json') ? await res.json().catch(() => ({})) : {};
+      setApplications(json.data || []);
+      setTotal(json.total || 0);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Error');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [debouncedSearch, activeFilter, page, limit]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchApplications(controller.signal);
+    return () => controller.abort();
+  }, [fetchApplications]);
+
   return (
     <div className="animate-fade-in pb-12">
       {/* Header */}
@@ -47,6 +104,8 @@ const CVList = () => {
             type="text" 
             placeholder="Tìm theo tên hoặc vị trí..." 
             className="w-full pl-12 pr-4 py-3.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
           />
           <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
         </div>
@@ -88,31 +147,55 @@ const CVList = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center">
+                    <div className="text-slate-400">Đang tải...</div>
+                  </td>
+                </tr>
+              )}
+
+              {!loading && error && (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center">
+                    <div className="text-red-500">{error}</div>
+                  </td>
+                </tr>
+              )}
+
+              {!loading && !error && applications.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-12 text-center">
+                    <div className="text-slate-400 font-medium">Không tìm thấy hồ sơ nào phù hợp với bộ lọc.</div>
+                  </td>
+                </tr>
+              )}
+
               {applications.filter(app => activeFilter === 'All' || app.status === activeFilter).map((app) => (
-                <tr key={app.id} className="hover:bg-slate-50/60 transition-colors group">
+                <tr key={app._id || app.id} className="hover:bg-slate-50/60 transition-colors group">
                   
                   {/* Cột Ứng viên */}
                   <td className="p-6">
                     <div className="flex items-center gap-4">
-                      <img src={app.avatar} alt={app.name} className="w-10 h-10 rounded-full border border-slate-200" />
+                      <img src={app.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userId?.fullName || 'U')}&background=eff6ff&color=3b82f6`} alt={app.userId?.fullName || 'Ứng viên'} className="w-10 h-10 rounded-full border border-slate-200" />
                       <div>
-                        <p className="font-bold text-slate-900 text-sm">{app.name}</p>
-                        <p className="text-xs font-medium text-slate-400">ID: #{app.id}092A</p>
+                        <p className="font-bold text-slate-900 text-sm">{app.userId?.fullName || 'Unknown'}</p>
+                        <p className="text-xs font-medium text-slate-400">ID: #{(app._id || app.id).toString().slice(-6).toUpperCase()}</p>
                       </div>
                     </div>
                   </td>
 
                   {/* Cột Vị trí */}
                   <td className="p-6">
-                    <p className="font-bold text-slate-700 text-sm">{app.position}</p>
+                    <p className="font-bold text-slate-700 text-sm">{app.jobId?.title || '—'}</p>
                   </td>
 
                   {/* Cột AI Match */}
                   <td className="p-6">
                     <div className="flex justify-center">
-                      <div className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${getAiScoreStyle(app.aiScore)}`}>
-                        {app.aiScore >= 80 && <Sparkles className="w-3.5 h-3.5" />}
-                        <span className="font-black text-sm">{app.aiScore}%</span>
+                      <div className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${getAiScoreStyle(app.aiScore ?? 0)}`}>
+                        {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-3.5 h-3.5" />}
+                        <span className="font-black text-sm">{(app.aiScore ?? 0)}%</span>
                       </div>
                     </div>
                   </td>
@@ -121,7 +204,7 @@ const CVList = () => {
                   <td className="p-6">
                     <div className="flex items-center gap-2 text-slate-500">
                       <Clock className="w-4 h-4" />
-                      <span className="text-sm font-medium">{new Date(app.appliedAt).toLocaleDateString('vi-VN')}</span>
+                      <span className="text-sm font-medium">{new Date(app.appliedAt || app.createdAt || Date.now()).toLocaleDateString('vi-VN')}</span>
                     </div>
                   </td>
 
@@ -135,7 +218,13 @@ const CVList = () => {
                   {/* Cột Thao tác */}
                   <td className="p-6">
                     <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors tooltip" title="Xem CV">
+                      <button
+                        onClick={() => {
+                          const cv = app.userId?.cvUrl;
+                          if (cv) window.open(cv, '_blank');
+                        }}
+                        className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors tooltip" title="Xem CV"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors tooltip" title="Duyệt">
@@ -149,21 +238,31 @@ const CVList = () => {
                       </button>
                     </div>
                   </td>
-
                 </tr>
               ))}
             </tbody>
           </table>
-          
-          {/* Trạng thái trống nếu không có dữ liệu lọc */}
-          {applications.filter(app => activeFilter === 'All' || app.status === activeFilter).length === 0 && (
-            <div className="p-12 text-center">
-              <p className="text-slate-400 font-medium">Không tìm thấy hồ sơ nào phù hợp với bộ lọc.</p>
-            </div>
-          )}
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between p-4 border-t border-slate-100">
+          <div className="text-sm text-slate-500">Tổng: {total} ứng viên</div>
+          <div className="flex items-center gap-2">
+            <button
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="px-3 py-1 rounded-lg bg-white border disabled:opacity-40"
+            >Trước</button>
+            <div className="px-3 py-1 rounded-lg bg-slate-50 border">{page}</div>
+            <button
+              disabled={page * limit >= total}
+              onClick={() => setPage((p) => p + 1)}
+              className="px-3 py-1 rounded-lg bg-white border disabled:opacity-40"
+            >Sau</button>
+          </div>
+        </div>
         </div>
       </div>
-    </div>
   );
 };
 

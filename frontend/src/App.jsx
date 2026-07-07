@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import AuthGuard from './components/AuthGuard';
 
 // Import Layouts
@@ -22,9 +22,14 @@ import ChangePassword from './pages/Auth/ChangePassword';
 // Import trang Business
 import BusinessDashboard from './pages/Bussiness/BusinessDashboard';
 import BussinessProfile from './pages/Bussiness/BussinessProfile';
-import PostJob from './pages/Bussiness/PostJob'; 
-import Create from './pages/Bussiness/Create';   
-import CVList from './pages/Bussiness/CVList'; 
+import PostJob from './pages/Bussiness/PostJob';
+import Create from './pages/Bussiness/Create';
+import CVList from './pages/Bussiness/CVList';
+
+// === IMPORT TRANG CANDIDATE (MỚI THÊM) ===
+import ManageCV from './pages/Candidate/ManageCV';
+import TemplateCV from './pages/Candidate/TemplateCV';
+import EditCV from './pages/Candidate/EditCV';
 
 //  Import trang Jobs (Danh sách) và JobDetail (Chi tiết)
 import Jobs from './pages/Jobs/Jobs';
@@ -36,6 +41,7 @@ function App() {
       <Routes>
         <Route path="/" element={<AuthGuard />} />
         
+
         {/* Nhóm các trang KHÔNG CÓ Navbar */}
         <Route element={<PublicLayout />}>
           <Route path="/login" element={<Login />} />
@@ -45,11 +51,14 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
         </Route>
 
-        {/* Nhóm các trang CÓ Navbar & Footer (Dành cho Ứng viên/Người dùng chung) */}
+     
+        {/* Nhóm các trang CÓ Navbar & Footer (Chung & Candidate) */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
+
+          {/* === CÁC TRANG DÀNH CHO ADMIN === */}
           <Route path="/admin" element={<ComingSoon />} />
-          
+
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/candidate" element={<ComingSoon />} />
           
@@ -60,6 +69,15 @@ function App() {
           <Route path="/ai-cv" element={<ComingSoon />} />
           <Route path="/practice" element={<ComingSoon />} />
           <Route path="/courses" element={<ComingSoon />} />
+          {/* Đã cập nhật URL chuẩn nhận diện Role */}
+          <Route path="/candidate/manage-cv" element={<ManageCV />} />
+          <Route path="/candidate/cv-templates" element={<TemplateCV />} />
+          <Route path="/candidate/cv-builder" element={<EditCV />} />
+          <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
+
+          <Route path="/candidate/jobs" element={<ComingSoon />} />
+          <Route path="/candidate/practice" element={<ComingSoon />} />
+          <Route path="/candidate/courses" element={<ComingSoon />} />
 
           {/* === CÁC TRANG DÙNG CHUNG === */}
           <Route path="/profile" element={<Profile />} />
@@ -72,7 +90,7 @@ function App() {
           <Route path="/bussiness/create" element={<Create />} />
           <Route path="/bussiness/profile" element={<BussinessProfile />} />
           <Route path="/bussiness/cvlist" element={<CVList />} />
-          
+
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
           <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
           <Route path="/bussiness/settings" element={<ComingSoon />} />
