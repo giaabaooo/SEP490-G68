@@ -7,7 +7,7 @@ import PublicLayout from './components/layout/PublicLayout';
 import MainLayout from './components/layout/MainLayout';
 import BusinessLayout from './components/layout/BusinessLayout';
 
-// Import Pages
+// Import Pages (Auth & Chung)
 import Login from './pages/Auth/Login';
 import Register from './pages/Auth/Register';
 import Home from './pages/Home/Home';
@@ -19,12 +19,16 @@ import Profile from './pages/Profile/Profile';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ChangePassword from './pages/Auth/ChangePassword';
 
-// === IMPORT TRANG BUSINESS ===
+// Import trang Business
 import BusinessDashboard from './pages/Bussiness/BusinessDashboard';
 import BussinessProfile from './pages/Bussiness/BussinessProfile';
 import PostJob from './pages/Bussiness/PostJob'; 
 import Create from './pages/Bussiness/Create';   
 import CVList from './pages/Bussiness/CVList'; 
+
+//  Import trang Jobs (Danh sách) và JobDetail (Chi tiết)
+import Jobs from './pages/Jobs/Jobs';
+import JobDetail from './pages/Jobs/JobDetail';
 
 function App() {
   return (
@@ -32,7 +36,7 @@ function App() {
       <Routes>
         <Route path="/" element={<AuthGuard />} />
         
-        {/* Nhóm các trang KHÔNG CÓ Navbar (Login, Register, Forgot Password...) */}
+        {/* Nhóm các trang KHÔNG CÓ Navbar */}
         <Route element={<PublicLayout />}>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -41,16 +45,18 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
         </Route>
 
-        {/* Nhóm các trang CÓ Navbar & Footer (Candidate & Chung) */}
+        {/* Nhóm các trang CÓ Navbar & Footer (Dành cho Ứng viên/Người dùng chung) */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
-          
-          {/* === CÁC TRANG DÀNH CHO ADMIN === */}
           <Route path="/admin" element={<ComingSoon />} />
           
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/candidate" element={<ComingSoon />} />
-          <Route path="/jobs" element={<ComingSoon />} />
+          
+          {/*  Thay thế ComingSoon bằng các Route thực sự cho Jobs */}
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} /> 
+          
           <Route path="/ai-cv" element={<ComingSoon />} />
           <Route path="/practice" element={<ComingSoon />} />
           <Route path="/courses" element={<ComingSoon />} />
@@ -65,8 +71,6 @@ function App() {
           <Route path="/bussiness/post-job" element={<PostJob />} />
           <Route path="/bussiness/create" element={<Create />} />
           <Route path="/bussiness/profile" element={<BussinessProfile />} />
-
-          {/*  cập nhật đường dẫn thành /bussiness/cvlist */}
           <Route path="/bussiness/cvlist" element={<CVList />} />
           
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
