@@ -14,6 +14,7 @@ import Home from './pages/Home/Home';
 import ComingSoon from './pages/ComingSoon/ComingSoon';
 import Onboarding from './pages/Auth/Onboarding';
 import Profile from './pages/Profile/Profile';
+import UserManagement from './pages/Admin/UserManagement';
 
 // Import các trang Auth bổ sung
 import ForgotPassword from './pages/Auth/ForgotPassword';
@@ -57,7 +58,7 @@ function App() {
           <Route path="/home" element={<Home />} />
 
           {/* === CÁC TRANG DÀNH CHO ADMIN === */}
-          <Route path="/admin" element={<ComingSoon />} />
+          <Route path="/admin" element={<UserManagement />} />
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/candidate" element={<ComingSoon />} />
