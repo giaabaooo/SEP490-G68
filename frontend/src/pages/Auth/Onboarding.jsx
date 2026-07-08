@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Building, Mail, FileText, MapPin, Globe, ChevronRight, ArrowLeft, UploadCloud } from 'lucide-react';
+//  Import icon Users cho trường Quy mô công ty
+import { Check, Building, Mail, FileText, MapPin, Globe, ChevronRight, ArrowLeft, UploadCloud, Users } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
@@ -9,13 +10,16 @@ const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
+  //  Khai báo thêm city và companySize vào State
   const [formData, setFormData] = useState({
     otp: '',
     taxCode: '',
     licenseFile: null,
     companyName: '',
     website: '',
-    address: ''
+    address: '',
+    city: '',
+    companySize: ''
   });
 
   const handleChange = (e) => {
@@ -41,8 +45,9 @@ const Onboarding = () => {
 
   const handleFinish = (e) => {
     e.preventDefault();
-    if (!formData.companyName || !formData.address) {
-      toast.warning('Vui lòng nhập đủ thông tin công ty');
+    //  Validate yêu cầu nhập đủ Thành phố và Quy mô
+    if (!formData.companyName || !formData.address || !formData.city || !formData.companySize) {
+      toast.warning('Vui lòng điền đầy đủ các thông tin bắt buộc (*)');
       return;
     }
     
@@ -90,11 +95,14 @@ const Onboarding = () => {
         .input-group { margin-bottom: 20px; }
         .input-group label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; }
         .input-wrapper { position: relative; }
-        .input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
-        .input-wrapper input { width: 100%; padding: 14px 16px 14px 44px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 14px; outline: none; background: #f8fafc; transition: all 0.2s; }
-        .input-wrapper input:focus { background: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
         
-        .otp-input input { padding-left: 16px; text-align: center; font-size: 24px; letter-spacing: 12px; font-weight: 700; }
+        /*  CSS cho cả input và select */
+        .input-wrapper input, .input-wrapper select { width: 100%; padding: 14px 16px 14px 44px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 14px; outline: none; background: #f8fafc; transition: all 0.2s; appearance: none; cursor: pointer; color: #0f172a; }
+        .input-wrapper input:focus, .input-wrapper select:focus { background: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+        .input-wrapper select:invalid { color: #94a3b8; }
+        
+        .otp-input input { padding-left: 16px; text-align: center; font-size: 24px; letter-spacing: 12px; font-weight: 700; cursor: text; }
         
         .upload-box { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s; }
         .upload-box:hover { border-color: #3b82f6; background: #eff6ff; }
@@ -105,6 +113,9 @@ const Onboarding = () => {
         .btn-next { flex: 2; padding: 14px; background: #3b82f6; color: #fff; font-weight: 600; border-radius: 12px; border: none; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); }
         .btn-next:hover { background: #2563eb; transform: translateY(-1px); }
         .btn-next:disabled { opacity: 0.7; cursor: not-allowed; }
+        
+        /* Grid 2 cột cho Bước 3 */
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
       `}</style>
 
       <div className="onboard-wrapper">
@@ -214,14 +225,57 @@ const Onboarding = () => {
                 </div>
               </div>
 
+              {/*  Grid 2 cột cho Thành phố và Quy mô */}
+              <div className="grid-2">
+                <div className="input-group">
+                  <label>Thành phố <span style={{color: '#ef4444'}}>*</span></label>
+                  <div className="input-wrapper">
+                    <MapPin className="input-icon" size={18} />
+                    <select 
+                      name="city" 
+                      value={formData.city} 
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="" disabled>Chọn thành phố</option>
+                      <option value="Hà Nội">Hà Nội</option>
+                      <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                      <option value="Đà Nẵng">Đà Nẵng</option>
+                      <option value="Cần Thơ">Cần Thơ</option>
+                      <option value="Khác">Khác...</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="input-group">
+                  <label>Quy mô <span style={{color: '#ef4444'}}>*</span></label>
+                  <div className="input-wrapper">
+                    <Users className="input-icon" size={18} />
+                    <select 
+                      name="companySize" 
+                      value={formData.companySize} 
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="" disabled>Chọn quy mô</option>
+                      <option value="1-9">1-9 nhân viên</option>
+                      <option value="10-49">10-49 nhân viên</option>
+                      <option value="50-199">50-199 nhân viên</option>
+                      <option value="200-499">200-499 nhân viên</option>
+                      <option value="500+">500+ nhân viên</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
               <div className="input-group">
-                <label>Địa chỉ trụ sở chính <span style={{color: '#ef4444'}}>*</span></label>
+                <label>Địa chỉ chi tiết <span style={{color: '#ef4444'}}>*</span></label>
                 <div className="input-wrapper">
                   <MapPin className="input-icon" size={18} />
                   <input 
                     type="text" 
                     name="address"
-                    placeholder="Nhập địa chỉ đầy đủ..." 
+                    placeholder="VD: Số 1, Tòa nhà ABC, Phường X..." 
                     value={formData.address}
                     onChange={handleChange}
                   />

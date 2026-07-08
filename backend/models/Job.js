@@ -23,10 +23,33 @@ const jobSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    location: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    type: {
+      type: String,
+      default: "Full-time",
+      trim: true,
+    },
+    experience: {
+      type: String,
+      default: "Không yêu cầu kinh nghiệm",
+      trim: true,
+    },
     salary: {
       type: String,
       default: "",
       trim: true,
+    },
+    tags: {
+      type: [String],
+      default: [],
+    },
+    benefits: {
+      type: [String],
+      default: [],
     },
     status: {
       type: String,
