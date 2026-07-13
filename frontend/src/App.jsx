@@ -32,7 +32,7 @@ import TemplateCV from './pages/Candidate/TemplateCV';
 import EditCV from './pages/Candidate/EditCV';
 import Jobs from './pages/Jobs/Jobs';
 import JobDetail from './pages/Jobs/JobDetail';
-
+import AIInterview from './pages/Candidate/AIInterview';
 function App() {
   return (
     <Router>
@@ -67,6 +67,7 @@ function App() {
           <Route path="/candidate/cv-templates" element={<TemplateCV />} />
           <Route path="/candidate/cv-builder" element={<EditCV />} />
           <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
+          <Route path="/candidate/ai-interview" element={<AIInterview />} />
 
           <Route path="/candidate/practice" element={<ComingSoon />} />
           <Route path="/candidate/courses" element={<ComingSoon />} />
