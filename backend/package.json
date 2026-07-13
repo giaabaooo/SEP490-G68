@@ -7,6 +7,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
@@ -15,7 +16,8 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.18.0",
     "multer": "^2.2.0",
-    "nodemailer": "^8.0.11"
+    "nodemailer": "^8.0.11",
+    "openai": "^6.46.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
