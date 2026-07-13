@@ -8,7 +8,7 @@ const Navbar = () => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user')) || null;
   const isLoggedIn = !!token;
-  const role = user?.role || 'candidate';
+  const role = user?.role || 'candidate'; // Mặc định là candidate nếu chưa đăng nhập
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -23,6 +23,14 @@ const Navbar = () => {
         .top-navbar {
           min-height: 76px !important; 
           padding: 0 40px !important;
+          background: #ffffff;
+          border-bottom: 1px solid #e2e8f0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          position: sticky;
+          top: 0;
+          z-index: 50;
         }
 
         .nav-item-dropdown { 
@@ -64,15 +72,14 @@ const Navbar = () => {
           transform: translateY(0); 
         }
 
+        /* --- Mega Menu Candidate --- */
         .dropdown-menu-content.mega-menu {
           left: 50%;
           transform: translate(-50%, -10px);
         }
-        
         .nav-item-dropdown:hover .dropdown-menu-content.mega-menu {
           transform: translate(-50%, 0);
         }
-
         .mega-menu { width: 650px; display: flex; padding: 20px; gap: 30px; }
         .mega-col { flex: 1; }
         .mega-group { margin-bottom: 20px; }
@@ -83,6 +90,7 @@ const Navbar = () => {
         .mega-item svg { flex-shrink: 0; color: #64748b; }
         .mega-item:hover svg { color: #059669; }
 
+        /* --- User Dropdown --- */
         .user-dropdown-container .dropdown-menu-content { left: auto; right: 0; width: 320px; max-height: 85vh; overflow-y: auto; }
         .user-dropdown-container .dropdown-menu-content::-webkit-scrollbar { width: 6px; }
         .user-dropdown-container .dropdown-menu-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -102,82 +110,108 @@ const Navbar = () => {
         .avatar-circle { width: 38px; height: 38px; border-radius: 50%; background: #eff6ff; border: 2px solid #bfdbfe; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; flex-shrink: 0; }
         .user-dropdown-container:hover .avatar-circle { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
         .user-profile { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; }
-        .nav-link-item { display: flex; align-items: center; gap: 4px; color: #334155; font-weight: 600; text-decoration: none; }
-        .nav-link-item:hover { color: #059669; }
+        .nav-link-item { display: flex; align-items: center; gap: 4px; color: #334155; font-weight: 600; text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; transition: 0.2s;}
+        .nav-link-item:hover { color: #059669; border-bottom-color: #059669; }
+        .nav-link-item.active { color: #059669; border-bottom-color: #059669; }
       `}</style>
 
       <header className="top-navbar">
         <div className="nav-left" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           <Link to="/home" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            <img 
-              src="/logo-careerio.png" 
-              alt="Careerio Logo" 
-              style={{ height: '52px', width: 'auto', objectFit: 'contain' }} 
+            <img
+              src="/logo-careerio.png"
+              alt="Careerio Logo"
+              style={{ height: '52px', width: 'auto', objectFit: 'contain' }}
             />
           </Link>
+          {/* Nhãn nhỏ đánh dấu quyền cho Admin/Business */}
+          {role === 'admin' && <span style={{ marginLeft: '10px', fontSize: '12px', background: '#dc2626', color: 'white', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>ADMIN</span>}
+          {role === 'business' && <span style={{ marginLeft: '10px', fontSize: '12px', background: '#2563eb', color: 'white', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>BUSINESS</span>}
         </div>
 
-        <div className="nav-center" style={{ display: 'flex', gap: '24px', height: '100%' }}>
-          {role === 'business' ? (
+        <div className="nav-center" style={{ display: 'flex', gap: '30px', height: '100%' }}>
+
+          {/* ===================== MENU ADMIN ===================== */}
+          {role === 'admin' && (
             <>
               <div className="nav-item-dropdown">
-                <NavLink to="/bussiness/dashboard" className="nav-link-item">Dashboard</NavLink>
+                <NavLink to="/admin" end className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Người Dùng</NavLink>
               </div>
               <div className="nav-item-dropdown">
-                <NavLink to="/bussiness/job-postings" className="nav-link-item">Quản Lý Tuyển Dụng</NavLink>
+                <NavLink to="/admin/jobs" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Việc Làm</NavLink>
               </div>
               <div className="nav-item-dropdown">
-                <NavLink to="/bussiness/applications" className="nav-link-item">Quản Lý Ứng Viên</NavLink>
+                <NavLink to="/admin/reports" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Báo Cáo Thống Kê</NavLink>
               </div>
               <div className="nav-item-dropdown">
-                <NavLink to="/bussiness/skill-tests" className="nav-link-item">Kho Bài Test</NavLink>
+                <NavLink to="/admin/settings" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Cài Đặt Hệ Thống</NavLink>
               </div>
             </>
-          ) : (
+          )}
+
+          {/* ===================== MENU BUSINESS ===================== */}
+          {role === 'business' && (
             <>
               <div className="nav-item-dropdown">
-                <NavLink to="/jobs" className="nav-link-item">Việc làm <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg></NavLink>
+                <NavLink to="/bussiness/dashboard" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Dashboard</NavLink>
+              </div>
+              <div className="nav-item-dropdown">
+                <NavLink to="/bussiness/post-job" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Tạo Tin Tuyển Dụng</NavLink>
+              </div>
+              <div className="nav-item-dropdown">
+                <NavLink to="/bussiness/cvlist" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Ngân Hàng CV</NavLink>
+              </div>
+              <div className="nav-item-dropdown">
+                <NavLink to="/bussiness/skill-tests" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>AI Screening</NavLink>
+              </div>
+            </>
+          )}
+
+          {/* ===================== MENU CANDIDATE ===================== */}
+          {role === 'candidate' && (
+            <>
+              <div className="nav-item-dropdown">
+                <NavLink to="/jobs" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>
+                  Việc làm <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                </NavLink>
               </div>
 
               <div className="nav-item-dropdown">
-                <div className="nav-link-item">Tạo CV <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+                <div className="nav-link-item">
+                  Tạo CV <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+                </div>
                 <div className="dropdown-menu-content mega-menu">
+                  {/* Cột trái Mega Menu */}
                   <div className="mega-col">
                     <div className="mega-group">
-                      <div className="mega-title">Mẫu CV theo style <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
-                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Mẫu CV Đơn giản</Link>
-                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Mẫu CV Ấn tượng</Link>
-                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg> Mẫu CV Chuyên nghiệp</Link>
-                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg> Mẫu CV Harvard</Link>
+                      <div className="mega-title">Mẫu CV theo style</div>
+                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /></svg> Mẫu CV Đơn giản</Link>
+                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg> Mẫu CV Ấn tượng</Link>
+                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg> Mẫu CV Chuyên nghiệp</Link>
                     </div>
-
                     <div className="mega-group">
-                      <div className="mega-title">Mẫu CV theo vị trí ứng tuyển <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div>
-                      <Link to="/ai-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> Nhân viên kinh doanh</Link>
-                      <Link to="/ai-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> Lập trình viên</Link>
-                      <Link to="/ai-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> Nhân viên kế toán</Link>
-                      <Link to="/ai-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg> Chuyên viên marketing</Link>
+                      <div className="mega-title">Mẫu CV theo vị trí</div>
+                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg> Lập trình viên</Link>
+                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg> Nhân viên kế toán</Link>
                     </div>
                   </div>
-
+                  {/* Cột phải Mega Menu */}
                   <div className="mega-col" style={{ borderLeft: '1px solid #f1f5f9', paddingLeft: '30px' }}>
                     <div className="mega-group" style={{ marginTop: '30px' }}>
-                      <Link to="/candidate/manage-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Quản lý CV</Link>
-                      <Link to="/candidate/manage-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> Tải CV lên</Link>
-                      <Link to="/candidate/manage-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Hướng dẫn viết CV</Link>
-                      <Link to="/candidate/manage-cv" className="mega-item" style={{ marginTop: '15px' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> Quản lý Cover Letter</Link>
-                      <Link to="/candidate/manage-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Mẫu Cover Letter</Link>
+                      <Link to="/candidate/manage-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg> Quản lý CV</Link>
+                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg> Tải CV lên</Link>
+                      <Link to="/candidate/practice" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg> Hướng dẫn viết CV</Link>
                     </div>
                   </div>
                 </div>
               </div>
 
               <div className="nav-item-dropdown">
-                <Link to="/practice" className="nav-link-item" style={{ textDecoration: 'none' }}>Công cụ <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg></Link>
+                <Link to="/candidate/practice" className="nav-link-item">Công cụ <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></Link>
               </div>
 
               <div className="nav-item-dropdown">
-                <Link to="/courses" className="nav-link-item" style={{ textDecoration: 'none' }}>Cẩm nang nghề nghiệp <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg></Link>
+                <Link to="/candidate/courses" className="nav-link-item">Cẩm nang nghề nghiệp <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></Link>
               </div>
             </>
           )}
@@ -188,59 +222,76 @@ const Navbar = () => {
             <div className="nav-item-dropdown user-dropdown-container">
               <div className="user-profile">
                 <div className="avatar-circle">
-                  <span style={{color: '#059669', fontWeight: 'bold'}}>
+                  <span style={{ color: '#059669', fontWeight: 'bold' }}>
                     {user?.fullName?.charAt(0).toUpperCase() || 'U'}
                   </span>
                 </div>
               </div>
 
-              <div className="dropdown-menu-content">
+              <div className="dropdown-menu-content" style={{ width: '280px' }}>
                 <div className="dropdown-header">
                   <div className="avatar-circle" style={{ width: '48px', height: '48px', fontSize: '20px' }}>
-                    <span style={{color: '#059669', fontWeight: 'bold'}}>
+                    <span style={{ color: '#059669', fontWeight: 'bold' }}>
                       {user?.fullName?.charAt(0).toUpperCase() || 'U'}
                     </span>
                   </div>
                   <div className="dropdown-header-info">
                     <div className="dropdown-name">Chào {user?.fullName || 'bạn'}</div>
-                    <div className="dropdown-id">Tài khoản đã xác thực <br/> ID: {user?.id || '4297468'}</div>
+                    <div className="dropdown-id text-xs text-gray-500">{user?.email || 'Tài khoản đã xác thực'}</div>
                   </div>
                 </div>
 
-                <div className="menu-section">
-                  <div className="menu-section-title">Quản lý tìm việc</div>
-                  <Link to="/candidate" className="dropdown-item">Việc làm đã lưu</Link>
-                  <Link to="/candidate" className="dropdown-item">Việc làm đã ứng tuyển</Link>
-                  <Link to="/candidate" className="dropdown-item">Việc làm phù hợp với bạn</Link>
-                  <Link to="/candidate" className="dropdown-item">Cài đặt gợi ý việc làm</Link>
-                </div>
+                {/* DROPDOWN MENU TÙY CHỈNH THEO ROLE */}
+                {role === 'admin' && (
+                  <div className="menu-section">
+                    <Link to="/profile" className="dropdown-item">Hồ sơ Admin</Link>
+                    <Link to="/admin/settings" className="dropdown-item">Cài đặt hệ thống</Link>
+                  </div>
+                )}
 
-                <div className="menu-section">
-                  <div className="menu-section-title">Quản lý CV & Cover letter</div>
-                  <Link to="/candidate/manage-cv" className="dropdown-item">CV của tôi</Link>
-                  <Link to="/candidate/cover-letter" className="dropdown-item">Cover Letter của tôi</Link>
-                  <Link to="/candidate" className="dropdown-item">Nhà tuyển dụng muốn kết nối</Link>
-                  <Link to="/candidate" className="dropdown-item" style={{ color: '#059669' }}>Nhà tuyển dụng xem hồ sơ</Link>
-                </div>
+                {role === 'business' && (
+                  <div className="menu-section">
+                    <Link to="/bussiness/profile" className="dropdown-item">Hồ sơ doanh nghiệp</Link>
+                    <Link to="/bussiness/settings" className="dropdown-item">Cài đặt tài khoản</Link>
+                    <Link to="/profile" className="dropdown-item">Cá nhân & Bảo mật</Link>
+                  </div>
+                )}
 
-                <div className="menu-section">
-                  <Link to="/candidate" className="dropdown-item has-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-                    Cài đặt email & thông báo
-                  </Link>
-                  <Link to="/profile" className="dropdown-item has-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    Cá nhân & Bảo mật
-                  </Link>
-                  <Link to="/candidate" className="dropdown-item has-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                    Nâng cấp tài khoản
-                  </Link>
-                </div>
+                {role === 'candidate' && (
+                  <>
+                    <div className="menu-section">
+                      <div className="menu-section-title">Quản lý tìm việc</div>
+                      <Link to="/candidate" className="dropdown-item">Việc làm đã lưu</Link>
+                      <Link to="/candidate" className="dropdown-item">Việc làm đã ứng tuyển</Link>
+                      <Link to="/candidate" className="dropdown-item">Việc làm phù hợp với bạn</Link>
+                    </div>
+
+                    <div className="menu-section">
+                      <div className="menu-section-title">Quản lý CV & Cover letter</div>
+                      <Link to="/candidate/manage-cv" className="dropdown-item">CV của tôi</Link>
+                      <Link to="/candidate" className="dropdown-item" style={{ color: '#059669' }}>Nhà tuyển dụng xem hồ sơ</Link>
+                    </div>
+
+                    <div className="menu-section">
+                      <div className="menu-section-title">Công cụ AI (Nâng cao)</div>
+                      <Link to="/candidate/ai-interview" className="dropdown-item has-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2a10 10 0 1 0 10 10H12V2z" /><path d="M22 12A10 10 0 0 0 12 2v10z" /></svg>
+                        Phòng Phỏng Vấn AI
+                      </Link>
+                    </div>
+
+                    <div className="menu-section">
+                      <Link to="/profile" className="dropdown-item has-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                        Cá nhân & Bảo mật
+                      </Link>
+                    </div>
+                  </>
+                )}
 
                 <div className="menu-section" style={{ paddingBottom: '16px' }}>
                   <div className="dropdown-item has-icon logout" onClick={handleLogout} style={{ justifyContent: 'center', background: '#f8fafc', margin: '0 16px', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px' }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
                     Đăng xuất
                   </div>
                 </div>
