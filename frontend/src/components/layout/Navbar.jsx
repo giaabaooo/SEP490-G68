@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Bell, ArrowRight } from 'lucide-react';
 import './Layout.css';
 
 const Navbar = () => {
@@ -9,6 +10,70 @@ const Navbar = () => {
   const user = JSON.parse(localStorage.getItem('user')) || null;
   const isLoggedIn = !!token;
   const role = user?.role || 'candidate'; // Mặc định là candidate nếu chưa đăng nhập
+
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const fetchNotifications = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+        setUnreadCount(data.filter(n => !n.isRead).length);
+      }
+    } catch (err) {
+      console.error('Error fetching nav notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [token]);
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/${id}/read`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } catch (err) {
+      console.error('Error marking read:', err);
+    }
+  };
+
+  const handleMarkAllAsRead = async (e) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`${API_BASE}/api/notifications/read-all`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+        setUnreadCount(0);
+      }
+    } catch (err) {
+      console.error('Error marking all read:', err);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -217,7 +282,78 @@ const Navbar = () => {
           )}
         </div>
 
-        <div className="nav-right" style={{ height: '100%' }}>
+        <div className="nav-right" style={{ height: '100%', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {isLoggedIn && (
+            <div className="nav-item-dropdown notification-dropdown-container">
+              {/* Notification Icon */}
+              <div className="relative p-2 text-slate-500 hover:text-emerald-600 transition-colors cursor-pointer">
+                <Bell className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 w-4.5 h-4.5 bg-red-500 text-[10px] text-white font-extrabold rounded-full flex items-center justify-center border border-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </div>
+
+              {/* Notification Dropdown Panel */}
+              <div className="dropdown-menu-content notification-dropdown-panel" style={{ right: 0, left: 'auto', width: '360px', padding: '16px' }}>
+                <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-3">
+                  <h3 className="font-extrabold text-slate-800 text-sm">Thông báo gần đây</h3>
+                  {unreadCount > 0 && (
+                    <button 
+                      onClick={handleMarkAllAsRead}
+                      className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer"
+                    >
+                      Đọc tất cả
+                    </button>
+                  )}
+                </div>
+
+                <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                  {notifications.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 font-medium">
+                      Chưa có thông báo nào.
+                    </div>
+                  ) : (
+                    notifications.slice(0, 5).map((n) => (
+                      <div 
+                        key={n._id} 
+                        onClick={() => handleMarkAsRead(n._id)}
+                        className={`p-3 rounded-xl border transition-all cursor-pointer text-left relative ${
+                          !n.isRead 
+                            ? 'bg-emerald-50/20 border-emerald-100 hover:border-emerald-300' 
+                            : 'bg-slate-50/30 border-slate-100 hover:border-slate-200'
+                        }`}
+                      >
+                        <h4 className={`text-xs font-bold text-slate-800 mb-0.5 leading-tight ${!n.isRead ? 'font-extrabold text-slate-900' : ''}`}>
+                          {n.title}
+                        </h4>
+                        <p className="text-[11px] font-medium text-slate-500 line-clamp-2 leading-relaxed">
+                          {n.message}
+                        </p>
+                        <span className="text-[9px] font-bold text-slate-400 mt-1 block">
+                          {new Date(n.createdAt).toLocaleDateString('vi-VN')}
+                        </span>
+                        {!n.isRead && (
+                          <span className="absolute top-3.5 right-3 w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-100 flex justify-center">
+                  <Link 
+                    to="/candidate/notifications" 
+                    className="text-xs font-bold text-slate-500 hover:text-emerald-600 flex items-center gap-1"
+                  >
+                    Xem tất cả thông báo <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {isLoggedIn ? (
             <div className="nav-item-dropdown user-dropdown-container">
               <div className="user-profile">
@@ -264,6 +400,7 @@ const Navbar = () => {
                       <Link to="/candidate" className="dropdown-item">Việc làm đã lưu</Link>
                       <Link to="/candidate/applications" className="dropdown-item">Việc làm đã ứng tuyển</Link>
                       <Link to="/candidate" className="dropdown-item">Việc làm phù hợp với bạn</Link>
+                      <Link to="/candidate/notifications" className="dropdown-item">Thông báo tuyển dụng</Link>
                     </div>
 
                     <div className="menu-section">
