@@ -1,6 +1,7 @@
 const Application = require('../models/Application');
 const User = require('../models/User');
 const Job = require('../models/Job');
+const Notification = require('../models/Notification');
 const sendEmail = require('../utils/sendEmail');
 
 // POST /api/applications
@@ -196,6 +197,27 @@ exports.updateStatus = async (req, res) => {
       .populate('userId', 'fullName avatar cvUrl email')
       .populate('jobId', 'title');
 
+    // Create system notification for candidate
+    try {
+      const statusNamesVi = {
+        Applied: 'Hồ sơ mới nộp',
+        Testing: 'Làm bài kiểm tra',
+        Interviewing: 'Đang phỏng vấn',
+        Offered: 'Đề nghị nhận việc (Offer)',
+        Rejected: 'Đã từ chối'
+      };
+
+      await Notification.create({
+        userId: app.userId,
+        title: 'Cập nhật trạng thái ứng tuyển',
+        message: `Hồ sơ của bạn cho vị trí "${app.jobId?.title || 'Công việc'}" đã được chuyển sang trạng thái: ${statusNamesVi[status] || status}.`,
+        type: 'status_change',
+        relatedApplicationId: app._id
+      });
+    } catch (notifErr) {
+      console.error('Failed to create notification on status update:', notifErr);
+    }
+
     return res.json({
       message: 'Cập nhật trạng thái thành công',
       data: updatedApp
@@ -270,6 +292,19 @@ exports.sendNotification = async (req, res) => {
       app.mailSentStatus = app.status === 'Rejected' ? 'Sent_Reject' : 'Sent_Pass';
     }
     await app.save();
+
+    // Create system notification for candidate
+    try {
+      await Notification.create({
+        userId: app.userId._id,
+        title: subject,
+        message: content,
+        type: type === 'Pass' ? 'interview_invite' : type === 'Reject' ? 'general' : 'general',
+        relatedApplicationId: app._id
+      });
+    } catch (notifErr) {
+      console.error('Failed to create notification on email send:', notifErr);
+    }
 
     return res.json({
       message: 'Gửi thông báo thành công',
