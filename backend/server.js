@@ -19,6 +19,7 @@ const applicationRoutes = require("./routes/applications");
 const adminUserRoutes = require("./routes/adminUsers");
 const cvRoutes = require("./routes/cv");
 const interviewRoutes = require("./routes/interview.routes");
+const notificationRoutes = require("./routes/notifications");
 
 const app = express();
 
@@ -45,6 +46,7 @@ app.use("/api/applications", applicationRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/cv", cvRoutes);
 app.use("/api/interview", interviewRoutes);
+app.use("/api/notifications", notificationRoutes);
 app.get("/", (req, res) => {
   res.send("Careerio API Running");
 });
