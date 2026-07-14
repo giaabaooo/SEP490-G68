@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   MapPin, DollarSign, Briefcase, Clock, Building, 
-  Globe, Users, Calendar, Share2, Bookmark, ArrowLeft, CheckCircle2, Loader2 
+  Globe, Users, Calendar, Share2, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const JobDetail = () => {
   const { id } = useParams();
@@ -13,6 +15,17 @@ const JobDetail = () => {
   // States lưu dữ liệu từ API
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [applyModalOpen, setApplyModalOpen] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [applying, setApplying] = useState(false);
+
+  const getCurrentUser = () => {
+    try {
+      return JSON.parse(localStorage.getItem('user')) || null;
+    } catch {
+      return null;
+    }
+  };
 
   // Gọi API lấy chi tiết công việc
   useEffect(() => {
@@ -49,6 +62,79 @@ const JobDetail = () => {
 
   if (!job) return null;
 
+  const currentUser = getCurrentUser();
+
+  const handleApplyClick = () => {
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      toast.info('Vui lòng đăng nhập bằng tài khoản Ứng viên để ứng tuyển.');
+      return;
+    }
+
+    if (currentUser.role !== 'candidate') {
+      toast.info('Chỉ tài khoản Ứng viên mới có thể ứng tuyển vào công việc này.');
+      return;
+    }
+
+    setApplyModalOpen(true);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0] || null;
+    setSelectedFile(file);
+  };
+
+  const handleSubmitApplication = async (e) => {
+    e.preventDefault();
+    const currentUser = getCurrentUser();
+    if (!currentUser) {
+      toast.error('Vui lòng đăng nhập để ứng tuyển.');
+      return;
+    }
+    if (currentUser.role !== 'candidate') {
+      toast.error('Chỉ tài khoản Ứng viên mới có thể ứng tuyển.');
+      return;
+    }
+
+    if (!selectedFile && !currentUser.cvUrl) {
+      toast.error('Vui lòng chọn file CV hoặc cập nhật CV trong hồ sơ của bạn.');
+      return;
+    }
+
+    setApplying(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('jobId', id);
+      if (selectedFile) {
+        formData.append('cv', selectedFile);
+      }
+
+      const response = await fetch(`${API_BASE}/api/applications`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.message || 'Ứng tuyển thất bại. Vui lòng thử lại.');
+        return;
+      }
+
+      toast.success('Ứng tuyển thành công! Nhà tuyển dụng sẽ nhận được hồ sơ của bạn.');
+      setApplyModalOpen(false);
+      setSelectedFile(null);
+    } catch (error) {
+      console.error(error);
+      toast.error('Lỗi kết nối. Vui lòng thử lại sau.');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   return (
     <div className="bg-slate-50 min-h-screen pb-16 animate-fade-in">
       {/* 🌟 Header Section */}
@@ -80,9 +166,12 @@ const JobDetail = () => {
             </div>
 
             <div className="flex flex-row md:flex-col gap-3 w-full md:w-auto mt-4 md:mt-0">
-              <button className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg shadow-blue-600/30">
-                Ứng tuyển ngay
-              </button>
+              <button
+            onClick={handleApplyClick}
+            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg shadow-blue-600/30"
+          >
+            Ứng tuyển ngay
+          </button>
               <div className="flex gap-3">
                 <button className="flex-1 flex justify-center items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-3.5 px-6 rounded-xl transition-colors">
                   <Bookmark className="w-5 h-5" /> Lưu
@@ -95,6 +184,70 @@ const JobDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* 🌟 Apply Modal */}
+      {applyModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-xl rounded-[32px] bg-white p-6 shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-slate-900">Ứng tuyển vào vị trí này</h3>
+                <p className="text-sm text-slate-500 mt-1">Tải lên CV của bạn hoặc sử dụng CV đã lưu trong hồ sơ.</p>
+              </div>
+              <button
+                onClick={() => setApplyModalOpen(false)}
+                className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSubmitApplication} className="space-y-5">
+              <div className="rounded-3xl bg-slate-50 border border-slate-200 p-4">
+                <p className="text-sm font-bold text-slate-700 mb-2">CV hiện tại</p>
+                {currentUser?.cvUrl ? (
+                  <a
+                    href={`${API_BASE}${currentUser.cvUrl}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-600 hover:underline text-sm break-all"
+                  >
+                    Xem CV đã lưu trong hồ sơ
+                  </a>
+                ) : (
+                  <p className="text-sm text-slate-500">Bạn chưa có CV lưu sẵn trong hồ sơ.</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-black text-slate-500">Tải lên CV mới</label>
+                <label className="flex items-center gap-3 px-4 py-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 cursor-pointer text-slate-600 hover:border-blue-500 hover:text-blue-700 transition-colors">
+                  <UploadCloud className="w-5 h-5" />
+                  <span>{selectedFile ? selectedFile.name : 'Chọn file CV (.pdf, .doc, .docx)'}</span>
+                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
+                </label>
+                <p className="text-xs text-slate-400">Nếu bạn chọn file mới, nó sẽ được sử dụng khi ứng tuyển.</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setApplyModalOpen(false)}
+                  className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold transition-all"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={applying}
+                  className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold transition-all disabled:opacity-50"
+                >
+                  {applying ? 'Đang gửi...' : 'Ứng tuyển'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* 🌟 Main Content */}
       <div className="max-w-6xl mx-auto px-4 -mt-6 relative z-20 flex flex-col lg:flex-row gap-8">
@@ -181,7 +334,10 @@ const JobDetail = () => {
             </div>
             
             <div className="mt-8 pt-6 border-t border-slate-100">
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-600/20 mb-3">
+              <button
+              onClick={handleApplyClick}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-600/20 mb-3"
+            >
                 Ứng tuyển ngay
               </button>
               <p className="text-center text-xs text-slate-500 font-medium">Bạn có thể sử dụng AI để tối ưu CV cho công việc này.</p>

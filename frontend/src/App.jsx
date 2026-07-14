@@ -31,6 +31,7 @@ import EditJob from './pages/Bussiness/EditJob';
 import ManageCV from './pages/Candidate/ManageCV';
 import TemplateCV from './pages/Candidate/TemplateCV';
 import EditCV from './pages/Candidate/EditCV';
+import Applications from './pages/Candidate/Applications';
 import Jobs from './pages/Jobs/Jobs';
 import JobDetail from './pages/Jobs/JobDetail';
 import AIInterview from './pages/Candidate/AIInterview';
@@ -65,6 +66,7 @@ function App() {
           <Route path="/jobs/:id" element={<JobDetail />} /> 
           
           <Route path="/candidate/manage-cv" element={<ManageCV />} />
+          <Route path="/candidate/applications" element={<Applications />} />
           <Route path="/candidate/cv-templates" element={<TemplateCV />} />
           <Route path="/candidate/cv-builder" element={<EditCV />} />
           <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
