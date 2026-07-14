@@ -25,6 +25,7 @@ import BussinessProfile from './pages/Bussiness/BussinessProfile';
 import PostJob from './pages/Bussiness/PostJob';
 import Create from './pages/Bussiness/Create';
 import CVList from './pages/Bussiness/CVList';
+import EditJob from './pages/Bussiness/EditJob';
 
 // === IMPORT TRANG CANDIDATE (MỚI THÊM) ===
 import ManageCV from './pages/Candidate/ManageCV';
@@ -90,6 +91,7 @@ function App() {
           <Route path="/bussiness/create" element={<Create />} />
           <Route path="/bussiness/profile" element={<BussinessProfile />} />
           <Route path="/bussiness/cvlist" element={<CVList />} />
+          <Route path="/bussiness/edit-job/:id" element={<EditJob />} />
 
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
           <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
