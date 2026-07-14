@@ -117,6 +117,11 @@ Trân trọng,
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
+  const getPublicCvUrl = (cv) => {
+    if (!cv) return null;
+    return cv.startsWith('http') ? cv : `${API_BASE}${cv}`;
+  };
+
   const fetchApplications = useCallback(async (signal) => {
     try {
       setLoading(true);
@@ -453,7 +458,8 @@ Trân trọng,
                             <button
                               onClick={() => {
                                 const cv = app.userId?.cvUrl;
-                                if (cv) window.open(cv, '_blank');
+                                const url = getPublicCvUrl(cv);
+                                if (url) window.open(url, '_blank');
                               }}
                               className="p-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
                               title="Xem CV"
@@ -602,7 +608,8 @@ Trân trọng,
                         <button
                           onClick={() => {
                             const cv = app.userId?.cvUrl;
-                            if (cv) window.open(cv, '_blank');
+                            const url = getPublicCvUrl(cv);
+                            if (url) window.open(url, '_blank');
                           }}
                           className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors tooltip" 
                           title="Xem CV"

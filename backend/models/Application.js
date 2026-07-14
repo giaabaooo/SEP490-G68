@@ -18,6 +18,10 @@ const applicationSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       default: null,
     },
+    appliedCvFileUrl: {
+      type: String,
+      default: '',
+    },
     aiScore: {
       type: Number,
       default: 0,

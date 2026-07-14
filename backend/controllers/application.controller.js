@@ -3,6 +3,66 @@ const User = require('../models/User');
 const Job = require('../models/Job');
 const sendEmail = require('../utils/sendEmail');
 
+// POST /api/applications
+exports.createApplication = async (req, res) => {
+  try {
+    const { jobId } = req.body;
+    const userId = req.user?.id;
+
+    if (!jobId) {
+      return res.status(400).json({ message: 'jobId là bắt buộc' });
+    }
+
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({ message: 'Công việc không tồn tại' });
+    }
+
+    const existing = await Application.findOne({ jobId, userId });
+    if (existing) {
+      return res.status(400).json({ message: 'Bạn đã ứng tuyển vào công việc này rồi' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Người dùng không tồn tại' });
+    }
+
+    let appliedCvFileUrl = '';
+    if (req.file) {
+      appliedCvFileUrl = `/uploads/cvs/${req.file.filename}`;
+      user.cvUrl = appliedCvFileUrl;
+      await user.save();
+    } else if (user.cvUrl) {
+      appliedCvFileUrl = user.cvUrl;
+    }
+
+    if (!appliedCvFileUrl) {
+      return res.status(400).json({ message: 'Vui lòng tải lên CV hoặc cập nhật CV trong hồ sơ của bạn trước khi ứng tuyển' });
+    }
+
+    const application = await Application.create({
+      jobId,
+      userId,
+      appliedCvFileUrl,
+      status: 'Applied',
+    });
+
+    const populatedApplication = await Application.findById(application._id)
+      .populate('userId', 'fullName avatar cvUrl email')
+      .populate('jobId', 'title');
+
+    return res.status(201).json({
+      message: 'Ứng tuyển thành công',
+      data: populatedApplication,
+      user,
+    });
+  } catch (error) {
+    console.error('Create application error:', error);
+    return res.status(500).json({ message: 'Lỗi máy chủ khi ứng tuyển' });
+  }
+};
+
 // GET /api/applications
 // Supports filtering by jobId, status, search (candidate name), pagination and sorting
 exports.list = async (req, res) => {
@@ -21,11 +81,9 @@ exports.list = async (req, res) => {
     const q = {};
     // If requester is a business (recruiter), restrict to their jobs only
     if (user.role === 'business') {
-      // find job ids owned by this recruiter
       const jobs = await Job.find({ recruiterId: user.id }).select('_id');
       const jobIds = jobs.map((j) => j._id.toString());
 
-      // If client requested a specific jobId, ensure it's owned by recruiter
       if (jobId) {
         if (!jobIds.includes(jobId.toString())) {
           return res.status(403).json({ message: 'Access denied to requested job applications' });
@@ -34,9 +92,13 @@ exports.list = async (req, res) => {
       } else {
         q.jobId = { $in: jobIds };
       }
+    } else if (user.role === 'candidate') {
+      q.userId = user.id;
+      if (jobId) q.jobId = jobId;
     } else {
       if (jobId) q.jobId = jobId;
     }
+
     if (status) q.status = status;
 
     // If search by candidate name, find matching users first
@@ -56,7 +118,14 @@ exports.list = async (req, res) => {
 
     const items = await Application.find(q)
       .populate('userId', 'fullName avatar cvUrl email')
-      .populate('jobId', 'title')
+      .populate({
+        path: 'jobId',
+        select: 'title recruitmentDeadline recruiterId',
+        populate: {
+          path: 'recruiterId',
+          select: 'fullName companyName'
+        }
+      })
       .sort(sort)
       .skip(skip)
       .limit(Number(limit));

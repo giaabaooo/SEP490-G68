@@ -262,7 +262,7 @@ const Navbar = () => {
                     <div className="menu-section">
                       <div className="menu-section-title">Quản lý tìm việc</div>
                       <Link to="/candidate" className="dropdown-item">Việc làm đã lưu</Link>
-                      <Link to="/candidate" className="dropdown-item">Việc làm đã ứng tuyển</Link>
+                      <Link to="/candidate/applications" className="dropdown-item">Việc làm đã ứng tuyển</Link>
                       <Link to="/candidate" className="dropdown-item">Việc làm phù hợp với bạn</Link>
                     </div>
 
