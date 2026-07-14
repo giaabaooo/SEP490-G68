@@ -37,7 +37,10 @@ exports.updateProfile = async (req, res) => {
       education,
       cvUrl,
       companyName,
+      taxCode,
+      city,
       website,
+      companySize,
       email
     } = req.body;
 
@@ -54,7 +57,10 @@ exports.updateProfile = async (req, res) => {
     if (education !== undefined) updateData.education = education;
     if (cvUrl !== undefined) updateData.cvUrl = cvUrl;
     if (companyName !== undefined) updateData.companyName = companyName;
+    if (taxCode !== undefined) updateData.taxCode = taxCode;
+    if (city !== undefined) updateData.city = city;
     if (website !== undefined) updateData.website = website;
+    if (companySize !== undefined) updateData.companySize = companySize;
 
     // Không cho cập nhật email ở API này
     void email;

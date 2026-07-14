@@ -10,19 +10,23 @@ const connectDB = require("./config/db");
 // Import hàm seedAdmin (Điều chỉnh đường dẫn theo cấu trúc thư mục của bạn)
 const seedAdmin = require("./scripts/seedAdmin");
 const seedCandidate = require("./scripts/seedCandidate");
+const seedHRData = require("./scripts/seedHRData");
 
 const authRoutes = require("./routes/auth");
 const profileRoutes = require("./routes/profile");
 const jobRoutes = require("./routes/jobs");
 const applicationRoutes = require("./routes/applications");
+const adminUserRoutes = require("./routes/adminUsers");
 const cvRoutes = require("./routes/cv");
+const interviewRoutes = require("./routes/interview.routes");
 
 const app = express();
 
-// Kết nối DB, sau đó chạy Seed Admin và Seed Candidate
+// Kết nối DB, sau đó chạy Seed Admin, Candidate và HR Data
 connectDB().then(async () => {
   await seedAdmin();
   await seedCandidate();
+  await seedHRData();
 });
 
 app.use(
@@ -38,8 +42,9 @@ app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
+app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/cv", cvRoutes);
-
+app.use("/api/interview", interviewRoutes);
 app.get("/", (req, res) => {
   res.send("Careerio API Running");
 });

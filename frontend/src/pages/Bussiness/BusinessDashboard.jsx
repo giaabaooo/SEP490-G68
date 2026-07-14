@@ -7,7 +7,7 @@ const BusinessDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user')) || {};
 
-  // ==========================================
+ // ==========================================
   // PHẦN MỚI THÊM: STATE & API LOGIC
   // ==========================================
   const [jobs, setJobs] = useState([]);
@@ -66,7 +66,7 @@ const BusinessDashboard = () => {
 
   return (
     <div className="animate-fade-in pb-8">
-      {/* Header & Lời chào */}
+      {/* Header & Greetings */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-12">
         <div>
           <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-2 tracking-tight">
@@ -99,14 +99,37 @@ const BusinessDashboard = () => {
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${colors[stat.color]} group-hover:scale-110 transition-transform`}>
                 <Icon className="w-7 h-7" />
               </div>
-              <div>
-                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">{stat.title}</p>
-                <p className="text-2xl font-black text-slate-800">{stat.value}</p>
+
+              {/* Recruitment Trend / History */}
+              <div className="bg-white rounded-[32px] p-7 shadow-sm border border-slate-200">
+                <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
+                  <BarChart3 className="w-6 h-6 text-blue-500" />
+                  Lịch sử tiếp nhận hồ sơ
+                </h2>
+
+                {stats.trend.length === 0 ? (
+                  <div className="py-12 text-center text-slate-400 text-sm font-medium border-2 border-dashed border-slate-100 rounded-2xl">
+                    Chưa có hoạt động nộp hồ sơ gần đây.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {stats.trend.map((t, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center gap-3">
+                          <Clock className="w-5 h-5 text-slate-400" />
+                          <span className="text-sm font-bold text-slate-700">
+                            {new Date(t._id).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+                        <span className="px-3.5 py-1 bg-blue-100 text-blue-800 rounded-xl text-xs font-black">
+                          +{t.count} CV mới
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
-          );
-        })}
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -216,16 +239,18 @@ const BusinessDashboard = () => {
                   <h3 className="font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{cv.name}</h3>
                   <span className="text-emerald-600 font-black text-sm bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">{cv.match}</span>
                 </div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{cv.pos}</p>
               </div>
-            ))}
-          </div>
 
-          <button className="w-full mt-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group">
-            Phòng lọc CV <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </button>
-        </div>
-      </div>
+              <button 
+                onClick={() => navigate('/bussiness/cvlist')}
+                className="w-full mt-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
+              >
+                Quản lý Pipeline <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };
