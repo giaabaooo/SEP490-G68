@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const auth = require("../middleware/auth");
+const authOptional = require("../middleware/authOptional");
 const jobController = require("../controllers/job.controller");
 
 // 1. Lấy danh sách công việc (Có tìm kiếm, lọc)
