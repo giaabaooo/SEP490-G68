@@ -1,24 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Briefcase, Users, FileCheck, Calendar, ArrowRight, Sparkles, TrendingUp, Edit3, Power, Loader2 } from 'lucide-react';
+import { 
+  Briefcase, Users, FileCheck, Calendar, ArrowRight, 
+  Sparkles, TrendingUp, Edit3, Power, Loader2, BarChart3, Clock 
+} from 'lucide-react'; // Đã bổ sung BarChart3 và Clock
 import { toast } from 'react-toastify';
 
 const BusinessDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user')) || {};
 
- // ==========================================
-  // PHẦN MỚI THÊM: STATE & API LOGIC
+  // ==========================================
+  // STATE & API LOGIC
   // ==========================================
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Khai báo tạm biến stats để phần "Lịch sử tiếp nhận" không bị lỗi undefined
+  const [stats] = useState({ trend: [] }); 
 
   // 1. Hàm lấy danh sách công việc của HR này
   const fetchMyJobs = async () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      // Gọi API lấy danh sách việc làm (Backend đã tự động lọc theo recruiterId dựa vào token)
       const res = await fetch('http://localhost:5000/api/jobs', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -56,13 +61,11 @@ const BusinessDashboard = () => {
       if (!res.ok) throw new Error(data.message || 'Cập nhật trạng thái thất bại');
 
       toast.success(`Đã ${newStatus === 'active' ? 'MỞ' : 'ĐÓNG'} tin tuyển dụng thành công!`);
-      // Gọi lại API để load lại bảng dữ liệu mới nhất
       fetchMyJobs(); 
     } catch (error) {
       toast.error(error.message);
     }
   };
-  // ==========================================
 
   return (
     <div className="animate-fade-in pb-8">
@@ -79,7 +82,7 @@ const BusinessDashboard = () => {
         </div>
       </div>
 
-      {/* 4 Stats Cards (Giữ nguyên) */}
+      {/* 4 Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         {[
           { icon: Briefcase, title: 'Chiến dịch mở', value: jobs.filter(j => j.status === 'Active').length + ' Jobs', color: 'blue' },
@@ -99,42 +102,50 @@ const BusinessDashboard = () => {
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border ${colors[stat.color]} group-hover:scale-110 transition-transform`}>
                 <Icon className="w-7 h-7" />
               </div>
-
-              {/* Recruitment Trend / History */}
-              <div className="bg-white rounded-[32px] p-7 shadow-sm border border-slate-200">
-                <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                  <BarChart3 className="w-6 h-6 text-blue-500" />
-                  Lịch sử tiếp nhận hồ sơ
-                </h2>
-
-                {stats.trend.length === 0 ? (
-                  <div className="py-12 text-center text-slate-400 text-sm font-medium border-2 border-dashed border-slate-100 rounded-2xl">
-                    Chưa có hoạt động nộp hồ sơ gần đây.
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {stats.trend.map((t, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                        <div className="flex items-center gap-3">
-                          <Clock className="w-5 h-5 text-slate-400" />
-                          <span className="text-sm font-bold text-slate-700">
-                            {new Date(t._id).toLocaleDateString('vi-VN')}
-                          </span>
-                        </div>
-                        <span className="px-3.5 py-1 bg-blue-100 text-blue-800 rounded-xl text-xs font-black">
-                          +{t.count} CV mới
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div>
+                <p className="text-slate-500 font-medium text-sm mb-1">{stat.title}</p>
+                <h3 className="text-2xl font-black text-slate-800">{stat.value}</h3>
               </div>
             </div>
+          );
+        })}
+      </div>
 
+      {/* Lịch sử & Thống kê phụ (Được tách riêng ra khỏi vòng lặp) */}
+      <div className="bg-white rounded-[32px] p-7 shadow-sm border border-slate-200 mb-12">
+        <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
+          <BarChart3 className="w-6 h-6 text-blue-500" />
+          Lịch sử tiếp nhận hồ sơ
+        </h2>
+
+        {stats.trend.length === 0 ? (
+          <div className="py-12 text-center text-slate-400 text-sm font-medium border-2 border-dashed border-slate-100 rounded-2xl">
+            Chưa có hoạt động nộp hồ sơ gần đây.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {stats.trend.map((t, idx) => (
+              <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-slate-400" />
+                  <span className="text-sm font-bold text-slate-700">
+                    {new Date(t._id).toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
+                <span className="px-3.5 py-1 bg-blue-100 text-blue-800 rounded-xl text-xs font-black">
+                  +{t.count} CV mới
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Grid chứa Table Việc Làm và Sidebar Sàng lọc AI */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* ==========================================
-            BẢNG CHIẾN DỊCH GẦN ĐÂY (ĐÃ THAY ĐỔI)
+            BẢNG CHIẾN DỊCH GẦN ĐÂY (Cột trái)
         ========================================== */}
         <div className="lg:col-span-2 bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden flex flex-col">
           <div className="p-7 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -170,9 +181,9 @@ const BusinessDashboard = () => {
                   </tr>
                 ) : (
                   jobs.slice(0, 5).map((job) => (
-                    <tr key={job.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80 transition-colors group">
+                    <tr key={job._id || job.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80 transition-colors group">
                       <td className="p-5 font-bold text-slate-800">{job.title}</td>
-                      <td className="p-5 font-bold text-slate-500">0 CV</td> {/* Đang để số 0 tạm thời */}
+                      <td className="p-5 font-bold text-slate-500">0 CV</td>
                       <td className="p-5">
                         <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${
                           job.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 
@@ -187,9 +198,8 @@ const BusinessDashboard = () => {
                       </td>
                       <td className="p-5 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {/* Nút Đóng / Mở */}
                           <button 
-                            onClick={() => toggleJobStatus(job.id, job.status)}
+                            onClick={() => toggleJobStatus(job._id || job.id, job.status)}
                             title={job.status === 'Active' ? 'Đóng tin này' : 'Mở lại tin'}
                             className={`p-2 rounded-xl transition-colors ${
                               job.status === 'Active' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
@@ -198,9 +208,8 @@ const BusinessDashboard = () => {
                             <Power className="w-4 h-4" />
                           </button>
                           
-                          {/* Nút Sửa */}
                           <button 
-                            onClick={() => navigate(`/bussiness/edit-job/${job.id}`)}
+                            onClick={() => navigate(`/bussiness/edit-job/${job._id || job.id}`)}
                             title="Chỉnh sửa tin"
                             className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors"
                           >
@@ -216,7 +225,9 @@ const BusinessDashboard = () => {
           </div>
         </div>
 
-        {/* AI Screening Sidebar - Phải (Giữ nguyên) */}
+        {/* ==========================================
+            AI SCREENING SIDEBAR (Cột phải)
+        ========================================== */}
         <div className="bg-white rounded-[32px] p-7 shadow-sm border border-slate-200">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
@@ -240,17 +251,18 @@ const BusinessDashboard = () => {
                   <span className="text-emerald-600 font-black text-sm bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">{cv.match}</span>
                 </div>
               </div>
+            ))}
 
-              <button 
-                onClick={() => navigate('/bussiness/cvlist')}
-                className="w-full mt-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
-              >
-                Quản lý Pipeline <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </button>
-            </div>
+            <button 
+              onClick={() => navigate('/bussiness/cvlist')}
+              className="w-full mt-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
+            >
+              Quản lý Pipeline <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </button>
           </div>
-        </>
-      )}
+        </div>
+
+      </div>
     </div>
   );
 };
