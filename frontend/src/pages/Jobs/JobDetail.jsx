@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { 
-  MapPin, DollarSign, Briefcase, Clock, Building, 
-  Globe, Users, Calendar, Share2, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X
-} from 'lucide-react';
+import { MapPin, DollarSign, Briefcase, Clock, Building, Globe, Users, Calendar, Share2, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
@@ -12,93 +9,89 @@ const JobDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // States lưu dữ liệu từ API
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
   const [applying, setApplying] = useState(false);
+  
+  // States cho luồng Ứng tuyển
+  const [hasApplied, setHasApplied] = useState(false);
+  const [myCVs, setMyCVs] = useState([]); // Danh sách CV từ Builder
+  const [selectedCvId, setSelectedCvId] = useState(null); // ID CV trên Careerio được chọn
+  const [selectedFile, setSelectedFile] = useState(null); // File upload từ máy tính
 
   const getCurrentUser = () => {
-    try {
-      return JSON.parse(localStorage.getItem('user')) || null;
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(localStorage.getItem('user')) || null; } 
+    catch { return null; }
   };
+  const currentUser = getCurrentUser();
 
-  // Gọi API lấy chi tiết công việc
   useEffect(() => {
-    window.scrollTo(0, 0); // Cuộn lên đầu trang khi vào
+    window.scrollTo(0, 0);
     
+    // Lấy thông tin Job
     const fetchJobDetail = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/api/jobs/${id}`);
-        if (!response.ok) {
-          throw new Error('Không tìm thấy công việc');
-        }
-        const data = await response.json();
-        setJob(data);
+        const response = await fetch(`${API_BASE}/api/jobs/${id}`);
+        if (!response.ok) throw new Error('Không tìm thấy công việc');
+        setJob(await response.json());
       } catch (error) {
-        console.error(error);
         toast.error('Lỗi khi tải chi tiết công việc!');
-        navigate('/jobs'); // Trả về trang danh sách nếu lỗi
+        navigate('/jobs');
       } finally {
         setLoading(false);
       }
     };
 
+    // Kiểm tra xem User đã ứng tuyển Job này chưa
+    const checkApplicationStatus = async () => {
+      if (!currentUser || currentUser.role !== 'candidate') return;
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/api/applications?jobId=${id}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        // Nếu mảng data có phần tử tức là user (đang đăng nhập) đã ứng tuyển
+        if (data.data && data.data.length > 0) {
+          setHasApplied(true);
+        }
+      } catch (error) {
+        console.error("Lỗi kiểm tra ứng tuyển:", error);
+      }
+    };
+
     fetchJobDetail();
+    checkApplicationStatus();
   }, [id, navigate]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50">
-        <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-4" />
-        <p className="text-slate-600 font-bold">Đang tải thông tin chi tiết...</p>
-      </div>
-    );
-  }
-
-  if (!job) return null;
-
-  const currentUser = getCurrentUser();
-
-  const handleApplyClick = () => {
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      toast.info('Vui lòng đăng nhập bằng tài khoản Ứng viên để ứng tuyển.');
-      return;
-    }
-
-    if (currentUser.role !== 'candidate') {
-      toast.info('Chỉ tài khoản Ứng viên mới có thể ứng tuyển vào công việc này.');
-      return;
+  // Hàm lấy danh sách CV đã tạo trên Careerio khi mở Modal
+  const handleApplyClick = async () => {
+    if (!currentUser) return toast.info('Vui lòng đăng nhập bằng tài khoản Ứng viên.');
+    if (currentUser.role !== 'candidate') return toast.info('Chỉ tài khoản Ứng viên mới có thể ứng tuyển.');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/api/cv/my-cvs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Lọc lấy các CV hợp lệ (có data)
+        setMyCVs(data);
+      }
+    } catch (error) {
+      console.error('Lỗi tải danh sách CV:', error);
     }
 
     setApplyModalOpen(true);
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0] || null;
-    setSelectedFile(file);
-  };
-
+  // Xử lý nộp form
   const handleSubmitApplication = async (e) => {
     e.preventDefault();
-    const currentUser = getCurrentUser();
-    if (!currentUser) {
-      toast.error('Vui lòng đăng nhập để ứng tuyển.');
-      return;
-    }
-    if (currentUser.role !== 'candidate') {
-      toast.error('Chỉ tài khoản Ứng viên mới có thể ứng tuyển.');
-      return;
-    }
-
-    if (!selectedFile && !currentUser.cvUrl) {
-      toast.error('Vui lòng chọn file CV hoặc cập nhật CV trong hồ sơ của bạn.');
-      return;
+    if (!selectedFile && !selectedCvId && !currentUser?.cvUrl) {
+      return toast.error('Vui lòng chọn hoặc tải lên một file CV để ứng tuyển.');
     }
 
     setApplying(true);
@@ -106,280 +99,248 @@ const JobDetail = () => {
       const token = localStorage.getItem('token');
       const formData = new FormData();
       formData.append('jobId', id);
+      
+      // Gửi theo độ ưu tiên: File upload -> CV Careerio -> CV Profile
       if (selectedFile) {
         formData.append('cv', selectedFile);
+      } else if (selectedCvId) {
+        formData.append('appliedCvId', selectedCvId); // Tương thích với Backend schema
       }
 
       const response = await fetch(`${API_BASE}/api/applications`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
-      const data = await response.json();
       if (!response.ok) {
-        toast.error(data.message || 'Ứng tuyển thất bại. Vui lòng thử lại.');
-        return;
+        const data = await response.json();
+        throw new Error(data.message || 'Ứng tuyển thất bại.');
       }
 
       toast.success('Ứng tuyển thành công! Nhà tuyển dụng sẽ nhận được hồ sơ của bạn.');
+      setHasApplied(true);
       setApplyModalOpen(false);
       setSelectedFile(null);
+      setSelectedCvId(null);
     } catch (error) {
-      console.error(error);
-      toast.error('Lỗi kết nối. Vui lòng thử lại sau.');
+      toast.error(error.message);
     } finally {
       setApplying(false);
     }
   };
 
+  if (loading) return (
+    <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50">
+      <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-4" />
+      <p className="text-slate-600 font-bold">Đang tải thông tin...</p>
+    </div>
+  );
+  if (!job) return null;
+
   return (
-    <div className="bg-slate-50 min-h-screen pb-16 animate-fade-in">
-      {/* 🌟 Header Section */}
-      <div className="bg-slate-900 pt-8 pb-16 px-4 relative overflow-hidden">
+    <div className="bg-slate-50 min-h-screen pb-16 font-inter">
+      {/* HEADER SECTION */}
+      <div className="bg-slate-900 pt-8 pb-16 px-4 relative">
         <div className="max-w-6xl mx-auto relative z-10">
-          <button 
-            onClick={() => navigate('/jobs')} 
-            className="flex items-center text-slate-400 hover:text-white font-medium text-sm mb-6 transition-colors w-fit"
-          >
+          <button onClick={() => navigate('/jobs')} className="flex items-center text-slate-400 hover:text-white font-medium text-sm mb-6 transition-colors w-fit">
             <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại danh sách
           </button>
 
-          <div className="flex flex-col md:flex-row gap-6 items-start md:items-center bg-white/10 p-6 md:p-8 rounded-[32px] backdrop-blur-md border border-white/10">
-            <img 
-              src={job.companyLogo || `https://ui-avatars.com/api/?name=${job.companyName}&background=eff6ff&color=3b82f6`} 
-              alt={job.companyName} 
-              className="w-24 h-24 rounded-2xl bg-white p-2 shrink-0 object-cover" 
-            />
+          <div className="flex flex-col md:flex-row gap-6 items-start md:items-center bg-white/5 p-6 md:p-8 rounded-3xl backdrop-blur-sm border border-white/10">
+            <div className="w-24 h-24 rounded-2xl bg-white p-2 shrink-0 flex items-center justify-center overflow-hidden">
+               <img src={job.companyLogo || `https://ui-avatars.com/api/?name=${job.companyName}&background=eff6ff&color=059669`} alt={job.companyName} className="w-full h-full object-contain" />
+            </div>
             
             <div className="flex-1 text-white">
-              <h1 className="text-2xl md:text-4xl font-black mb-2">{job.title}</h1>
-              <p className="text-lg text-blue-300 font-bold mb-4">{job.companyName}</p>
+              <h1 className="text-2xl md:text-3xl font-black mb-2">{job.title}</h1>
+              <p className="text-lg text-emerald-400 font-bold mb-4">{job.companyName}</p>
               
-              <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-slate-300">
-                <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /> {job.location || 'Chưa cập nhật'}</div>
-                <div className="flex items-center gap-1.5 text-emerald-400"><DollarSign className="w-4 h-4" /> {job.salary || 'Thỏa thuận'}</div>
-                <div className="flex items-center gap-1.5"><Briefcase className="w-4 h-4" /> {job.experience}</div>
+              <div className="flex flex-wrap items-center gap-5 text-sm font-medium text-slate-300">
+                <div className="flex items-center gap-2"><MapPin className="w-4 h-4 text-slate-400" /> {job.location || 'Chưa cập nhật'}</div>
+                <div className="flex items-center gap-2 text-emerald-400"><DollarSign className="w-4 h-4" /> {job.salary || 'Thỏa thuận'}</div>
+                <div className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-slate-400" /> {job.experience}</div>
               </div>
             </div>
 
             <div className="flex flex-row md:flex-col gap-3 w-full md:w-auto mt-4 md:mt-0">
-              <button
-            onClick={handleApplyClick}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg shadow-blue-600/30"
-          >
-            Ứng tuyển ngay
-          </button>
+              <button 
+                onClick={handleApplyClick} 
+                className={`flex-1 font-bold py-3.5 px-8 rounded-xl transition-all shadow-lg ${hasApplied ? 'bg-slate-700 hover:bg-slate-600 text-white shadow-slate-900/30 border border-slate-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/30'}`}
+              >
+                {hasApplied ? 'Đã ứng tuyển (Ứng tuyển lại)' : 'Ứng tuyển ngay'}
+              </button>
               <div className="flex gap-3">
-                <button className="flex-1 flex justify-center items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-3.5 px-6 rounded-xl transition-colors">
-                  <Bookmark className="w-5 h-5" /> Lưu
-                </button>
-                <button className="flex-1 flex justify-center items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-bold py-3.5 px-6 rounded-xl transition-colors">
-                  <Share2 className="w-5 h-5" />
-                </button>
+                <button className="flex-1 flex justify-center items-center bg-white/10 hover:bg-white/20 text-white py-3.5 px-6 rounded-xl transition-colors"><Bookmark className="w-5 h-5" /></button>
+                <button className="flex-1 flex justify-center items-center bg-white/10 hover:bg-white/20 text-white py-3.5 px-6 rounded-xl transition-colors"><Share2 className="w-5 h-5" /></button>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 🌟 Apply Modal */}
+      {/* MODAL ỨNG TUYỂN */}
       {applyModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center px-4">
-          <div className="w-full max-w-xl rounded-[32px] bg-white p-6 shadow-2xl border border-slate-200" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 md:p-8 shadow-2xl border border-slate-200 animate-fade-in max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6 sticky top-0 bg-white z-10 pb-2 border-b border-slate-100">
               <div>
-                <h3 className="text-2xl font-black text-slate-900">Ứng tuyển vào vị trí này</h3>
-                <p className="text-sm text-slate-500 mt-1">Tải lên CV của bạn hoặc sử dụng CV đã lưu trong hồ sơ.</p>
+                <h3 className="text-xl font-bold text-slate-900">Nộp hồ sơ ứng tuyển</h3>
+                <p className="text-sm text-slate-500 mt-1">Vị trí: <span className="font-semibold text-slate-700">{job.title}</span></p>
               </div>
-              <button
-                onClick={() => setApplyModalOpen(false)}
-                className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={() => setApplyModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 flex items-center justify-center"><X className="w-4 h-4" /></button>
             </div>
-            <form onSubmit={handleSubmitApplication} className="space-y-5">
-              <div className="rounded-3xl bg-slate-50 border border-slate-200 p-4">
-                <p className="text-sm font-bold text-slate-700 mb-2">CV hiện tại</p>
-                {currentUser?.cvUrl ? (
-                  <a
-                    href={`${API_BASE}${currentUser.cvUrl}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-blue-600 hover:underline text-sm break-all"
-                  >
-                    Xem CV đã lưu trong hồ sơ
-                  </a>
+
+            <form onSubmit={handleSubmitApplication} className="space-y-6">
+              
+              {/* Lựa chọn 1: CV tạo trên Careerio */}
+              <div>
+                <p className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><FileText className="w-4 h-4 text-emerald-600" /> Chọn CV đã tạo trên hệ thống</p>
+                {myCVs.length > 0 ? (
+                  <div className="space-y-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
+                    {myCVs.map((cv) => (
+                      <div 
+                        key={cv._id} 
+                        onClick={() => { setSelectedCvId(cv._id); setSelectedFile(null); }}
+                        className={`p-3 border rounded-xl cursor-pointer flex items-center justify-between transition-all ${selectedCvId === cv._id ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300 bg-white'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold ${selectedCvId === cv._id ? 'bg-emerald-500' : 'bg-slate-300'}`}>CV</div>
+                           <div>
+                             <p className={`text-sm font-bold ${selectedCvId === cv._id ? 'text-emerald-800' : 'text-slate-700'}`}>{cv.title || 'CV Chưa đặt tên'}</p>
+                             <p className="text-xs text-slate-500">Cập nhật: {new Date(cv.updatedAt).toLocaleDateString('vi-VN')}</p>
+                           </div>
+                        </div>
+                        {selectedCvId === cv._id && <CheckCircle className="w-5 h-5 text-emerald-600" />}
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <p className="text-sm text-slate-500">Bạn chưa có CV lưu sẵn trong hồ sơ.</p>
+                  <p className="text-sm text-slate-500 italic p-3 bg-slate-50 rounded-xl border border-slate-100">Bạn chưa có CV hoàn chỉnh nào trên hệ thống.</p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-black text-slate-500">Tải lên CV mới</label>
-                <label className="flex items-center gap-3 px-4 py-3 rounded-3xl border border-dashed border-slate-300 bg-slate-50 cursor-pointer text-slate-600 hover:border-blue-500 hover:text-blue-700 transition-colors">
-                  <UploadCloud className="w-5 h-5" />
-                  <span>{selectedFile ? selectedFile.name : 'Chọn file CV (.pdf, .doc, .docx)'}</span>
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileChange} />
-                </label>
-                <p className="text-xs text-slate-400">Nếu bạn chọn file mới, nó sẽ được sử dụng khi ứng tuyển.</p>
+              <div className="relative flex items-center py-2">
+                 <div className="flex-grow border-t border-slate-200"></div>
+                 <span className="flex-shrink-0 mx-4 text-slate-400 text-xs font-bold uppercase tracking-wider">Hoặc</span>
+                 <div className="flex-grow border-t border-slate-200"></div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setApplyModalOpen(false)}
-                  className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold transition-all"
+              {/* Lựa chọn 2: Upload File PDF máy tính */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-bold text-slate-800">Tải lên CV mới từ máy tính</label>
+                  {selectedFile && <span className="text-xs font-bold text-rose-500 cursor-pointer hover:underline" onClick={()=>setSelectedFile(null)}>Xóa file</span>}
+                </div>
+                <label 
+                  onClick={() => setSelectedCvId(null)} // Nếu click upload thì bỏ chọn CV hệ thống
+                  className={`flex flex-col items-center justify-center gap-2 px-4 py-6 rounded-2xl border-2 border-dashed transition-colors cursor-pointer ${selectedFile ? 'border-blue-500 bg-blue-50' : 'border-slate-300 bg-slate-50 hover:border-blue-400'}`}
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={applying}
-                  className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl font-bold transition-all disabled:opacity-50"
-                >
-                  {applying ? 'Đang gửi...' : 'Ứng tuyển'}
-                </button>
+                  {selectedFile ? (
+                    <>
+                      <FileText className="w-8 h-8 text-blue-600 mb-1" />
+                      <span className="text-sm font-semibold text-blue-700 text-center">{selectedFile.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-8 h-8 text-slate-400 mb-1" />
+                      <span className="text-sm font-medium text-slate-600">Nhấn để chọn file PDF/Word tải lên</span>
+                      <span className="text-xs text-slate-400">Dung lượng tối đa 5MB</span>
+                    </>
+                  )}
+                  <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setSelectedCvId(null); }} />
+                </label>
               </div>
+
+              <button type="submit" disabled={applying} className="w-full mt-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                {applying ? 'Đang gửi hồ sơ...' : 'Nộp CV Ứng Tuyển'}
+              </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* 🌟 Main Content */}
-      <div className="max-w-6xl mx-auto px-4 -mt-6 relative z-20 flex flex-col lg:flex-row gap-8">
+      {/* MAIN CONTENT DETAILS */}
+      <div className="max-w-6xl mx-auto px-4 -mt-6 relative z-20 flex flex-col lg:flex-row gap-6">
         
-        {/* Cột trái: Chi tiết công việc */}
+        {/* Left Column */}
         <div className="w-full lg:w-2/3 space-y-6">
-          <div className="bg-white rounded-[32px] p-8 shadow-sm border border-slate-200">
-            {/* Tags */}
-            <div className="flex flex-wrap gap-2 mb-8 pb-8 border-b border-slate-100">
-              <span className="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-bold rounded-xl">{job.type}</span>
-              {job.tags && job.tags.map(tag => (
-                <span key={tag} className="px-4 py-2 bg-blue-50 text-blue-600 text-sm font-bold rounded-xl">{tag}</span>
+          <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
+            <h2 className="text-xl font-black text-slate-900 mb-4 border-l-4 border-emerald-500 pl-3">Mô tả công việc</h2>
+            <div className="text-slate-600 leading-relaxed whitespace-pre-wrap mb-8 text-sm">
+              {job.description}
+            </div>
+
+            <h2 className="text-xl font-black text-slate-900 mb-4 border-l-4 border-emerald-500 pl-3">Yêu cầu ứng viên</h2>
+            <ul className="space-y-3 mb-8">
+              {job.requirements?.map((req, idx) => (
+                <li key={idx} className="flex items-start gap-3 text-slate-600 text-sm">
+                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mt-2 shrink-0"></div>
+                  <span className="leading-relaxed">{req}</span>
+                </li>
               ))}
-            </div>
+            </ul>
 
-            {/* Mô tả */}
-            <div className="mb-10">
-              <h2 className="text-xl font-black text-slate-900 mb-4">Mô tả công việc</h2>
-              {/* Vì data có thể có nhiều dòng, ta dùng whitespace-pre-wrap để giữ format xuống dòng */}
-              <div className="text-slate-600 leading-relaxed whitespace-pre-wrap">
-                {job.description}
-              </div>
-            </div>
-
-            {/* Yêu cầu */}
-            <div className="mb-10">
-              <h2 className="text-xl font-black text-slate-900 mb-4">Yêu cầu ứng viên</h2>
-              <ul className="space-y-3">
-                {job.requirements && job.requirements.map((req, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-slate-600 leading-relaxed">
-                    <div className="mt-1 bg-slate-100 p-1 rounded-full text-slate-400 shrink-0">
-                      <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
-                    </div>
-                    {req}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Quyền lợi */}
-            <div>
-              <h2 className="text-xl font-black text-slate-900 mb-4">Quyền lợi dành cho bạn</h2>
-              <ul className="space-y-3">
-                {job.benefits && job.benefits.map((benefit, idx) => (
-                  <li key={idx} className="flex items-start gap-3 text-slate-600 leading-relaxed">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
-                    {benefit}
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <h2 className="text-xl font-black text-slate-900 mb-4 border-l-4 border-emerald-500 pl-3">Quyền lợi</h2>
+            <ul className="space-y-3">
+              {job.benefits?.map((benefit, idx) => (
+                <li key={idx} className="flex items-start gap-3 text-slate-600 text-sm">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{benefit}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
-        {/* Cột phải: Thông tin công ty & Summary */}
+        {/* Right Column */}
         <div className="w-full lg:w-1/3 space-y-6">
-          
-          {/* Box Tổng quan */}
-          <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-200">
-            <h3 className="font-black text-lg text-slate-900 mb-6">Tổng quan công việc</h3>
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 sticky top-24">
+            <h3 className="font-black text-lg text-slate-900 mb-6">Thông tin chung</h3>
+            
             <div className="space-y-5">
               <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                  <Calendar className="w-5 h-5" />
-                </div>
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0"><Calendar className="w-5 h-5" /></div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Ngày đăng</p>
-                  <p className="font-bold text-slate-800">
-                    {job.postedAt ? new Date(job.postedAt).toLocaleDateString('vi-VN') : 'Đang cập nhật'}
-                  </p>
+                  <p className="text-xs font-semibold text-slate-400 mb-0.5">NGÀY ĐĂNG</p>
+                  <p className="font-bold text-slate-800 text-sm">{job.postedAt ? new Date(job.postedAt).toLocaleDateString('vi-VN') : 'Đang cập nhật'}</p>
                 </div>
               </div>
               <div className="flex gap-4">
-                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500 shrink-0">
-                  <Clock className="w-5 h-5" />
-                </div>
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0"><Clock className="w-5 h-5" /></div>
                 <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Hạn ứng tuyển</p>
-                  <p className="font-bold text-slate-800">
-                    {job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : 'Đang cập nhật'}
-                  </p>
+                  <p className="text-xs font-semibold text-slate-400 mb-0.5">HẠN NỘP HỒ SƠ</p>
+                  <p className="font-bold text-rose-600 text-sm">{job.deadline ? new Date(job.deadline).toLocaleDateString('vi-VN') : 'Đang cập nhật'}</p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-500 shrink-0"><Users className="w-5 h-5" /></div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 mb-0.5">QUY MÔ CÔNG TY</p>
+                  <p className="font-bold text-slate-800 text-sm">{job.companySize || 'Chưa cập nhật'}</p>
                 </div>
               </div>
             </div>
             
-            <div className="mt-8 pt-6 border-t border-slate-100">
-              <button
-              onClick={handleApplyClick}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-lg shadow-blue-600/20 mb-3"
-            >
-                Ứng tuyển ngay
-              </button>
-              <p className="text-center text-xs text-slate-500 font-medium">Bạn có thể sử dụng AI để tối ưu CV cho công việc này.</p>
-            </div>
+            {job.website && (
+              <div className="mt-6 pt-6 border-t border-slate-100 flex items-center gap-3">
+                <Globe className="w-5 h-5 text-slate-400 shrink-0" />
+                <a href={job.website} target="_blank" rel="noreferrer" className="text-emerald-600 hover:underline text-sm font-semibold truncate">
+                  {job.website}
+                </a>
+              </div>
+            )}
           </div>
-
-          {/* Box Công ty */}
-          <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-200">
-            <div className="flex items-center gap-4 mb-6">
-              <img 
-                src={job.companyLogo || `https://ui-avatars.com/api/?name=${job.companyName}&background=eff6ff&color=3b82f6`} 
-                alt={job.companyName} 
-                className="w-14 h-14 rounded-xl border border-slate-100" 
-              />
-              <div>
-                <h3 className="font-black text-slate-900">{job.companyName}</h3>
-                <Link to="#" className="text-sm font-bold text-blue-600 hover:underline">Xem trang công ty</Link>
-              </div>
-            </div>
-            
-            <div className="space-y-4 text-sm font-medium text-slate-600">
-              <div className="flex items-start gap-3">
-                <Building className="w-5 h-5 text-slate-400 shrink-0" />
-                <span>Trụ sở: {job.companyLocation || 'Chưa cập nhật'}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Users className="w-5 h-5 text-slate-400 shrink-0" />
-                <span>Quy mô: {job.companySize || 'Chưa cập nhật'}</span>
-              </div>
-              {job.website && (
-                <div className="flex items-center gap-3">
-                  <Globe className="w-5 h-5 text-slate-400 shrink-0" />
-                  <a href={job.website} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline break-all">
-                    {job.website}
-                  </a>
-                </div>
-              )}
-            </div>
-          </div>
-
         </div>
       </div>
+      
+      {/* CSS For Modal Scrollbar */}
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+      `}</style>
     </div>
   );
 };

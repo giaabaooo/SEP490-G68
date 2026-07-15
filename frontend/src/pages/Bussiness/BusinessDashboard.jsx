@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { 
   Briefcase, Users, FileCheck, Calendar, ArrowRight, 
   Sparkles, TrendingUp, Edit3, Power, Loader2, BarChart3, Clock 
-} from 'lucide-react'; // Đã bổ sung BarChart3 và Clock
+} from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const BusinessDashboard = () => {
@@ -15,11 +15,8 @@ const BusinessDashboard = () => {
   // ==========================================
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // Khai báo tạm biến stats để phần "Lịch sử tiếp nhận" không bị lỗi undefined
-  const [stats] = useState({ trend: [] }); 
+  const [stats, setStats] = useState({ trend: [] });
 
-  // 1. Hàm lấy danh sách công việc của HR này
   const fetchMyJobs = async () => {
     setLoading(true);
     try {
@@ -42,7 +39,6 @@ const BusinessDashboard = () => {
     fetchMyJobs();
   }, []);
 
-  // 2. Hàm xử lý nút Đóng / Mở tin tuyển dụng nhanh
   const toggleJobStatus = async (jobId, currentStatus) => {
     const newStatus = currentStatus === 'Active' ? 'closed' : 'active';
     
@@ -111,7 +107,7 @@ const BusinessDashboard = () => {
         })}
       </div>
 
-      {/* Lịch sử & Thống kê phụ (Được tách riêng ra khỏi vòng lặp) */}
+      {/* Lịch sử tiếp nhận hồ sơ */}
       <div className="bg-white rounded-[32px] p-7 shadow-sm border border-slate-200 mb-12">
         <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
           <BarChart3 className="w-6 h-6 text-blue-500" />
@@ -147,7 +143,7 @@ const BusinessDashboard = () => {
         {/* ==========================================
             BẢNG CHIẾN DỊCH GẦN ĐÂY (Cột trái)
         ========================================== */}
-        <div className="lg:col-span-2 bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+        <div className="lg:col-span-2 bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden flex flex-col h-fit">
           <div className="p-7 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <h2 className="text-xl font-black text-slate-900">Chiến dịch gần đây</h2>
             <Link to="/bussiness/post-job" className="text-blue-600 font-bold text-sm hover:underline flex items-center">
@@ -228,7 +224,7 @@ const BusinessDashboard = () => {
         {/* ==========================================
             AI SCREENING SIDEBAR (Cột phải)
         ========================================== */}
-        <div className="bg-white rounded-[32px] p-7 shadow-sm border border-slate-200">
+        <div className="bg-white rounded-[32px] p-7 shadow-sm border border-slate-200 h-fit">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-indigo-500" />
@@ -252,14 +248,14 @@ const BusinessDashboard = () => {
                 </div>
               </div>
             ))}
-
-            <button 
-              onClick={() => navigate('/bussiness/cvlist')}
-              className="w-full mt-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
-            >
-              Quản lý Pipeline <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
           </div>
+
+          <button 
+            onClick={() => navigate('/bussiness/cvlist')}
+            className="w-full mt-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex items-center justify-center gap-2 group"
+          >
+            Quản lý Pipeline <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </button>
         </div>
 
       </div>
