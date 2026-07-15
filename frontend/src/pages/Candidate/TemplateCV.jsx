@@ -5,36 +5,88 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const TemplateCV = () => {
   const [activeFilter, setActiveFilter] = useState('Tất cả');
+  const [isUploading, setIsUploading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  
   const navigate = useNavigate();
 
-  // Đã thay đổi link placeholder sang placehold.co để tránh bị chặn
+  // Mẫu Template tĩnh truyền thống (Mô phỏng ảnh A4 thực tế)
   const templates = [
-    { id: 1, name: 'Tiêu chuẩn', type: 'ATS', author: 'Đơn giản', image: 'https://placehold.co/400x550/e2e8f0/475569?text=Standard+CV', colors: ['#1e293b', '#3b82f6', '#10b981'] },
-    { id: 2, name: 'Tiêu chuẩn (ít kinh nghiệm)', type: 'ATS', author: 'Đơn giản', image: 'https://placehold.co/400x550/e2e8f0/475569?text=Entry+Level+CV', colors: ['#0f172a', '#0ea5e9'] },
-    { id: 3, name: 'Ấn tượng 6', type: 'ATS', author: 'Hiện đại', image: 'https://placehold.co/400x550/e2e8f0/475569?text=Creative+CV', colors: ['#451a03', '#831843', '#1e3a8a'] },
-    { id: 4, name: 'Chuyên nghiệp 2', type: 'Harvard', author: 'Chuyên nghiệp', image: 'https://placehold.co/400x550/e2e8f0/475569?text=Pro+CV', colors: ['#1e293b', '#0f172a'] },
+    { id: 1, name: 'Tiêu chuẩn', type: 'ATS', author: 'Đơn giản', image: 'https://placehold.co/600x848/ffffff/1e293b?text=CV+Tiêu+Chuẩn\n(ATS)', colors: ['#1e293b', '#3b82f6', '#10b981'] },
+    { id: 2, name: 'Thanh lịch', type: 'ATS', author: 'Đơn giản', image: 'https://placehold.co/600x848/ffffff/1e293b?text=CV+Thanh+Lịch', colors: ['#0f172a', '#0ea5e9'] },
+    { id: 3, name: 'Hiện Đại 1', type: 'Mới', author: 'Hiện đại', image: 'https://placehold.co/600x848/ffffff/1e293b?text=CV+Hiện+Đại', colors: ['#451a03', '#831843', '#1e3a8a'] },
+    { id: 4, name: 'Ấn tượng 4', type: 'Sáng tạo', author: 'Chuyên nghiệp', image: 'https://placehold.co/600x848/ffffff/1e293b?text=CV+Ấn+Tượng', colors: ['#1e293b', '#0f172a'] },
   ];
 
-  const handleFileUpload = (e) => {
+  // Dữ liệu Template sinh ra bởi AI tuần này
+  const aiGeneratedTemplates = [
+    { name: "Cyberpunk Coder", targetIndustry: "AI / Web3 Engineer", designConfig: { primaryColor: "#8b5cf6", fontFamily: "Roboto", lineSpacing: 1.6 }, mockImageText: "Tech+CV" },
+    { name: "Minimalist Marketer", targetIndustry: "Digital Marketing", designConfig: { primaryColor: "#f97316", fontFamily: "Inter", lineSpacing: 1.5 }, mockImageText: "Marketing+CV" },
+    { name: "Fintech Leader", targetIndustry: "Finance / Blockchain", designConfig: { primaryColor: "#0ea5e9", fontFamily: "Times New Roman", lineSpacing: 1.4 }, mockImageText: "Finance+CV" }
+  ];
+
+  // Mở Modal và lưu lại mẫu đang chọn
+  const openModal = (template) => {
+    setSelectedTemplate(template);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedTemplate(null);
+  };
+
+  // Tạo CV Trắng
+  const handleCreateBlank = () => {
+    closeModal();
+    navigate('/candidate/cv-builder', { 
+      state: { dynamicConfig: selectedTemplate?.designConfig ? selectedTemplate : null } 
+    });
+  };
+
+  // Upload CV PDF (Dùng AI Bóc tách)
+  const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Giả lập API AI Parser mất 2s để đọc PDF
-    toast.info('AI đang đọc và bóc tách dữ liệu CV của bạn...');
-    
-    setTimeout(() => {
-      // Dữ liệu giả lập AI trả về sau khi đọc file PDF của bạn
-      const mockParsedData = {
-        personal: { fullName: 'Nguyễn Gia Bảo', jobTitle: 'Software Engineer', email: 'giabao@gmail.com', phone: '0394747067', link: 'github.com/giabao' },
-        objective: 'Tận dụng kiến thức nền tảng vững chắc về phát triển web (React, Node.js) để xây dựng các ứng dụng có hiệu suất cao.',
-        education: [{ school: 'FPT University', major: 'Software Engineering', time: '09/2022 - 12/2026', description: 'Hoàn thành khóa luận xuất sắc...' }],
-        experience: [{ company: 'FPT Software', position: 'Intern .NET', time: '03/2025 - 08/2025', description: '- Học tập và phát triển ứng dụng .NET\n- Quen thuộc với quy trình phát triển phần mềm' }],
-        skills: 'JavaScript, React, Node.js, Java, Python, SQL Server'
-      };
+    if (file.type !== 'application/pdf') {
+      return toast.error('Hệ thống chỉ hỗ trợ định dạng PDF.');
+    }
 
-      // Chuyển hướng sang trang Edit kèm dữ liệu JSON đã bóc tách
-      navigate('/candidate/cv-builder', { state: { parsedData: mockParsedData } });
-    }, 2000);
+    const formData = new FormData();
+    formData.append('cvFile', file);
+    setIsUploading(true);
+    const toastId = toast.loading('AI đang phân tích và bóc tách dữ liệu CV của bạn...');
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/cv/parse-pdf`,  {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.parsedData) {
+        toast.update(toastId, { render: "Bóc tách thành công! Đang chuyển trang...", type: "success", isLoading: false, autoClose: 2000 });
+        closeModal();
+        navigate('/candidate/cv-builder', { 
+          state: { 
+            parsedData: result.parsedData,
+            dynamicConfig: selectedTemplate?.designConfig ? selectedTemplate : null
+          } 
+        });
+      } else {
+        throw new Error(result.message || "Không thể bóc tách dữ liệu.");
+      }
+    } catch (error) {
+      toast.update(toastId, { render: "Lỗi: " + error.message, type: "error", isLoading: false, autoClose: 3000 });
+    } finally {
+      setIsUploading(false);
+      e.target.value = null; 
+    }
   };
 
   const filters = ['Tất cả', 'Đơn giản', 'Chuyên nghiệp', 'Hiện đại', 'Ấn tượng', 'Harvard', 'ATS'];
@@ -43,83 +95,132 @@ const TemplateCV = () => {
     <>
       <ToastContainer position="top-right" autoClose={3000} />
       <style>{`
-        .template-page { background: #f8fafc; min-height: 100vh; padding: 40px 20px; font-family: 'Inter', sans-serif; }
+        /* Reset & Font */
+        .template-page { background: #f4f5f5; min-height: 100vh; padding: 40px 20px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #333; }
         .template-container { max-width: 1200px; margin: 0 auto; }
         
+        /* Header */
         .page-header { text-align: center; margin-bottom: 40px; }
-        .page-title { font-size: 28px; font-weight: 800; color: #1e293b; margin-bottom: 12px; }
-        .page-subtitle { font-size: 15px; color: #64748b; max-width: 700px; margin: 0 auto; line-height: 1.5; }
+        .page-title { font-size: 28px; font-weight: 700; color: #212f3f; margin-bottom: 12px; }
+        .page-subtitle { font-size: 15px; color: #555; max-width: 700px; margin: 0 auto; line-height: 1.5; }
         
-        .filter-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 40px; }
-        .filter-btn { padding: 8px 20px; background: white; border: 1px solid #e2e8f0; border-radius: 20px; font-size: 14px; font-weight: 600; color: #475569; cursor: pointer; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .filter-btn:hover { border-color: #cbd5e1; color: #1e293b; }
-        .filter-btn.active { background: #059669; color: white; border-color: #059669; }
-
-        .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 30px; }
+        /* Filter */
+        .filter-bar { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-bottom: 30px; }
+        .filter-btn { padding: 8px 16px; background: white; border: 1px solid #e5e7eb; border-radius: 20px; font-size: 14px; font-weight: 500; color: #4b5563; cursor: pointer; transition: all 0.2s; }
+        .filter-btn:hover { border-color: #00b14f; color: #00b14f; }
+        .filter-btn.active { background: #00b14f; color: white; border-color: #00b14f; }
+        
+        /* Grid & Cards */
+        .template-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 24px; margin-bottom: 50px; }
         .template-card { background: transparent; }
+        .img-wrapper { background: white; padding: 0; border: 1px solid #e5e7eb; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 12px; position: relative; overflow: hidden; aspect-ratio: 1 / 1.414; transition: transform 0.3s, box-shadow 0.3s; }
+        .img-wrapper:hover { transform: translateY(-4px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .img-wrapper img { width: 100%; height: 100%; object-fit: cover; display: block; }
         
-        .img-wrapper { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 16px; position: relative; overflow: hidden; cursor: pointer; transition: transform 0.3s; }
-        .img-wrapper:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .img-wrapper img { width: 100%; height: auto; border: 1px solid #f1f5f9; border-radius: 4px; display: block; }
-        
-        .hover-action { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
+        /* Hover Action Overlay */
+        .hover-action { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
         .img-wrapper:hover .hover-action { opacity: 1; }
-        .btn-use-template { background: #059669; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; border: none; cursor: pointer; }
+        .btn-use-template { background: #00b14f; color: white; padding: 10px 24px; border-radius: 20px; font-weight: 600; font-size: 14px; border: none; cursor: pointer; transition: background 0.2s; }
+        .btn-use-template:hover { background: #009040; }
         
-        .template-info { display: flex; justify-content: space-between; align-items: flex-start; }
-        .template-name { font-size: 18px; font-weight: 700; color: #1e293b; margin-bottom: 8px; }
-        .template-badges { display: flex; gap: 8px; }
-        .badge { background: #e2e8f0; color: #475569; font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; }
+        /* Info */
+        .template-info { display: flex; justify-content: space-between; align-items: flex-start; padding: 0 4px; }
+        .template-name { font-size: 16px; font-weight: 600; color: #212f3f; margin-bottom: 6px; }
+        .template-badges { display: flex; gap: 6px; }
+        .badge { background: #f3f4f6; color: #4b5563; font-size: 11px; padding: 4px 8px; border-radius: 4px; font-weight: 500; }
+        .badge-ai { background: #fef08a; color: #854d0e; }
+        .color-palette { display: flex; gap: 4px; }
+        .color-dot { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #e5e7eb; }
         
-        .color-palette { display: flex; gap: 6px; }
-        .color-dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 0 1px #cbd5e1; cursor: pointer; }
+        /* Section Divider */
+        .section-divider { display: flex; align-items: center; gap: 15px; margin-bottom: 24px; }
+        .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
+        .section-divider-title { font-size: 16px; font-weight: 700; color: #00b14f; display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
+
+        /* ================= MODAL CSS ================= */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(2px); animation: fadeIn 0.2s ease-out; }
+        .modal-content { background: white; width: 100%; max-width: 500px; border-radius: 12px; padding: 30px; position: relative; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-close { position: absolute; top: 15px; right: 15px; background: transparent; border: none; font-size: 24px; color: #9ca3af; cursor: pointer; transition: 0.2s; }
+        .modal-close:hover { color: #374151; }
+        .modal-title { font-size: 20px; font-weight: 700; color: #1f2937; margin-bottom: 24px; text-align: center; }
         
-        .ai-upload-banner { background: linear-gradient(135deg, #1e3a8a, #3b82f6); border-radius: 16px; padding: 30px; color: white; display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; box-shadow: 0 10px 20px rgba(59, 130, 246, 0.2); }
-        .ai-upload-text h3 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-        .ai-upload-text p { font-size: 15px; color: #bfdbfe; }
-        .btn-upload { background: white; color: #1d4ed8; padding: 12px 24px; border-radius: 8px; font-weight: 700; border: none; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .modal-options { display: flex; flex-direction: column; gap: 16px; }
+        .option-card { border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; display: flex; gap: 16px; align-items: center; cursor: pointer; transition: all 0.2s; background: #fff; text-align: left; }
+        .option-card:hover { border-color: #00b14f; background: #f0fdf4; }
+        .option-card.disabled { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
+        
+        .option-icon { width: 48px; height: 48px; border-radius: 50%; background: #e0f2fe; color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 24px; flex-shrink: 0; }
+        .option-icon.green { background: #dcfce7; color: #16a34a; }
+        
+        .option-text h4 { font-size: 15px; font-weight: 600; color: #1f2937; margin: 0 0 4px 0; }
+        .option-text p { font-size: 13px; color: #6b7280; margin: 0; line-height: 1.4; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
       `}</style>
 
       <div className="template-page">
         <div className="template-container">
           
           <div className="page-header">
-            <h1 className="page-title">Mẫu CV xin việc chuẩn 2026</h1>
-            <p className="page-subtitle">Tuyển chọn các mẫu CV đa dạng phong cách, tối ưu hoá cho hệ thống ATS, giúp bạn tạo dấu ấn cá nhân và kết nối mạnh mẽ với nhà tuyển dụng.</p>
+            <h1 className="page-title">Danh sách mẫu CV xin việc chuẩn 2026</h1>
+            <p className="page-subtitle">Các mẫu CV được thiết kế theo chuẩn, đa dạng phong cách, tối ưu hoá cho hệ thống quét tự động ATS giúp bạn dễ dàng ghi điểm với nhà tuyển dụng.</p>
           </div>
 
-          <div className="ai-upload-banner">
-            <div className="ai-upload-text">
-              <h3>Đã có sẵn CV file PDF?</h3>
-              <p>Tải lên đây, AI của chúng tôi sẽ tự động nhận diện và chuyển đổi sang mẫu CV bạn thích.</p>
+          {/* KHU VỰC 1: TEMPLATE ĐỘNG DO AI SINH RA */}
+          <div className="section-divider">
+            <div className="section-divider-title">
+              <span className="material-symbols-outlined">auto_awesome</span> Mới: AI Gợi Ý Tuần Này
             </div>
-            
-            <label className="btn-upload" style={{ cursor: 'pointer' }}>
-              <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleFileUpload} />
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-              Upload CV ngay
-            </label>
+          </div>
+          <div className="template-grid">
+            {aiGeneratedTemplates.map(tpl => (
+              <div className="template-card" key={tpl.name}>
+                <div className="img-wrapper" style={{ border: `2px solid ${tpl.designConfig.primaryColor}30` }}>
+                  {/* Sử dụng Placehold giả lập ảnh A4 */}
+                  <img src={`https://placehold.co/600x848/${tpl.designConfig.primaryColor.replace('#','')}/ffffff?text=${tpl.mockImageText}`} alt={tpl.name} />
+                  <div className="hover-action">
+                    <button 
+                      className="btn-use-template" 
+                      style={{ backgroundColor: tpl.designConfig.primaryColor }}
+                      onClick={() => openModal(tpl)}
+                    >
+                      Dùng mẫu AI này
+                    </button>
+                  </div>
+                </div>
+                <div className="template-info">
+                  <div>
+                    <div className="template-name" style={{ color: tpl.designConfig.primaryColor }}>{tpl.name}</div>
+                    <div className="template-badges">
+                      <span className="badge badge-ai">HOT</span>
+                      <span className="badge">Dành cho {tpl.targetIndustry}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
 
+          {/* KHU VỰC 2: TEMPLATE TRUYỀN THỐNG */}
+          <div className="section-divider" style={{ marginTop: '40px' }}>
+            <div className="section-divider-title" style={{ color: '#4b5563' }}>Thư Viện Mẫu Tiêu Chuẩn</div>
+          </div>
+          
           <div className="filter-bar">
             {filters.map(filter => (
-              <button 
-                key={filter} 
-                className={`filter-btn ${activeFilter === filter ? 'active' : ''}`}
-                onClick={() => setActiveFilter(filter)}
-              >
+              <button key={filter} className={`filter-btn ${activeFilter === filter ? 'active' : ''}`} onClick={() => setActiveFilter(filter)}>
                 {filter}
               </button>
             ))}
           </div>
-
+          
           <div className="template-grid">
             {templates.map(tpl => (
               <div className="template-card" key={tpl.id}>
                 <div className="img-wrapper">
                   <img src={tpl.image} alt={tpl.name} />
                   <div className="hover-action">
-                    <button className="btn-use-template">Dùng mẫu này</button>
+                    <button className="btn-use-template" onClick={() => openModal(tpl)}>Dùng mẫu này</button>
                   </div>
                 </div>
                 <div className="template-info">
@@ -142,6 +243,42 @@ const TemplateCV = () => {
 
         </div>
       </div>
+
+      {/* MODAL LỰA CHỌN CÁCH TẠO CV */}
+      {isModalOpen && (
+        <div className="modal-overlay" onClick={closeModal}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeModal}>&times;</button>
+            <h3 className="modal-title">Bạn muốn tạo CV từ?</h3>
+            
+            <div className="modal-options">
+              {/* Lựa chọn 1: Upload PDF (Auto-fill) */}
+              <label className={`option-card ${isUploading ? 'disabled' : ''}`} style={{ cursor: isUploading ? 'not-allowed' : 'pointer' }}>
+                <input type="file" accept="application/pdf" style={{ display: 'none' }} onChange={handleFileUpload} disabled={isUploading} />
+                <div className="option-icon">
+                  {isUploading ? <span className="material-symbols-outlined animate-spin">sync</span> : <span className="material-symbols-outlined">upload_file</span>}
+                </div>
+                <div className="option-text">
+                  <h4>Dùng AI trích xuất từ CV có sẵn</h4>
+                  <p>{isUploading ? 'AI đang đọc dữ liệu, vui lòng chờ...' : 'Tải lên CV cũ (PDF), AI sẽ tự động đọc thông tin và điền vào mẫu mới giúp bạn.'}</p>
+                </div>
+              </label>
+
+              {/* Lựa chọn 2: Tạo trắng */}
+              <div className={`option-card ${isUploading ? 'disabled' : ''}`} onClick={!isUploading ? handleCreateBlank : undefined}>
+                <div className="option-icon green">
+                  <span className="material-symbols-outlined">edit_document</span>
+                </div>
+                <div className="option-text">
+                  <h4>Tạo CV từ đầu</h4>
+                  <p>Bắt đầu bằng một khung trắng và tự tay điền từng thông tin của bạn vào hệ thống.</p>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      )}
     </>
   );
 };

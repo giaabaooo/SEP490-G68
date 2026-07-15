@@ -1,26 +1,45 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { OpenAI } = require("openai");
 
-// Khởi tạo Gemini (Xử lý Text & JSON)
+// Khởi tạo Gemini
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Khởi tạo OpenAI (Xử lý Giọng nói - Text-to-Speech)
+// Khởi tạo OpenAI
 const openai = new OpenAI({ 
     apiKey: process.env.OPENAI_API_KEY || 'MISSING_KEY' 
 });
 
-// Hàm dùng chung để gọi Gemini kèm tự động sửa lỗi JSON
-async function generateWithFallback(prompt, isJson = true) {
-    // Ưu tiên dùng model mới nhất, nếu lỗi sẽ fallback nghiệm thu
-    const modelsToTry = ["gemini-2.5-pro", "gemini-1.5-flash"]; 
+// Hàm gọi AI tích hợp "Smart Fallback"
+async function generateWithFallback(prompt, isJson = true, temp = null) {
+    // [QUAN TRỌNG NHẤT]: Đưa model "gemini-2.5-pro" của bạn trở lại vị trí đầu tiên
+    const modelsToTry = [
+        "gemini-2.5-pro",         // Model gốc của bạn, dùng cho API trả phí
+        "gemini-2.0-flash",       
+        "gemini-1.5-pro-latest",
+        "gemini-1.5-flash-latest",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash",
+        "gemini-pro"              // Fallback cuối cùng
+    ]; 
+    
+    let lastError;
     
     for (const modelName of modelsToTry) {
         try {
-            const config = isJson 
-                ? { responseMimeType: "application/json", temperature: 0.7 } 
-                : { temperature: 0.8 };
+            // Mặc định temp là 0.7 cho JSON. Nếu có truyền temp vào sẽ dùng temp đó
+            let temperature = temp !== null ? temp : (isJson ? 0.7 : 0.8);
+            const generationConfig = { temperature: temperature };
                 
-            const model = genAI.getGenerativeModel({ model: modelName, generationConfig: config });
+            // Chỉ ép định dạng JSON cho các model thế hệ mới hỗ trợ tính năng này
+            if (isJson && (modelName.includes("1.5") || modelName.includes("2.0") || modelName.includes("2.5"))) {
+                generationConfig.responseMimeType = "application/json";
+            }
+
+            const model = genAI.getGenerativeModel({ 
+                model: modelName, 
+                generationConfig 
+            });
+
             const result = await model.generateContent(prompt);
             const response = await result.response;
             let text = response.text();
@@ -34,29 +53,27 @@ async function generateWithFallback(prompt, isJson = true) {
             return text;
         } catch (error) {
             console.warn(`⚠️ Model ${modelName} thất bại:`, error.message);
-            if (modelName === modelsToTry[modelsToTry.length - 1]) {
-                throw new Error("Dịch vụ AI đang bảo trì hoặc trả về định dạng lỗi.");
-            }
+            lastError = error;
+            // Tự động bỏ qua lỗi và thử model tiếp theo
         }
     }
+    throw new Error("Tất cả các model AI đều bị lỗi API: " + (lastError?.message || "Vui lòng kiểm tra lại GEMINI_API_KEY"));
 }
 
-// Hàm chuyển văn bản thành giọng nói bằng OpenAI
 async function generateSpeech(text) {
     try {
-        if (!process.env.OPENAI_API_KEY) {
-            console.warn("⚠️ Thiếu OPENAI_API_KEY. Bỏ qua tạo giọng nói.");
+        if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'MISSING_KEY') {
             return null;
         }
         
         const mp3 = await openai.audio.speech.create({ 
             model: "tts-1", 
-            voice: "shimmer", // Có thể đổi thành: alloy, echo, fable, onyx, nova
+            voice: "shimmer",
             input: text 
         });
         
         const buffer = Buffer.from(await mp3.arrayBuffer());
-        return buffer.toString('base64'); // Trả về base64 để frontend chạy trực tiếp
+        return buffer.toString('base64');
     } catch (error) { 
         console.error("Lỗi OpenAI TTS:", error.message);
         return null; 
@@ -83,11 +100,8 @@ exports.conductMockInterview = async (conversationHistory, jobPosition) => {
     const finalPrompt = `${systemPrompt}\n\nLỊCH SỬ PHỎNG VẤN:\n${conversationHistory.length === 0 ? "Bắt đầu phỏng vấn." : historyString}\n\nPhản hồi tiếp theo:`;
 
     try {
-        // Dùng Gemini để sinh văn bản trả lời
         const aiResponse = await generateWithFallback(finalPrompt, true); 
         const fullResponse = `${aiResponse.feedback} ${aiResponse.nextQuestion}`;
-        
-        // Dùng OpenAI để chuyển văn bản đó thành Audio
         const audioBase64 = await generateSpeech(fullResponse);
         
         return {
@@ -139,5 +153,45 @@ exports.evaluateInterview = async (history, jobPosition) => {
             weaknesses: [],
             improvements: ["Vui lòng thực hiện lại bài phỏng vấn"]
         };
+    }
+};
+
+// 3. Logic bóc tách CV từ PDF
+exports.parseCVForTemplate = async (pdfText) => {
+    const prompt = `
+    Bạn là một chuyên gia ATS Parser. Hãy trích xuất dữ liệu từ văn bản CV dưới đây thành JSON.
+
+    QUY TẮC NGHIÊM NGẶT:
+    1. Trích xuất chính xác, KHÔNG THÊM THẮT. Nếu không có thông tin, GÁN CHUỖI RỖNG "".
+    2. Tách rõ từng object trong các mảng (education, experience, activities, certificates).
+    3. BẮT BUỘC trả về đúng cấu trúc JSON sau:
+
+    {
+      "personal": { "fullName": "", "jobTitle": "", "email": "", "phone": "", "dob": "", "gender": "", "address": "", "link": "" },
+      "objective": "",
+      "education": [ { "school": "", "major": "", "time": "", "description": "" } ],
+      "experience": [ { "company": "", "position": "", "time": "", "description": "" } ],
+      "activities": [ { "organization": "", "role": "", "time": "", "description": "" } ],
+      "certificates": [ { "name": "", "time": "" } ],
+      "skills": "",
+      "hobbies": ""
+    }
+
+    NỘI DUNG CV:
+    ${pdfText}
+    `;
+
+    try {
+        const result = await generateWithFallback(prompt, true, 0);
+        
+        // Đảm bảo dữ liệu mảng không bị null gây lỗi map() ở frontend
+        if (!result.education) result.education = [{ school: "", major: "", time: "", description: "" }];
+        if (!result.experience) result.experience = [{ company: "", position: "", time: "", description: "" }];
+        if (!result.activities) result.activities = [{ organization: "", role: "", time: "", description: "" }];
+        if (!result.certificates) result.certificates = [{ name: "", time: "" }];
+        
+        return result;
+    } catch (error) {
+        throw new Error("Lỗi parse AI: " + error.message);
     }
 };
