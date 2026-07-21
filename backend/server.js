@@ -20,12 +20,13 @@ const adminUserRoutes = require("./routes/adminUsers");
 const cvRoutes = require("./routes/cv");
 const interviewRoutes = require("./routes/interview.routes");
 const notificationRoutes = require("./routes/notifications");
-
+const seedModerator = require("./scripts/seedModerator");
 const app = express();
 
 // Kết nối DB, sau đó chạy Seed Admin, Candidate và HR Data
 connectDB().then(async () => {
   await seedAdmin();
+  await seedModerator();
   await seedCandidate();
   await seedHRData();
 });
