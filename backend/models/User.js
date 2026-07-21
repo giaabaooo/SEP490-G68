@@ -28,6 +28,11 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "candidate", "business"],
       default: "candidate",
     },
+    subRole: {
+      type: String,
+      enum: ["admin", "hr", "moderator"],
+      default: "hr",
+    },
 
     status: {
       type: String,
