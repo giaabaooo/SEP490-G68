@@ -10,6 +10,7 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
+  // FIX ĐIỀU HƯỚNG 1: Khi tải lại trang có sẵn token
   useEffect(() => {
     const userStr = localStorage.getItem('user');
     const token = localStorage.getItem('token');
@@ -17,15 +18,25 @@ const Login = () => {
     if (token && userStr) {
        try {
          const user = JSON.parse(userStr);
-         if (user.role === 'admin') navigate('/admin', { replace: true });
-         else if (user.role === 'business') navigate('/bussiness/dashboard', { replace: true });
-         else navigate('/home', { replace: true });
+         if (user.role === 'admin') {
+           navigate('/admin', { replace: true });
+         } else if (user.role === 'business') {
+           // KIỂM TRA SUBROLE Ở ĐÂY
+           if (user.subRole === 'moderator') {
+             navigate('/moderator/requests', { replace: true });
+           } else {
+             navigate('/bussiness/dashboard', { replace: true });
+           }
+         } else {
+           navigate('/home', { replace: true });
+         }
        } catch (e) {
          navigate('/home', { replace: true });
        }
     }
   }, [navigate]);
 
+  // FIX ĐIỀU HƯỚNG 2: Đăng nhập bằng Email/Password
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -49,9 +60,18 @@ const Login = () => {
       toast.success('Đăng nhập thành công!');
       
       setTimeout(() => {
-        if (data.user.role === 'admin') navigate('/admin', { replace: true });
-        else if (data.user.role === 'business') navigate('/bussiness/dashboard', { replace: true });
-        else navigate('/home', { replace: true });
+        if (data.user.role === 'admin') {
+          navigate('/admin', { replace: true });
+        } else if (data.user.role === 'business') {
+          // KIỂM TRA SUBROLE Ở ĐÂY
+          if (data.user.subRole === 'moderator') {
+            navigate('/moderator/requests', { replace: true });
+          } else {
+            navigate('/bussiness/dashboard', { replace: true });
+          }
+        } else {
+          navigate('/home', { replace: true });
+        }
       }, 800);
     } catch (error) {
       toast.error('Lỗi kết nối. Vui lòng thử lại');
@@ -60,6 +80,7 @@ const Login = () => {
     }
   };
 
+  // FIX ĐIỀU HƯỚNG 3: Đăng nhập bằng Google
   const googleLogin = useGoogleLogin({
     onSuccess: async (codeResponse) => {
       try {
@@ -87,9 +108,18 @@ const Login = () => {
           toast.success('Đăng nhập thành công!');
           
           setTimeout(() => {
-            if (data.user.role === 'admin') navigate('/admin', { replace: true });
-            else if (data.user.role === 'business') navigate('/bussiness/dashboard', { replace: true });
-            else navigate('/home', { replace: true });
+            if (data.user.role === 'admin') {
+              navigate('/admin', { replace: true });
+            } else if (data.user.role === 'business') {
+              // KIỂM TRA SUBROLE Ở ĐÂY
+              if (data.user.subRole === 'moderator') {
+                navigate('/moderator/requests', { replace: true });
+              } else {
+                navigate('/bussiness/dashboard', { replace: true });
+              }
+            } else {
+              navigate('/home', { replace: true });
+            }
           }, 800);
         }
       } catch (error) {
@@ -143,7 +173,6 @@ const Login = () => {
         .form { display: flex; flex-direction: column; gap: 20px; }
         .input-group { display: flex; flex-direction: column; gap: 8px; }
         
-        /*  THÊM CSS CHO LABEL VÀ FORGOT PASSWORD */
         .password-header { display: flex; justify-content: space-between; align-items: center; }
         .action-link { font-size: 13px; color: #3b82f6; font-weight: 600; text-decoration: none; transition: color 0.2s; }
         .action-link:hover { color: #2563eb; text-decoration: underline; }
@@ -174,7 +203,6 @@ const Login = () => {
           <div className="login-left">
             <div className="brand">
               <Link to="/home" className="brand-logo-wrapper" style={{ textDecoration: 'none' }}>
-                {/* Logo size khổng lồ */}
                 <img src="/logo-careerio.png" alt="Careerio Logo" style={{ height: '80px', width: 'auto', objectFit: 'contain' }} />
               </Link>
             </div>
@@ -195,7 +223,6 @@ const Login = () => {
               </div>
               
               <div className="input-group">
-                {/*  THÊM NÚT FORGOT PASSWORD Ở ĐÂY */}
                 <div className="password-header">
                   <label>Mật khẩu</label>
                   <Link to="/forgot-password" className="action-link">Quên mật khẩu?</Link>
@@ -207,7 +234,6 @@ const Login = () => {
                 {loading ? 'Đang xử lý...' : 'Đăng nhập vào hệ thống'}
               </button>
 
-              {/*  THÊM NÚT ĐỔI MẬT KHẨU Ở ĐÂY */}
               <div className="change-pass-wrapper">
                  <Link to="/change-password" className="action-link" style={{ color: '#64748b', fontSize: '12px' }}>
                    Bạn muốn đổi mật khẩu?

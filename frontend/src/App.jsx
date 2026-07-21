@@ -16,8 +16,6 @@ import ComingSoon from './pages/ComingSoon/ComingSoon';
 import Onboarding from './pages/Auth/Onboarding';
 import Profile from './pages/Profile/Profile';
 import UserManagement from './pages/Admin/UserManagement';
-
-// Import các trang Auth bổ sung
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ChangePassword from './pages/Auth/ChangePassword';
 
@@ -39,6 +37,12 @@ import Jobs from './pages/Jobs/Jobs';
 import JobDetail from './pages/Jobs/JobDetail';
 import AIInterview from './pages/Candidate/AIInterview';
 import Notifications from './pages/Candidate/Notifications';
+
+// Import trang Moderator
+import ModeratorRequests from './pages/Moderator/ModeratorRequests';
+import CreateTest from './pages/Moderator/CreateTest';
+import TestBank from './pages/Moderator/TestBank';
+
 function App() {
   return (
     <Router>
@@ -55,7 +59,7 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
         </Route>
 
-        {/* GỘP TẤT CẢ VÀO MAIN LAYOUT (DÙNG CHUNG NAVBAR) */}
+        {/* TẤT CẢ GỘP VÀO MAIN LAYOUT (Dùng Navbar.jsx đã được chỉnh sửa) */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
@@ -69,7 +73,6 @@ function App() {
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/jobs/:id" element={<JobDetail />} /> 
-          
           <Route path="/candidate/manage-cv" element={<ManageCV />} />
           <Route path="/candidate/applications" element={<Applications />} />
           <Route path="/candidate/save" element={<SavedJobs />} />
@@ -78,7 +81,6 @@ function App() {
           <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
           <Route path="/candidate/ai-interview" element={<AIInterview />} />
           <Route path="/candidate/notifications" element={<Notifications />} />
-
           <Route path="/candidate/practice" element={<ComingSoon />} />
           <Route path="/candidate/courses" element={<ComingSoon />} />
 
@@ -89,10 +91,14 @@ function App() {
           <Route path="/bussiness/profile" element={<BussinessProfile />} />
           <Route path="/bussiness/cvlist" element={<CVList />} />
           <Route path="/bussiness/edit-job/:id" element={<EditJob />} />
-
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
           <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
           <Route path="/bussiness/settings" element={<ComingSoon />} />
+
+          {/* === CÁC TRANG DÀNH CHO MODERATOR (CHUYỂN VÀO ĐÂY) === */}
+          <Route path="/moderator/requests" element={<ModeratorRequests />} />
+          <Route path="/moderator/create-test/:jobId" element={<CreateTest />} />
+          <Route path="/moderator/test-bank" element={<TestBank />} />
         </Route>
       </Routes>
     </Router>
