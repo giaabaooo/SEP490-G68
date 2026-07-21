@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { MapPin, DollarSign, Briefcase, Clock, Building, Globe, Users, Calendar, Share2, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -16,6 +17,7 @@ const JobDetail = () => {
   
   // States cho luồng Ứng tuyển
   const [hasApplied, setHasApplied] = useState(false);
+  const [savedJobs, setSavedJobs] = useState([]);
   const [myCVs, setMyCVs] = useState([]); // Danh sách CV từ Builder
   const [selectedCvId, setSelectedCvId] = useState(null); // ID CV trên Careerio được chọn
   const [selectedFile, setSelectedFile] = useState(null); // File upload từ máy tính
@@ -25,6 +27,13 @@ const JobDetail = () => {
     catch { return null; }
   };
   const currentUser = getCurrentUser();
+
+  useEffect(() => {
+    const syncSavedJobs = () => setSavedJobs(getSavedJobs());
+    syncSavedJobs();
+    window.addEventListener('saved-jobs-updated', syncSavedJobs);
+    return () => window.removeEventListener('saved-jobs-updated', syncSavedJobs);
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -64,6 +73,12 @@ const JobDetail = () => {
     fetchJobDetail();
     checkApplicationStatus();
   }, [id, navigate]);
+
+  const handleToggleSaved = () => {
+    if (!job) return;
+    const result = toggleSavedJob(job);
+    setSavedJobs(result.jobs);
+  };
 
   // Hàm lấy danh sách CV đã tạo trên Careerio khi mở Modal
   const handleApplyClick = async () => {
@@ -130,6 +145,8 @@ const JobDetail = () => {
     }
   };
 
+  const isSaved = Boolean(job && savedJobs.some(saved => String(saved._id || saved.id) === String(job._id || job.id)));
+
   if (loading) return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50">
       <Loader2 className="w-10 h-10 text-emerald-600 animate-spin mb-4" />
@@ -171,7 +188,13 @@ const JobDetail = () => {
                 {hasApplied ? 'Đã ứng tuyển (Ứng tuyển lại)' : 'Ứng tuyển ngay'}
               </button>
               <div className="flex gap-3">
-                <button className="flex-1 flex justify-center items-center bg-white/10 hover:bg-white/20 text-white py-3.5 px-6 rounded-xl transition-colors"><Bookmark className="w-5 h-5" /></button>
+                <button
+                  type="button"
+                  onClick={handleToggleSaved}
+                  className={`flex-1 flex justify-center items-center py-3.5 px-6 rounded-xl transition-colors ${isSaved ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 hover:bg-white/20 text-white'}`}
+                >
+                  <Bookmark className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
+                </button>
                 <button className="flex-1 flex justify-center items-center bg-white/10 hover:bg-white/20 text-white py-3.5 px-6 rounded-xl transition-colors"><Share2 className="w-5 h-5" /></button>
               </div>
             </div>
