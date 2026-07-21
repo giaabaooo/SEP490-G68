@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import AuthGuard from './components/AuthGuard';
 
 // Import Layouts
@@ -32,6 +34,7 @@ import ManageCV from './pages/Candidate/ManageCV';
 import TemplateCV from './pages/Candidate/TemplateCV';
 import EditCV from './pages/Candidate/EditCV';
 import Applications from './pages/Candidate/Applications';
+import SavedJobs from './pages/Candidate/SavedJobs';
 import Jobs from './pages/Jobs/Jobs';
 import JobDetail from './pages/Jobs/JobDetail';
 import AIInterview from './pages/Candidate/AIInterview';
@@ -39,6 +42,7 @@ import Notifications from './pages/Candidate/Notifications';
 function App() {
   return (
     <Router>
+      <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
         <Route path="/" element={<AuthGuard />} />
 
@@ -68,6 +72,7 @@ function App() {
           
           <Route path="/candidate/manage-cv" element={<ManageCV />} />
           <Route path="/candidate/applications" element={<Applications />} />
+          <Route path="/candidate/save" element={<SavedJobs />} />
           <Route path="/candidate/cv-templates" element={<TemplateCV />} />
           <Route path="/candidate/cv-builder" element={<EditCV />} />
           <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
