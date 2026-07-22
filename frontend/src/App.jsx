@@ -40,8 +40,9 @@ import Notifications from './pages/Candidate/Notifications';
 
 // Import trang Moderator
 import ModeratorRequests from './pages/Moderator/ModeratorRequests';
-import CreateTest from './pages/Moderator/CreateTest';
+import TestBuilder from './pages/Moderator/TestBuilder';
 import TestBank from './pages/Moderator/TestBank';
+import ModeratorJobDetail from './pages/Moderator/ModeratorJobDetail';
 
 function App() {
   return (
@@ -72,7 +73,7 @@ function App() {
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/jobs" element={<Jobs />} />
-          <Route path="/jobs/:id" element={<JobDetail />} /> 
+          <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/candidate/manage-cv" element={<ManageCV />} />
           <Route path="/candidate/applications" element={<Applications />} />
           <Route path="/candidate/save" element={<SavedJobs />} />
@@ -97,8 +98,10 @@ function App() {
 
           {/* === CÁC TRANG DÀNH CHO MODERATOR (CHUYỂN VÀO ĐÂY) === */}
           <Route path="/moderator/requests" element={<ModeratorRequests />} />
-          <Route path="/moderator/create-test/:jobId" element={<CreateTest />} />
+          <Route path="/moderator/create-test/:jobId" element={<TestBuilder />} />
+          <Route path="/moderator/edit-test/:testId" element={<TestBuilder />} />
           <Route path="/moderator/test-bank" element={<TestBank />} />
+          <Route path="/moderator/job-detail/:jobId" element={<ModeratorJobDetail />} />
         </Route>
       </Routes>
     </Router>
