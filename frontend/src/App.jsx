@@ -44,6 +44,9 @@ import TestBuilder from './pages/Moderator/TestBuilder';
 import TestBank from './pages/Moderator/TestBank';
 import ModeratorJobDetail from './pages/Moderator/ModeratorJobDetail';
 
+import QuestionList from './pages/Staff/QuestionList';
+import QuestionForm from './pages/Staff/QuestionForm';
+
 function App() {
   return (
     <Router>
@@ -70,6 +73,9 @@ function App() {
           <Route path="/admin/jobs" element={<ComingSoon />} />
           <Route path="/admin/reports" element={<ComingSoon />} />
           <Route path="/admin/settings" element={<ComingSoon />} />
+          <Route path="/staff/questions" element={<QuestionList />} />
+<Route path="/staff/questions/create" element={<QuestionForm />} />
+<Route path="/staff/questions/edit/:id" element={<QuestionForm />} />
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/jobs" element={<Jobs />} />
