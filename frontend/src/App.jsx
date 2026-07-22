@@ -43,6 +43,8 @@ import ModeratorRequests from './pages/Moderator/ModeratorRequests';
 import TestBuilder from './pages/Moderator/TestBuilder';
 import TestBank from './pages/Moderator/TestBank';
 import ModeratorJobDetail from './pages/Moderator/ModeratorJobDetail';
+import PracticeTopicsList from './pages/Moderator/PracticeTopicsList';
+import PracticeTopicBuilder from './pages/Moderator/PracticeTopicBuilder';
 
 import QuestionList from './pages/Staff/QuestionList';
 import QuestionForm from './pages/Staff/QuestionForm';
@@ -108,6 +110,9 @@ function App() {
           <Route path="/moderator/edit-test/:testId" element={<TestBuilder />} />
           <Route path="/moderator/test-bank" element={<TestBank />} />
           <Route path="/moderator/job-detail/:jobId" element={<ModeratorJobDetail />} />
+          <Route path="/moderator/practice-topics" element={<PracticeTopicsList />} />
+          <Route path="/moderator/create-practice-topic" element={<PracticeTopicBuilder />} />
+          <Route path="/moderator/edit-practice-topic/:topicId" element={<PracticeTopicBuilder />} />
         </Route>
       </Routes>
     </Router>
