@@ -97,9 +97,12 @@ exports.getJobById = async (req, res) => {
     const job = await Job.findById(req.params.id).lean();
     if (!job) return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
 
-    // Cho phép recruiter lấy cả job đang bị draft/closed của mình
-    if (job.status !== "active" && (!req.user?.id || String(req.user.id) !== String(job.recruiterId))) {
-      return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
+    // FIX: Cho phép Recruiter (HR) HOẶC Moderator xem chi tiết dù Job đang bị Draft
+    const isOwner = req.user?.id && String(req.user.id) === String(job.recruiterId);
+    const isModerator = req.user?.subRole === 'moderator';
+
+    if (job.status !== "active" && !isOwner && !isModerator) {
+      return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng (Tin bị ẩn)" });
     }
 
     const formattedJob = await serializeJob(job);
