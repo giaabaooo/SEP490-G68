@@ -242,6 +242,9 @@ const Navbar = () => {
                <div className="nav-item-dropdown">
                  <NavLink to="/moderator/test-bank" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Ngân hàng Bài Test</NavLink>
                </div>
+               <div className="nav-item-dropdown">
+                 <NavLink to="/moderator/practice-topics" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản lý Luyện tập</NavLink>
+               </div>
              </>
           )}
 
@@ -396,6 +399,7 @@ const Navbar = () => {
                 {role === 'business' && subRole === 'moderator' && (
                   <div className="menu-section">
                     <Link to="/moderator/requests" className="dropdown-item" style={{ color: '#059669', fontWeight: 'bold' }}>Workspace Kiểm duyệt</Link>
+                    <Link to="/moderator/practice-topics" className="dropdown-item">Quản lý Luyện tập</Link>
                     <Link to="/profile" className="dropdown-item">Cá nhân & Bảo mật</Link>
                   </div>
                 )}
