@@ -21,6 +21,7 @@ const cvRoutes = require("./routes/cv");
 const interviewRoutes = require("./routes/interview.routes");
 const notificationRoutes = require("./routes/notifications");
 const seedModerator = require("./scripts/seedModerator");
+const assessmentRoutes = require("./routes/assessments");
 const app = express();
 
 // Kết nối DB, sau đó chạy Seed Admin, Candidate và HR Data
@@ -48,6 +49,7 @@ app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/cv", cvRoutes);
 app.use("/api/interview", interviewRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/assessments", assessmentRoutes);
 app.get("/", (req, res) => {
   res.send("Careerio API Running");
 });
