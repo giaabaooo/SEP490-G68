@@ -4,9 +4,11 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AuthGuard from './components/AuthGuard';
 
+
 // Import Layouts
 import PublicLayout from './components/layout/PublicLayout';
 import MainLayout from './components/layout/MainLayout';
+
 
 // Import Pages (Auth & Chung)
 import Login from './pages/Auth/Login';
@@ -19,6 +21,7 @@ import UserManagement from './pages/Admin/UserManagement';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ChangePassword from './pages/Auth/ChangePassword';
 
+
 // Import trang Business
 import BusinessDashboard from './pages/Bussiness/BusinessDashboard';
 import BussinessProfile from './pages/Bussiness/BussinessProfile';
@@ -26,6 +29,7 @@ import PostJob from './pages/Bussiness/PostJob';
 import Create from './pages/Bussiness/Create';
 import CVList from './pages/Bussiness/CVList';
 import EditJob from './pages/Bussiness/EditJob';
+
 
 // Import trang Candidate
 import ManageCV from './pages/Candidate/ManageCV';
@@ -38,6 +42,7 @@ import JobDetail from './pages/Jobs/JobDetail';
 import AIInterview from './pages/Candidate/AIInterview';
 import Notifications from './pages/Candidate/Notifications';
 
+
 // Import trang Moderator
 import ModeratorRequests from './pages/Moderator/ModeratorRequests';
 import TestBuilder from './pages/Moderator/TestBuilder';
@@ -46,8 +51,11 @@ import ModeratorJobDetail from './pages/Moderator/ModeratorJobDetail';
 import PracticeTopicsList from './pages/Moderator/PracticeTopicsList';
 import PracticeTopicBuilder from './pages/Moderator/PracticeTopicBuilder';
 
+
 import QuestionList from './pages/Staff/QuestionList';
 import QuestionForm from './pages/Staff/QuestionForm';
+import AdminCategories from './pages/Admin/AdminCategories';
+
 
 function App() {
   return (
@@ -55,6 +63,7 @@ function App() {
       <ToastContainer position="top-right" autoClose={3000} />
       <Routes>
         <Route path="/" element={<AuthGuard />} />
+
 
         {/* Nhóm các trang KHÔNG CÓ Navbar */}
         <Route element={<PublicLayout />}>
@@ -65,19 +74,23 @@ function App() {
           <Route path="/change-password" element={<ChangePassword />} />
         </Route>
 
+
         {/* TẤT CẢ GỘP VÀO MAIN LAYOUT (Dùng Navbar.jsx đã được chỉnh sửa) */}
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
 
+
           {/* === CÁC TRANG DÀNH CHO ADMIN === */}
           <Route path="/admin" element={<UserManagement />} />
+          <Route path="/admin/categories" element={<AdminCategories />} />
           <Route path="/admin/jobs" element={<ComingSoon />} />
           <Route path="/admin/reports" element={<ComingSoon />} />
           <Route path="/admin/settings" element={<ComingSoon />} />
           <Route path="/staff/questions" element={<QuestionList />} />
-<Route path="/staff/questions/create" element={<QuestionForm />} />
-<Route path="/staff/questions/edit/:id" element={<QuestionForm />} />
+          <Route path="/staff/questions/create" element={<QuestionForm />} />
+          <Route path="/staff/questions/edit/:id" element={<QuestionForm />} />
+
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
           <Route path="/jobs" element={<Jobs />} />
@@ -93,6 +106,7 @@ function App() {
           <Route path="/candidate/practice" element={<ComingSoon />} />
           <Route path="/candidate/courses" element={<ComingSoon />} />
 
+
           {/* === CÁC TRANG DÀNH CHO BUSINESS === */}
           <Route path="/bussiness/dashboard" element={<BusinessDashboard />} />
           <Route path="/bussiness/post-job" element={<PostJob />} />
@@ -103,6 +117,7 @@ function App() {
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
           <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
           <Route path="/bussiness/settings" element={<ComingSoon />} />
+
 
           {/* === CÁC TRANG DÀNH CHO MODERATOR (CHUYỂN VÀO ĐÂY) === */}
           <Route path="/moderator/requests" element={<ModeratorRequests />} />
@@ -118,5 +133,6 @@ function App() {
     </Router>
   );
 }
+
 
 export default App;

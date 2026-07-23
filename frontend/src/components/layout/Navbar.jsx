@@ -206,6 +206,9 @@ const Navbar = () => {
               <div className="nav-item-dropdown">
                 <NavLink to="/admin/jobs" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Việc Làm</NavLink>
               </div>
+<div className="nav-item-dropdown">
+                <NavLink to="/admin/categories" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Ngành Nghề</NavLink>
+              </div>
               <div className="nav-item-dropdown">
                 <NavLink to="/admin/reports" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Báo Cáo Thống Kê</NavLink>
               </div>
@@ -446,3 +449,4 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
