@@ -1,86 +1,103 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, CheckCircle2, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
+const emptyOption = [
+  { text: '', isCorrect: true },
+  { text: '', isCorrect: false },
+  { text: '', isCorrect: false },
+  { text: '', isCorrect: false }
+];
+
+const emptyQuestionBlock = { questionText: '', explanation: '', options: [...emptyOption] };
+
 const QuestionForm = () => {
-  const { id } = useParams();
+  const params = useParams();
+  // Mẹo: Lấy cả 'topic' hoặc 'id' để phòng trường hợp file Route chưa đổi tên biến
+  const urlTopic = params.topic || params.id; 
   const navigate = useNavigate();
-  const isEditMode = !!id;
+  const isEditMode = !!urlTopic;
 
   const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    topic: '',
-    questionText: '',
-    explanation: '',
-    options: [
-      { text: '', isCorrect: true }, // Mặc định đáp án 1 là đúng
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false },
-      { text: '', isCorrect: false }
-    ]
-  });
+  const [topic, setTopic] = useState('');
+  const [questions, setQuestions] = useState([{ ...emptyQuestionBlock, options: JSON.parse(JSON.stringify(emptyOption)) }]);
 
   useEffect(() => {
     if (isEditMode) {
-      fetchQuestionDetails();
+      fetchTopicDetails();
     }
-  }, [id]);
+  }, [urlTopic]);
 
-  const fetchQuestionDetails = async () => {
-    // Nếu API có hàm GET detail, gọi ở đây. 
-    // Tạm thời lọc từ list hoặc ông cần bổ sung 1 route GET /:id ở backend
+  const fetchTopicDetails = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('http://localhost:5000/api/staff/questions', {
+      const res = await fetch(`http://localhost:5000/api/staff/questions/${encodeURIComponent(urlTopic)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      const question = data.data.find(q => q._id === id);
-      if (question) {
-        setFormData({
-          topic: question.topic,
-          questionText: question.questionText,
-          explanation: question.explanation || '',
-          options: question.options
-        });
+      
+      if (data.success && data.data.length > 0) {
+        setTopic(data.data[0].topic);
+        
+        // Format lại dữ liệu cho chuẩn với form, giữ lại _id để Backend phân biệt câu cũ/mới
+        const loadedQuestions = data.data.map(q => ({
+          _id: q._id, 
+          questionText: q.questionText || '',
+          explanation: q.explanation || '',
+          options: q.options && q.options.length === 4 ? q.options : JSON.parse(JSON.stringify(emptyOption))
+        }));
+        
+        setQuestions(loadedQuestions);
       }
     } catch (error) {
-      toast.error('Lỗi khi tải dữ liệu câu hỏi');
+      toast.error('Lỗi khi tải dữ liệu chủ đề');
     }
   };
 
-  const handleOptionChange = (index, value) => {
-    const newOptions = [...formData.options];
-    newOptions[index].text = value;
-    setFormData({ ...formData, options: newOptions });
+  const handleAddQuestionBlock = () => {
+    setQuestions([...questions, { ...emptyQuestionBlock, options: JSON.parse(JSON.stringify(emptyOption)) }]);
   };
 
-  const setCorrectOption = (index) => {
-    const newOptions = formData.options.map((opt, i) => ({
+  const handleRemoveQuestionBlock = (indexToRemove) => {
+    if (questions.length === 1) return;
+    setQuestions(questions.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleQuestionChange = (qIndex, field, value) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[qIndex][field] = value;
+    setQuestions(updatedQuestions);
+  };
+
+  const handleOptionChange = (qIndex, optIndex, value) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[qIndex].options[optIndex].text = value;
+    setQuestions(updatedQuestions);
+  };
+
+  const setCorrectOption = (qIndex, optIndex) => {
+    const updatedQuestions = [...questions];
+    updatedQuestions[qIndex].options = updatedQuestions[qIndex].options.map((opt, i) => ({
       ...opt,
-      isCorrect: i === index
+      isCorrect: i === optIndex
     }));
-    setFormData({ ...formData, options: newOptions });
+    setQuestions(updatedQuestions);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate cơ bản
-    if (!formData.topic || !formData.questionText) {
-      return toast.warning('Vui lòng nhập đủ chủ đề và nội dung câu hỏi');
-    }
-    const emptyOptions = formData.options.some(opt => !opt.text.trim());
-    if (emptyOptions) {
-      return toast.warning('Vui lòng nhập đầy đủ nội dung cho 4 đáp án');
+    if (!topic.trim()) return toast.warning('Vui lòng nhập chủ đề');
+
+    for (let i = 0; i < questions.length; i++) {
+      if (!questions[i].questionText.trim()) return toast.warning(`Vui lòng nhập nội dung câu số ${i + 1}`);
     }
 
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
       const url = isEditMode 
-        ? `http://localhost:5000/api/staff/questions/${id}` 
+        ? `http://localhost:5000/api/staff/questions/${encodeURIComponent(urlTopic)}` 
         : 'http://localhost:5000/api/staff/questions';
       
       const res = await fetch(url, {
@@ -89,12 +106,12 @@ const QuestionForm = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ topic, questions })
       });
 
       const data = await res.json();
       if (data.success) {
-        toast.success(isEditMode ? 'Cập nhật thành công!' : 'Tạo câu hỏi thành công!');
+        toast.success(data.message);
         navigate('/staff/questions');
       } else {
         toast.error(data.message);
@@ -107,87 +124,77 @@ const QuestionForm = () => {
   };
 
   return (
-    <div className="p-8 max-w-4xl mx-auto animate-fade-in">
-      <Link to="/staff/questions" className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-600 font-medium mb-6 transition-colors">
-        <ArrowLeft className="w-5 h-5" /> Quay lại danh sách
+    <div className="p-8 max-w-5xl mx-auto">
+      <Link to="/staff/questions" className="inline-flex items-center gap-2 text-slate-500 hover:text-blue-600 mb-6 font-medium">
+        <ArrowLeft className="w-5 h-5" /> Quay lại
       </Link>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 p-8">
-        <h1 className="text-2xl font-black text-slate-900 mb-8">
-          {isEditMode ? 'Chỉnh sửa câu hỏi' : 'Thêm câu hỏi luyện tập mới'}
-        </h1>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="bg-white rounded-xl shadow border border-slate-200 p-8">
+          <h1 className="text-2xl font-black mb-4">{isEditMode ? `Quản lý chủ đề: ${topic}` : 'Tạo bộ câu hỏi mới'}</h1>
+          <input 
+            type="text" 
+            value={topic}
+            onChange={(e) => setTopic(e.target.value)}
+            disabled={isEditMode} 
+            className={`w-full px-5 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 ${isEditMode ? 'bg-slate-100 cursor-not-allowed text-slate-500' : ''}`}
+            placeholder="Tên chủ đề..."
+          />
+          {isEditMode && <p className="text-sm text-red-500 mt-2 font-medium">* Lưu ý: Không thể đổi tên chủ đề khi đang chỉnh sửa.</p>}
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Chủ đề (VD: ReactJS, Node.js, Mạng máy tính)</label>
-              <input 
-                type="text" 
-                value={formData.topic}
-                onChange={(e) => setFormData({...formData, topic: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nhập chủ đề..."
+        {questions.map((q, qIndex) => (
+          <div key={qIndex} className="bg-white rounded-xl shadow border border-slate-200 p-8 relative">
+            {/* Nút xóa hiện lên nếu có nhiều hơn 1 câu hỏi */}
+            {questions.length > 1 && (
+              <button 
+                type="button" 
+                onClick={() => handleRemoveQuestionBlock(qIndex)}
+                className="absolute top-6 right-6 text-red-500 hover:bg-red-50 p-2 rounded-lg"
+                title="Xóa câu hỏi này khỏi chủ đề"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+            
+            <h2 className="text-lg font-bold text-blue-600 mb-4 flex items-center gap-2">
+              Câu hỏi {qIndex + 1} 
+              {q._id ? <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">(Câu cũ)</span> : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">(Mới thêm)</span>}
+            </h2>
+            
+            <div className="space-y-4">
+              <textarea 
+                rows="2" value={q.questionText} onChange={(e) => handleQuestionChange(qIndex, 'questionText', e.target.value)}
+                className="w-full px-4 py-2 border rounded-lg" placeholder="Nội dung câu hỏi..."
               />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Nội dung câu hỏi</label>
-              <textarea 
-                rows="3"
-                value={formData.questionText}
-                onChange={(e) => setFormData({...formData, questionText: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="Nhập nội dung câu hỏi..."
-              ></textarea>
-            </div>
-
-            {/* Render 4 Đáp án */}
-            <div className="md:col-span-2 space-y-4">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Các đáp án (Chọn đáp án đúng)</label>
-              {formData.options.map((option, index) => (
-                <div key={index} className={`flex items-center gap-3 p-2 rounded-xl border-2 transition-all ${option.isCorrect ? 'border-emerald-500 bg-emerald-50' : 'border-transparent bg-slate-50'}`}>
-                  <button 
-                    type="button"
-                    onClick={() => setCorrectOption(index)}
-                    className={`w-6 h-6 flex-shrink-0 rounded-full border-2 flex items-center justify-center transition-colors ${option.isCorrect ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-300'}`}
-                  >
-                    {option.isCorrect && <CheckCircle2 className="w-4 h-4" />}
-                  </button>
-                  <input 
-                    type="text" 
-                    value={option.text}
-                    onChange={(e) => handleOptionChange(index, e.target.value)}
-                    className="w-full bg-transparent border-none focus:outline-none text-slate-800 font-medium"
-                    placeholder={`Nhập đáp án ${String.fromCharCode(65 + index)}...`}
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-slate-700 mb-2">Giải thích (Hiển thị khi học viên trả lời sai - Không bắt buộc)</label>
-              <textarea 
-                rows="2"
-                value={formData.explanation}
-                onChange={(e) => setFormData({...formData, explanation: e.target.value})}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                placeholder="Nhập giải thích..."
-              ></textarea>
+              <div className="grid grid-cols-2 gap-4">
+                {q.options.map((option, optIndex) => (
+                  <div key={optIndex} className={`flex items-center gap-2 p-2 border rounded-lg ${option.isCorrect ? 'border-green-400 bg-green-50' : 'border-slate-200'}`}>
+                    <input 
+                      type="radio" name={`correct-${qIndex}`} checked={option.isCorrect}
+                      onChange={() => setCorrectOption(qIndex, optIndex)} className="w-5 h-5 cursor-pointer"
+                    />
+                    <input 
+                      type="text" value={option.text} onChange={(e) => handleOptionChange(qIndex, optIndex, e.target.value)}
+                      className="w-full px-2 py-1 bg-transparent border-none focus:outline-none" placeholder={`Đáp án ${optIndex + 1}`}
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        ))}
 
-          <div className="flex justify-end pt-4 border-t border-slate-100">
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2 disabled:opacity-70"
-            >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-              {isEditMode ? 'Cập nhật câu hỏi' : 'Lưu câu hỏi'}
-            </button>
-          </div>
-        </form>
-      </div>
+        <div className="flex gap-4">
+          <button type="button" onClick={handleAddQuestionBlock} className="px-6 py-3 border-2 border-blue-300 text-blue-600 rounded-lg flex items-center gap-2 hover:bg-blue-50 transition-colors">
+            <Plus className="w-5 h-5" /> Thêm câu hỏi vào chủ đề này
+          </button>
+          <button type="submit" disabled={loading} className="bg-blue-600 text-white px-8 py-3 rounded-lg font-bold flex items-center gap-2 hover:bg-blue-700 transition-colors">
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+            {isEditMode ? 'Lưu cập nhật chủ đề' : 'Tạo bộ câu hỏi'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 };
