@@ -2,21 +2,21 @@ const express = require('express');
 const router = express.Router();
 const { 
   getQuestions, 
+  getQuestionsByTopic,
   createQuestion, 
-  updateQuestion, 
-  deleteQuestion 
+  updateTopic, 
+  deleteTopic 
 } = require('../controllers/staff.question.controller');
 
-// ❌ Tạm thời comment/xóa dòng này lại
-// const { protect } = require('../middleware/auth.middleware'); 
-
-// ❌ Bỏ chữ protect đi, gọi thẳng controller
+// Lấy danh sách các chủ đề (kèm số lượng câu hỏi) & Tạo chủ đề mới
 router.route('/questions')
   .get(getQuestions)
   .post(createQuestion);
 
-router.route('/questions/:id')
-  .put(updateQuestion)
-  .delete(deleteQuestion);
+// Thao tác với MỘT chủ đề cụ thể (Lấy chi tiết, Cập nhật toàn bộ, Xóa toàn bộ)
+router.route('/questions/:topic')
+  .get(getQuestionsByTopic)
+  .put(updateTopic)
+  .delete(deleteTopic);
 
 module.exports = router;
