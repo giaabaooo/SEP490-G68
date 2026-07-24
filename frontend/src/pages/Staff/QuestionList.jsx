@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Edit3, Trash2, Search, BookOpen, Loader2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Plus, Search, Edit, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const QuestionList = () => {
-  const [questions, setQuestions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [topics, setTopics] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
-  const fetchQuestions = async () => {
-    setLoading(true);
+  useEffect(() => {
+    fetchTopics();
+  }, []);
+
+  const fetchTopics = async () => {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch('http://localhost:5000/api/staff/questions', {
@@ -18,116 +20,120 @@ const QuestionList = () => {
       });
       const data = await res.json();
       if (data.success) {
-        setQuestions(data.data);
-      } else {
-        toast.error(data.message);
+        setTopics(data.data); // Dữ liệu bây giờ là mảng các topic: [{ topic, questionCount }]
       }
     } catch (error) {
-      toast.error('Lỗi khi tải danh sách câu hỏi');
+      toast.error('Lỗi khi tải danh sách chủ đề');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchQuestions();
-  }, []);
+  const handleDelete = async (topicName) => {
+    if (!window.confirm(`CẢNH BÁO: Bạn có chắc chắn muốn xóa TOÀN BỘ câu hỏi của chủ đề "${topicName}" không?`)) return;
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa câu hỏi này không?')) return;
-    
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/staff/questions/${id}`, {
+      // Gọi API xóa theo tên topic
+      const res = await fetch(`http://localhost:5000/api/staff/questions/${encodeURIComponent(topicName)}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      
       if (data.success) {
-        toast.success('Đã xóa câu hỏi!');
-        fetchQuestions(); // Load lại bảng
+        toast.success(data.message);
+        fetchTopics(); // Reload lại danh sách sau khi xóa
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error('Lỗi khi xóa câu hỏi');
+      toast.error('Lỗi khi xóa chủ đề');
     }
   };
 
-  const filteredQuestions = questions.filter(q => 
-    q.questionText.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    q.topic.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // ĐÂY LÀ CHỖ SỬA LỖI: Chỉ tìm kiếm theo trường 'topic'
+  const filteredTopics = topics.filter(t => {
+    if (!t.topic) return false;
+    return t.topic.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
-    <div className="p-8 max-w-7xl mx-auto animate-fade-in">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 flex items-center gap-3">
-            <BookOpen className="w-8 h-8 text-blue-600" />
-            Ngân hàng câu hỏi
-          </h1>
-          <p className="text-slate-500 mt-2">Quản lý câu hỏi luyện tập cho ứng viên</p>
-        </div>
+    <div className="p-8 max-w-6xl mx-auto animate-fade-in">
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <h1 className="text-3xl font-black text-slate-800">Ngân hàng Câu hỏi</h1>
         <Link 
           to="/staff/questions/create" 
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+          className="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-700 transition-colors shadow-lg shadow-blue-200"
         >
-          <Plus className="w-5 h-5" /> Thêm câu hỏi mới
+          <Plus className="w-5 h-5" /> Thêm Bộ câu hỏi mới
         </Link>
       </div>
 
-      <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="p-5 border-b border-slate-100 flex items-center gap-3 bg-slate-50">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Tìm theo nội dung hoặc chủ đề..."
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        {/* Thanh tìm kiếm */}
+        <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+          <div className="relative max-w-md">
+            <Search className="w-5 h-5 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên chủ đề (VD: ReactJS)..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
             />
           </div>
         </div>
 
+        {/* Bảng danh sách */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="text-xs uppercase tracking-wider text-slate-500 font-bold bg-white border-b border-slate-100">
-                <th className="p-5">Chủ đề</th>
-                <th className="p-5">Nội dung câu hỏi</th>
-                <th className="p-5">Ngày tạo</th>
-                <th className="p-5 text-right">Thao tác</th>
+              <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                <th className="p-5 font-bold uppercase text-xs tracking-wider">Tên Chủ đề (Topic)</th>
+                <th className="p-5 font-bold uppercase text-xs tracking-wider text-center">Số lượng câu hỏi</th>
+                <th className="p-5 font-bold uppercase text-xs tracking-wider text-center">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="text-sm">
+            <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="4" className="text-center p-10"><Loader2 className="w-8 h-8 text-blue-500 animate-spin mx-auto" /></td>
+                  <td colSpan="3" className="p-8 text-center text-slate-500 animate-pulse">
+                    Đang tải dữ liệu...
+                  </td>
                 </tr>
-              ) : filteredQuestions.length === 0 ? (
+              ) : filteredTopics.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="text-center p-10 text-slate-500">Không tìm thấy câu hỏi nào.</td>
+                  <td colSpan="3" className="p-8 text-center text-slate-500">
+                    Không tìm thấy chủ đề nào phù hợp.
+                  </td>
                 </tr>
               ) : (
-                filteredQuestions.map((q) => (
-                  <tr key={q._id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
-                    <td className="p-5">
-                      <span className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-lg text-xs">
-                        {q.topic}
+                filteredTopics.map((item, index) => (
+                  <tr key={index} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td className="p-5 font-bold text-slate-800 text-lg">
+                      {item.topic}
+                    </td>
+                    <td className="p-5 text-center">
+                      <span className="bg-blue-100 text-blue-700 px-4 py-1.5 rounded-full font-bold text-sm">
+                        {item.questionCount} câu
                       </span>
                     </td>
-                    <td className="p-5 text-slate-800 font-medium max-w-md truncate">{q.questionText}</td>
-                    <td className="p-5 text-slate-500">{new Date(q.createdAt).toLocaleDateString('vi-VN')}</td>
-                    <td className="p-5 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => navigate(`/staff/questions/edit/${q._id}`)} className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors">
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDelete(q._id)} className="p-2 text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                    <td className="p-5 text-center">
+                      <div className="flex justify-center gap-3">
+                        {/* Lưu ý link dẫn đến trang Edit bây giờ dùng item.topic thay vì ID */}
+                        <Link
+                          to={`/staff/questions/edit/${encodeURIComponent(item.topic)}`}
+                          className="p-2 text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="Chỉnh sửa và Thêm câu hỏi vào chủ đề này"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(item.topic)}
+                          className="p-2 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          title="Xóa toàn bộ chủ đề"
+                        >
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </div>
                     </td>
