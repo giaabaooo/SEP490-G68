@@ -29,6 +29,7 @@ import PostJob from './pages/Bussiness/PostJob';
 import Create from './pages/Bussiness/Create';
 import CVList from './pages/Bussiness/CVList';
 import EditJob from './pages/Bussiness/EditJob';
+import CandidateDetail from './pages/Bussiness/CandidateDetail';
 
 
 // Import trang Candidate
@@ -117,6 +118,7 @@ function App() {
           <Route path="/bussiness/job-postings" element={<ComingSoon />} />
           <Route path="/bussiness/skill-tests" element={<ComingSoon />} />
           <Route path="/bussiness/settings" element={<ComingSoon />} />
+          <Route path="/bussiness/candidate/:id" element={<CandidateDetail />} />
 
 
           {/* === CÁC TRANG DÀNH CHO MODERATOR (CHUYỂN VÀO ĐÂY) === */}
