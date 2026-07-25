@@ -3,64 +3,103 @@ const User = require('../models/User');
 const Job = require('../models/Job');
 const Notification = require('../models/Notification');
 const sendEmail = require('../utils/sendEmail');
+const Assessment = require('../models/Assessment'); // Import thêm Model Assessment
+const aiService = require('../services/ai.service');
 
 // POST /api/applications
 exports.createApplication = async (req, res) => {
   try {
-    const { jobId } = req.body;
+    const { jobId, appliedCvId } = req.body;
     const userId = req.user?.id;
 
-    if (!jobId) {
-      return res.status(400).json({ message: 'jobId là bắt buộc' });
-    }
+    if (!jobId) return res.status(400).json({ message: 'jobId là bắt buộc' });
 
     const job = await Job.findById(jobId);
-    if (!job) {
-      return res.status(404).json({ message: 'Công việc không tồn tại' });
-    }
+    if (!job) return res.status(404).json({ message: 'Công việc không tồn tại' });
 
     const existing = await Application.findOne({ jobId, userId });
-    if (existing) {
-      return res.status(400).json({ message: 'Bạn đã ứng tuyển vào công việc này rồi' });
-    }
+    if (existing) return res.status(400).json({ message: 'Bạn đã ứng tuyển vào công việc này rồi' });
 
     const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'Người dùng không tồn tại' });
-    }
+    if (!user) return res.status(404).json({ message: 'Người dùng không tồn tại' });
 
     let appliedCvFileUrl = '';
+    let cvTextForAI = "Dữ liệu CV giả lập để AI chấm. Trong thực tế cần dùng thư viện pdf-parse để đọc text từ file PDF tải lên.";
+
+    // Xử lý lấy URL / ID của CV
     if (req.file) {
       appliedCvFileUrl = `/uploads/cvs/${req.file.filename}`;
       user.cvUrl = appliedCvFileUrl;
       await user.save();
+    } else if (appliedCvId) {
+      appliedCvFileUrl = appliedCvId; // Lưu ID CV trên hệ thống
     } else if (user.cvUrl) {
       appliedCvFileUrl = user.cvUrl;
     }
 
-    if (!appliedCvFileUrl) {
-      return res.status(400).json({ message: 'Vui lòng tải lên CV hoặc cập nhật CV trong hồ sơ của bạn trước khi ứng tuyển' });
+    if (!appliedCvFileUrl) return res.status(400).json({ message: 'Vui lòng cung cấp CV để ứng tuyển' });
+
+    // 1. GỌI AI SERVICE (Bọc Try-Catch để nếu AI sập thì CV vẫn được nộp)
+    let aiEvaluation = { score: 0, matched: [], missing: [], advice: "Chưa thể đánh giá AI lúc này." };
+    try {
+        if (aiService && typeof aiService.evaluateCVMatch === 'function') {
+            aiEvaluation = await aiService.evaluateCVMatch(job, cvTextForAI);
+        } else {
+            console.warn("⚠️ Cảnh báo: Không tìm thấy hàm evaluateCVMatch trong ai.service.js");
+        }
+    } catch (aiErr) {
+        console.error("⚠️ Lỗi bỏ qua từ AI Service:", aiErr.message);
     }
 
+    // 2. KIỂM TRA BÀI TEST (Bọc Try-Catch chống lỗi DB)
+    let hasTest = false;
+    let assessmentId = null;
+    try {
+        const assessment = await Assessment.findOne({ jobId: jobId, status: 'PUBLISHED' });
+        if (assessment) {
+            hasTest = true;
+            assessmentId = assessment._id;
+        }
+    } catch (testErr) {
+        console.error("⚠️ Lỗi kiểm tra Assessment:", testErr.message);
+    }
+
+    // 3. TẠO APPLICATION VỚI DỮ LIỆU
     const application = await Application.create({
       jobId,
       userId,
+      appliedCvId: appliedCvId || null,
       appliedCvFileUrl,
       status: 'Applied',
+      aiScore: aiEvaluation.score || 0,
+      aiMatchDetails: {
+        matched: aiEvaluation.matched || [],
+        missing: aiEvaluation.missing || [],
+        advice: aiEvaluation.advice || ''
+      },
+      hasTest: hasTest
     });
 
     const populatedApplication = await Application.findById(application._id)
       .populate('userId', 'fullName avatar cvUrl email')
       .populate('jobId', 'title');
 
+    // 4. TRẢ KẾT QUẢ VỀ FRONTEND
     return res.status(201).json({
       message: 'Ứng tuyển thành công',
       data: populatedApplication,
-      user,
+      aiResult: aiEvaluation,
+      hasTest: hasTest,
+      assessmentId: assessmentId
     });
+
   } catch (error) {
-    console.error('Create application error:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ khi ứng tuyển' });
+    // In lỗi đỏ rực ra Terminal để dễ biết lỗi nằm ở đâu
+    console.error('❌ LỖI NGHIÊM TRỌNG KHI NỘP CV (createApplication):', error);
+    return res.status(500).json({ 
+        message: 'Lỗi máy chủ khi ứng tuyển', 
+        detail: error.message // Trả lỗi về Frontend để dễ soi trong Network Tab
+    });
   }
 };
 

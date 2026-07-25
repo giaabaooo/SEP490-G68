@@ -195,3 +195,45 @@ exports.parseCVForTemplate = async (pdfText) => {
         throw new Error("Lỗi parse AI: " + error.message);
     }
 };
+exports.evaluateCVMatch = async (job, cvText) => {
+    try {
+        // Xử lý an toàn: Nếu requirements là mảng thì join, nếu là chuỗi thì giữ nguyên
+        let requirementsText = 'Không có dữ liệu yêu cầu';
+        if (Array.isArray(job.requirements)) {
+            requirementsText = job.requirements.join(', ');
+        } else if (typeof job.requirements === 'string') {
+            requirementsText = job.requirements;
+        }
+
+        const prompt = `
+        Đóng vai là hệ thống ATS (Applicant Tracking System). Hãy so sánh nội dung CV của ứng viên với Mô tả công việc sau:
+        
+        - Chức danh tuyển dụng: ${job.title}
+        - Mô tả công việc: ${job.description}
+        - Yêu cầu ứng viên: ${requirementsText}
+
+        Nội dung CV ứng viên (Text đã parse):
+        ${cvText}
+
+        Hãy đánh giá và trả về định dạng JSON chính xác theo cấu trúc sau:
+        {
+            "score": <số nguyên từ 1 đến 100 thể hiện tỷ lệ % phù hợp>,
+            "matched": ["<Mục 1 CV đáp ứng tốt yêu cầu job>", "<Mục 2...>"],
+            "missing": ["<Yêu cầu 1 mà CV chưa có/thiếu sót>", "<Yêu cầu 2...>"],
+            "advice": "<Lời khuyên ngắn gọn 1-2 câu để ứng viên cải thiện CV>"
+        }
+        `;
+
+        // Gọi hàm generateWithFallback đã cấu hình từ trước
+        const result = await generateWithFallback(prompt, true, 0.5); 
+        return result;
+    } catch (error) {
+        console.error("Lỗi AI đánh giá CV:", error.message);
+        return { 
+            score: 0, 
+            matched: [], 
+            missing: [], 
+            advice: "Hệ thống AI hiện đang bận, không thể đánh giá độ phù hợp lúc này." 
+        };
+    }
+};

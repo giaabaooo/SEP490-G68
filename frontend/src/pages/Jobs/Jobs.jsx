@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Briefcase, DollarSign, Clock, Filter, ChevronDown, Bookmark, Loader2 } from 'lucide-react';
+import { Search, MapPin, Briefcase, DollarSign, Clock, Filter, ChevronDown, Bookmark, Loader2, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
 
@@ -33,7 +33,7 @@ const Jobs = () => {
 
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/jobs?${queryParams.toString()}`);
       if (!response.ok) throw new Error('Lấy dữ liệu thất bại');
-      
+
       const data = await response.json();
       setJobs(data);
     } catch (error) {
@@ -86,10 +86,10 @@ const Jobs = () => {
           <form onSubmit={handleSearchSubmit} className="bg-white p-2 rounded-2xl md:rounded-full shadow-2xl flex flex-col md:flex-row gap-2 max-w-4xl mx-auto">
             <div className="flex-1 flex items-center px-4 py-3 bg-slate-50 md:bg-transparent rounded-xl md:rounded-none">
               <Search className="w-5 h-5 text-slate-400 shrink-0" />
-              <input 
-                type="text" 
-                placeholder="Vị trí, kỹ năng, công ty..." 
-                className="w-full bg-transparent border-none outline-none pl-3 text-slate-800 font-medium placeholder:font-normal placeholder:text-slate-400" 
+              <input
+                type="text"
+                placeholder="Vị trí, kỹ năng, công ty..."
+                className="w-full bg-transparent border-none outline-none pl-3 text-slate-800 font-medium placeholder:font-normal placeholder:text-slate-400"
                 value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
@@ -115,7 +115,7 @@ const Jobs = () => {
 
       {/* MAIN CONTENT */}
       <div className="max-w-6xl mx-auto px-4 -mt-12 relative z-20 flex flex-col lg:flex-row gap-8">
-        
+
         {/* Sidebar Filters */}
         <div className="w-full lg:w-[280px] shrink-0">
           <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 sticky top-24">
@@ -176,17 +176,29 @@ const Jobs = () => {
               const isSaved = savedJobs.some(saved => String(saved._id || saved.id) === String(jobId));
 
               return (
-                <div key={jobId} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-emerald-400 hover:shadow-md transition-all group relative">
-                  {job.status === 'Active' && job.hot && (
-                    <div className="absolute top-0 right-6 bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-b-lg shadow-sm">Tuyển gấp</div>
-                  )}
-                  
-                  <div className="flex flex-col md:flex-row gap-5">
+                <div key={jobId} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-emerald-400 hover:shadow-md transition-all group relative overflow-hidden">
+
+                  {/* Cụm huy hiệu góc trên phải */}
+                  <div className="absolute top-0 right-6 flex items-center gap-2">
+                    {/* Nhãn Có Bài Test */}
+                    {job.testStatus === 'approved' && (
+                      <div className="bg-indigo-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-b-lg shadow-sm flex items-center gap-1">
+                        <FileText className="w-3 h-3" /> Có bài test
+                      </div>
+                    )}
+
+                    {/* Nhãn Tuyển Gấp */}
+                    {job.status === 'Active' && job.hot && (
+                      <div className="bg-rose-500 text-white text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-b-lg shadow-sm">Tuyển gấp</div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col md:flex-row gap-5 pt-3">
                     <Link to={`/jobs/${jobId}`} className="flex-1 flex flex-col md:flex-row gap-5">
                       <div className="w-16 h-16 rounded-xl border border-slate-100 p-1 shrink-0 overflow-hidden flex items-center justify-center bg-white">
                         <img src={job.companyLogo || `https://ui-avatars.com/api/?name=${job.companyName}&background=eff6ff&color=059669`} alt={job.companyName} className="w-full h-full object-contain" />
                       </div>
-                      
+
                       <div className="flex-1">
                         <h2 className="text-lg font-bold text-slate-900 group-hover:text-emerald-600 transition-colors line-clamp-1">{job.title}</h2>
                         <p className="text-sm font-semibold text-slate-500 mt-1">{job.companyName}</p>
@@ -199,7 +211,7 @@ const Jobs = () => {
 
                         <div className="flex flex-wrap items-center gap-2 mt-4">
                           <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-md">{job.type}</span>
-                          {job.tags && job.tags.slice(0,3).map((tag, idx) => (
+                          {job.tags && job.tags.slice(0, 3).map((tag, idx) => (
                             <span key={idx} className="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-md">{tag}</span>
                           ))}
                         </div>
@@ -220,7 +232,7 @@ const Jobs = () => {
                         <Bookmark className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
                       </button>
                       <div className="flex items-center gap-1 text-xs font-medium text-slate-400 mt-auto">
-                        <Clock className="w-3.5 h-3.5" /> 
+                        <Clock className="w-3.5 h-3.5" />
                         {job.postedAt ? new Date(job.postedAt).toLocaleDateString('vi-VN') : 'Mới cập nhật'}
                       </div>
                     </div>
