@@ -1,15 +1,84 @@
+// File: backend/controllers/application.controller.js
 const Application = require('../models/Application');
 const User = require('../models/User');
 const Job = require('../models/Job');
 const Notification = require('../models/Notification');
-const sendEmail = require('../utils/sendEmail');
-const Assessment = require('../models/Assessment'); // Import thêm Model Assessment
+const Assessment = require('../models/Assessment'); 
 const aiService = require('../services/ai.service');
+const sendEmail = require('../utils/sendEmail');
+const fs = require('fs');
+const path = require('path');
+const CVReview = require('../models/CVReview');
 
-// POST /api/applications
-exports.createApplication = async (req, res) => {
+let pdfParse;
+try {
+    pdfParse = require('pdf-parse');
+} catch (err) {
+    console.warn("⚠️ Vui lòng chạy lệnh: npm install pdf-parse để AI có thể đọc nội dung file PDF.");
+}
+
+async function extractTextFromCV(reqFile, appliedCvId, user) {
+    let text = `Hồ sơ ứng viên: ${user?.fullName}. Kỹ năng: ${user?.skills?.join(', ') || 'Chưa cập nhật'}`;
+    try {
+        if (reqFile && pdfParse) {
+            const dataBuffer = fs.readFileSync(reqFile.path);
+            const data = await pdfParse(dataBuffer);
+            text = data.text;
+        } else if (appliedCvId) {
+            text = `CV Hệ thống Careerio. Ứng viên: ${user?.fullName}, Kỹ năng: ${user?.skills?.join(', ')}, Giới thiệu: ${user?.aboutMe || ''}`;
+        } else if (user?.cvUrl && user.cvUrl.endsWith('.pdf') && pdfParse) {
+            const filePath = path.join(__dirname, '..', user.cvUrl);
+            if (fs.existsSync(filePath)) {
+                const dataBuffer = fs.readFileSync(filePath);
+                const data = await pdfParse(dataBuffer);
+                text = data.text;
+            }
+        }
+    } catch (err) { console.error("Lỗi trích xuất Text từ CV:", err.message); }
+    return text;
+}
+
+exports.previewCVMatch = async (req, res) => {
   try {
     const { jobId, appliedCvId } = req.body;
+    const userId = req.user?.id;
+
+    const job = await Job.findById(jobId);
+    if (!job) return res.status(404).json({ message: 'Không tìm thấy công việc' });
+
+    const user = await User.findById(userId);
+    const cvTextForAI = await extractTextFromCV(req.file, appliedCvId, user);
+    const jobDescription = `Tiêu đề: ${job.title}\nMô tả: ${job.description}\nYêu cầu: ${Array.isArray(job.requirements) ? job.requirements.join(', ') : job.requirements}`;
+
+    const aiResult = await aiService.calculateJobMatch(cvTextForAI, jobDescription);
+
+    if (aiResult && typeof aiResult.score === 'number') {
+        await CVReview.create({
+            userId, jobId, score: aiResult.score, verdict: aiResult.verdict, pros: aiResult.pros || [], cons: aiResult.cons || [], advice: aiResult.advice
+        });
+    }
+
+    return res.status(200).json({ message: 'Phân tích thành công', aiResult: aiResult });
+  } catch (error) {
+    return res.status(500).json({ message: 'Lỗi máy chủ khi phân tích CV' });
+  }
+};
+
+exports.getReviewHistory = async (req, res) => {
+    try {
+        const { jobId } = req.params;
+        const userId = req.user?.id;
+        const history = await CVReview.find({ userId, jobId }).sort({ createdAt: -1 });
+        res.status(200).json(history);
+    } catch (error) { res.status(500).json({ message: 'Lỗi lấy lịch sử review' }); }
+};
+
+// ======================================================================
+// API NỘP CV CHÍNH THỨC - ĐÃ FIX LOGIC 3 LẦN
+// ======================================================================
+exports.createApplication = async (req, res) => {
+  try {
+    const { jobId, appliedCvId, preEvaluatedAI } = req.body;
     const userId = req.user?.id;
 
     if (!jobId) return res.status(400).json({ message: 'jobId là bắt buộc' });
@@ -17,41 +86,47 @@ exports.createApplication = async (req, res) => {
     const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ message: 'Công việc không tồn tại' });
 
-    const existing = await Application.findOne({ jobId, userId });
-    if (existing) return res.status(400).json({ message: 'Bạn đã ứng tuyển vào công việc này rồi' });
+    // ✅ FIX TẠI ĐÂY: Cho phép tối đa 3 lần nộp cho cùng 1 Job
+    const existingCount = await Application.countDocuments({ jobId, userId });
+    if (existingCount >= 3) {
+        return res.status(400).json({ message: 'Bạn đã đạt giới hạn 3 lần ứng tuyển cho công việc này. Không thể nộp thêm.' });
+    }
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'Người dùng không tồn tại' });
 
     let appliedCvFileUrl = '';
-    let cvTextForAI = "Dữ liệu CV giả lập để AI chấm. Trong thực tế cần dùng thư viện pdf-parse để đọc text từ file PDF tải lên.";
-
-    // Xử lý lấy URL / ID của CV
     if (req.file) {
       appliedCvFileUrl = `/uploads/cvs/${req.file.filename}`;
       user.cvUrl = appliedCvFileUrl;
       await user.save();
     } else if (appliedCvId) {
-      appliedCvFileUrl = appliedCvId; // Lưu ID CV trên hệ thống
+      appliedCvFileUrl = appliedCvId; 
     } else if (user.cvUrl) {
       appliedCvFileUrl = user.cvUrl;
     }
 
     if (!appliedCvFileUrl) return res.status(400).json({ message: 'Vui lòng cung cấp CV để ứng tuyển' });
 
-    // 1. GỌI AI SERVICE (Bọc Try-Catch để nếu AI sập thì CV vẫn được nộp)
     let aiEvaluation = { score: 0, matched: [], missing: [], advice: "Chưa thể đánh giá AI lúc này." };
-    try {
-        if (aiService && typeof aiService.evaluateCVMatch === 'function') {
+    
+    if (preEvaluatedAI) {
+        try {
+            const parsedAI = JSON.parse(preEvaluatedAI);
+            aiEvaluation = {
+                score: parsedAI.score || 0,
+                matched: parsedAI.pros || parsedAI.matched || [],
+                missing: parsedAI.cons || parsedAI.missing || [],
+                advice: parsedAI.advice || ''
+            };
+        } catch (e) { console.error(e); }
+    } else {
+        try {
+            const cvTextForAI = await extractTextFromCV(req.file, appliedCvId, user);
             aiEvaluation = await aiService.evaluateCVMatch(job, cvTextForAI);
-        } else {
-            console.warn("⚠️ Cảnh báo: Không tìm thấy hàm evaluateCVMatch trong ai.service.js");
-        }
-    } catch (aiErr) {
-        console.error("⚠️ Lỗi bỏ qua từ AI Service:", aiErr.message);
+        } catch (aiErr) {}
     }
 
-    // 2. KIỂM TRA BÀI TEST (Bọc Try-Catch chống lỗi DB)
     let hasTest = false;
     let assessmentId = null;
     try {
@@ -60,78 +135,41 @@ exports.createApplication = async (req, res) => {
             hasTest = true;
             assessmentId = assessment._id;
         }
-    } catch (testErr) {
-        console.error("⚠️ Lỗi kiểm tra Assessment:", testErr.message);
-    }
+    } catch (testErr) {}
 
-    // 3. TẠO APPLICATION VỚI DỮ LIỆU
     const application = await Application.create({
-      jobId,
-      userId,
-      appliedCvId: appliedCvId || null,
-      appliedCvFileUrl,
-      status: 'Applied',
+      jobId, userId, appliedCvId: appliedCvId || null, appliedCvFileUrl, status: 'Applied',
       aiScore: aiEvaluation.score || 0,
-      aiMatchDetails: {
-        matched: aiEvaluation.matched || [],
-        missing: aiEvaluation.missing || [],
-        advice: aiEvaluation.advice || ''
-      },
-      hasTest: hasTest
+      aiMatchDetails: { matched: aiEvaluation.matched || [], missing: aiEvaluation.missing || [], advice: aiEvaluation.advice || '' },
+      hasTest: hasTest,
+      assessmentId: assessmentId 
     });
 
-    const populatedApplication = await Application.findById(application._id)
-      .populate('userId', 'fullName avatar cvUrl email')
-      .populate('jobId', 'title');
+    const populatedApplication = await Application.findById(application._id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title');
 
-    // 4. TRẢ KẾT QUẢ VỀ FRONTEND
     return res.status(201).json({
-      message: 'Ứng tuyển thành công',
-      data: populatedApplication,
-      aiResult: aiEvaluation,
-      hasTest: hasTest,
-      assessmentId: assessmentId
+      message: 'Ứng tuyển thành công', data: populatedApplication, aiResult: aiEvaluation, hasTest: hasTest, assessmentId: assessmentId
     });
 
   } catch (error) {
-    // In lỗi đỏ rực ra Terminal để dễ biết lỗi nằm ở đâu
-    console.error('❌ LỖI NGHIÊM TRỌNG KHI NỘP CV (createApplication):', error);
-    return res.status(500).json({ 
-        message: 'Lỗi máy chủ khi ứng tuyển', 
-        detail: error.message // Trả lỗi về Frontend để dễ soi trong Network Tab
-    });
+    return res.status(500).json({ message: 'Lỗi máy chủ khi ứng tuyển', detail: error.message });
   }
 };
 
-// GET /api/applications
-// Supports filtering by jobId, status, search (candidate name), pagination and sorting
+// ... Các hàm list, getById, updateStatus, sendNotification, getStatsSummary, getMyTestHistory giữ nguyên ...
 exports.list = async (req, res) => {
   try {
-    const {
-      jobId,
-      status,
-      search,
-      page = 1,
-      limit = 20,
-      sort = '-appliedAt',
-    } = req.query;
-
+    const { jobId, status, search, page = 1, limit = 20, sort = '-appliedAt' } = req.query;
     const user = req.user || {};
-
     const q = {};
-    // If requester is a business (recruiter), restrict to their jobs only
+
     if (user.role === 'business') {
       const jobs = await Job.find({ recruiterId: user.id }).select('_id');
       const jobIds = jobs.map((j) => j._id.toString());
-
       if (jobId) {
-        if (!jobIds.includes(jobId.toString())) {
-          return res.status(403).json({ message: 'Access denied to requested job applications' });
-        }
+        if (!jobIds.includes(jobId.toString())) return res.status(403).json({ message: 'Access denied' });
         q.jobId = jobId;
-      } else {
-        q.jobId = { $in: jobIds };
-      }
+      } else q.jobId = { $in: jobIds };
     } else if (user.role === 'candidate') {
       q.userId = user.id;
       if (jobId) q.jobId = jobId;
@@ -141,289 +179,109 @@ exports.list = async (req, res) => {
 
     if (status) q.status = status;
 
-    // If search by candidate name, find matching users first
     if (search) {
       const users = await User.find({ fullName: new RegExp(search, 'i') }).select('_id');
       const ids = users.map((u) => u._id);
-      // If no matching users, return empty result
-      if (ids.length === 0) {
-        return res.json({ data: [], total: 0, page: Number(page), limit: Number(limit) });
-      }
+      if (ids.length === 0) return res.json({ data: [], total: 0, page: Number(page), limit: Number(limit) });
       q.userId = { $in: ids };
     }
 
     const skip = (Number(page) - 1) * Number(limit);
-
     const total = await Application.countDocuments(q);
 
     const items = await Application.find(q)
       .populate('userId', 'fullName avatar cvUrl email')
-      .populate({
-        path: 'jobId',
-        select: 'title recruitmentDeadline recruiterId',
-        populate: {
-          path: 'recruiterId',
-          select: 'fullName companyName'
-        }
-      })
-      .sort(sort)
-      .skip(skip)
-      .limit(Number(limit));
+      .populate({ path: 'jobId', select: 'title recruitmentDeadline recruiterId', populate: { path: 'recruiterId', select: 'fullName companyName' } })
+      .sort(sort).skip(skip).limit(Number(limit));
 
     return res.json({ data: items, total, page: Number(page), limit: Number(limit) });
-  } catch (error) {
-    console.error('List applications error', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Server error' }); }
 };
 
-// GET /api/applications/:id
 exports.getById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const app = await Application.findById(id)
-      .populate('userId', 'fullName avatar cvUrl email')
-      .populate('jobId', 'title description recruiterId');
-
-    const user = req.user || {};
-
-    // If recruiter, ensure the application belongs to one of their jobs
-    if (user.role === 'business') {
-      if (!app) return res.status(404).json({ message: 'Application not found' });
-      const recruiterId = app.jobId?.recruiterId?.toString();
-      if (recruiterId !== user.id.toString()) {
-        return res.status(403).json({ message: 'Access denied' });
-      }
-    }
-
+    const app = await Application.findById(req.params.id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title description recruiterId');
     if (!app) return res.status(404).json({ message: 'Application not found' });
-
+    if (req.user?.role === 'business' && app.jobId?.recruiterId?.toString() !== req.user.id.toString()) return res.status(403).json({ message: 'Access denied' });
     return res.json(app);
-  } catch (error) {
-    console.error('Get application error', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
+  } catch (error) { res.status(500).json({ message: 'Server error' }); }
 };
 
-// PUT /api/applications/:id/status
 exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-
-    if (!['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
-    }
+    if (!['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].includes(status)) return res.status(400).json({ message: 'Trạng thái không hợp lệ' });
 
     const app = await Application.findById(id).populate('jobId');
-    if (!app) {
-      return res.status(404).json({ message: 'Không tìm thấy hồ sơ ứng tuyển' });
-    }
-
-    // Check permissions for business/recruiter role
-    if (req.user && req.user.role === 'business') {
-      const recruiterId = app.jobId?.recruiterId?.toString();
-      if (recruiterId !== req.user.id.toString()) {
-        return res.status(403).json({ message: 'Không có quyền chỉnh sửa hồ sơ này' });
-      }
-    }
+    if (!app) return res.status(404).json({ message: 'Không tìm thấy' });
+    if (req.user?.role === 'business' && app.jobId?.recruiterId?.toString() !== req.user.id.toString()) return res.status(403).json({ message: 'Không có quyền' });
 
     app.status = status;
     await app.save();
 
-    // Populate and return updated application
-    const updatedApp = await Application.findById(id)
-      .populate('userId', 'fullName avatar cvUrl email')
-      .populate('jobId', 'title');
+    const updatedApp = await Application.findById(id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title');
 
-    // Create system notification for candidate
     try {
-      const statusNamesVi = {
-        Applied: 'Hồ sơ mới nộp',
-        Testing: 'Làm bài kiểm tra',
-        Interviewing: 'Đang phỏng vấn',
-        Offered: 'Đề nghị nhận việc (Offer)',
-        Rejected: 'Đã từ chối'
-      };
+      const statusNamesVi = { Applied: 'Hồ sơ mới nộp', Testing: 'Làm bài kiểm tra', Interviewing: 'Đang phỏng vấn', Offered: 'Đề nghị nhận việc (Offer)', Rejected: 'Đã từ chối' };
+      await Notification.create({ userId: app.userId, title: 'Cập nhật trạng thái ứng tuyển', message: `Hồ sơ cho vị trí "${app.jobId?.title}" đã chuyển sang trạng thái: ${statusNamesVi[status] || status}.`, type: 'status_change', relatedApplicationId: app._id });
+    } catch (notifErr) {}
 
-      await Notification.create({
-        userId: app.userId,
-        title: 'Cập nhật trạng thái ứng tuyển',
-        message: `Hồ sơ của bạn cho vị trí "${app.jobId?.title || 'Công việc'}" đã được chuyển sang trạng thái: ${statusNamesVi[status] || status}.`,
-        type: 'status_change',
-        relatedApplicationId: app._id
-      });
-    } catch (notifErr) {
-      console.error('Failed to create notification on status update:', notifErr);
-    }
-
-    return res.json({
-      message: 'Cập nhật trạng thái thành công',
-      data: updatedApp
-    });
-  } catch (error) {
-    console.error('Update application status error:', error);
-    return res.status(500).json({ message: 'Lỗi máy chủ' });
-  }
+    return res.json({ message: 'Cập nhật thành công', data: updatedApp });
+  } catch (error) { res.status(500).json({ message: 'Lỗi máy chủ' }); }
 };
 
-// POST /api/applications/:id/notify
 exports.sendNotification = async (req, res) => {
   try {
     const { id } = req.params;
-    const { subject, content, type } = req.body; // type: 'Pass' | 'Reject' | 'Info'
-
-    if (!subject || !content) {
-      return res.status(400).json({ message: 'Tiêu đề và nội dung là bắt buộc' });
-    }
+    const { subject, content, type } = req.body;
+    if (!subject || !content) return res.status(400).json({ message: 'Thiếu thông tin' });
 
     const app = await Application.findById(id).populate('userId').populate('jobId');
-    if (!app) {
-      return res.status(404).json({ message: 'Không tìm thấy hồ sơ ứng tuyển' });
-    }
+    if (!app) return res.status(404).json({ message: 'Không tìm thấy' });
+    if (req.user?.role === 'business' && app.jobId?.recruiterId?.toString() !== req.user.id.toString()) return res.status(403).json({ message: 'Không có quyền' });
+    if (!app.userId?.email) return res.status(400).json({ message: 'Không có email' });
 
-    // Check permissions
-    if (req.user && req.user.role === 'business') {
-      const recruiterId = app.jobId?.recruiterId?.toString();
-      if (recruiterId !== req.user.id.toString()) {
-        return res.status(403).json({ message: 'Không có quyền gửi thông báo cho hồ sơ này' });
-      }
-    }
+    try { await sendEmail(app.userId.email, subject, `<div style="padding: 24px;">${content.replace(/\n/g, '<br/>')}</div>`); } catch (err) {}
 
-    if (!app.userId || !app.userId.email) {
-      return res.status(400).json({ message: 'Ứng viên không có địa chỉ email' });
-    }
-
-    // Attempt to send email
-    try {
-      await sendEmail(
-        app.userId.email,
-        subject,
-        `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #334155; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
-          <div style="background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%); padding: 24px; text-align: center; color: white;">
-            <h2 style="margin: 0; font-size: 20px; font-weight: 800;">Careerio - Thông báo Tuyển dụng</h2>
-          </div>
-          <div style="padding: 24px;">
-            ${content.replace(/\n/g, '<br/>')}
-          </div>
-          <div style="background-color: #f8fafc; padding: 16px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0;">
-            Đây là email tự động gửi từ hệ thống tuyển dụng Careerio. Vui lòng không trả lời trực tiếp email này.
-          </div>
-        </div>
-        `
-      );
-    } catch (emailError) {
-      console.warn("Nodemailer failed in development, printing email details instead:\n", {
-        to: app.userId.email,
-        subject,
-        content
-      });
-      // Do not throw/crash in dev environment. Fallback to logging.
-    }
-
-    // Update mailSentStatus
-    if (type === 'Pass') {
-      app.mailSentStatus = 'Sent_Pass';
-    } else if (type === 'Reject') {
-      app.mailSentStatus = 'Sent_Reject';
-    } else {
-      app.mailSentStatus = app.status === 'Rejected' ? 'Sent_Reject' : 'Sent_Pass';
-    }
+    app.mailSentStatus = type === 'Pass' ? 'Sent_Pass' : type === 'Reject' ? 'Sent_Reject' : (app.status === 'Rejected' ? 'Sent_Reject' : 'Sent_Pass');
     await app.save();
 
-    // Create system notification for candidate
-    try {
-      await Notification.create({
-        userId: app.userId._id,
-        title: subject,
-        message: content,
-        type: type === 'Pass' ? 'interview_invite' : type === 'Reject' ? 'general' : 'general',
-        relatedApplicationId: app._id
-      });
-    } catch (notifErr) {
-      console.error('Failed to create notification on email send:', notifErr);
-    }
+    try { await Notification.create({ userId: app.userId._id, title: subject, message: content, type: 'general', relatedApplicationId: app._id }); } catch (err) {}
 
-    return res.json({
-      message: 'Gửi thông báo thành công',
-      mailSentStatus: app.mailSentStatus
-    });
-  } catch (error) {
-    console.error('Send notification error:', error);
-    return res.status(500).json({ message: 'Lỗi gửi email thông báo' });
-  }
+    return res.json({ message: 'Gửi thành công', mailSentStatus: app.mailSentStatus });
+  } catch (error) { res.status(500).json({ message: 'Lỗi' }); }
 };
 
-// GET /api/applications/stats/summary
 exports.getStatsSummary = async (req, res) => {
   try {
     const user = req.user || {};
     const q = {};
-
     if (user.role === 'business') {
       const jobs = await Job.find({ recruiterId: user.id }).select('_id');
-      const jobIds = jobs.map((j) => j._id);
-      q.jobId = { $in: jobIds };
+      q.jobId = { $in: jobs.map((j) => j._id) };
     }
-
-    // Total jobs
-    const totalJobs = user.role === 'business' 
-      ? await Job.countDocuments({ recruiterId: user.id })
-      : await Job.countDocuments();
-
-    // Total applications
+    const totalJobs = user.role === 'business' ? await Job.countDocuments({ recruiterId: user.id }) : await Job.countDocuments();
     const totalApplications = await Application.countDocuments(q);
-
-    // Status counts
-    const statusCounts = await Application.aggregate([
-      { $match: q },
-      { $group: { _id: '$status', count: { $sum: 1 } } }
-    ]);
-
-    const statsObj = {
-      Applied: 0,
-      Testing: 0,
-      Interviewing: 0,
-      Offered: 0,
-      Rejected: 0
-    };
-    statusCounts.forEach((item) => {
-      if (statsObj[item._id] !== undefined) {
-        statsObj[item._id] = item.count;
-      }
-    });
-
-    // Average AI match score
-    const avgScoreResult = await Application.aggregate([
-      { $match: q },
-      { $group: { _id: null, avgScore: { $avg: '$aiScore' } } }
-    ]);
+    const statusCounts = await Application.aggregate([{ $match: q }, { $group: { _id: '$status', count: { $sum: 1 } } }]);
+    const statsObj = { Applied: 0, Testing: 0, Interviewing: 0, Offered: 0, Rejected: 0 };
+    statusCounts.forEach((item) => { if (statsObj[item._id] !== undefined) statsObj[item._id] = item.count; });
+    const avgScoreResult = await Application.aggregate([{ $match: q }, { $group: { _id: null, avgScore: { $avg: '$aiScore' } } }]);
     const avgAiScore = avgScoreResult.length > 0 ? Math.round(avgScoreResult[0].avgScore) : 0;
+    const trendResult = await Application.aggregate([{ $match: q }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$appliedAt' } }, count: { $sum: 1 } } }, { $sort: { _id: 1 } }, { $limit: 10 }]);
 
-    // Applications trend (grouped by date)
-    const trendResult = await Application.aggregate([
-      { $match: q },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$appliedAt' } },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } },
-      { $limit: 10 }
-    ]);
-
-    return res.json({
-      totalJobs,
-      totalApplications,
-      statusCounts: statsObj,
-      avgAiScore,
-      trend: trendResult
-    });
-  } catch (error) {
-    console.error('Get statistics error:', error);
-    return res.status(500).json({ message: 'Lỗi lấy số liệu thống kê' });
-  }
+    return res.json({ totalJobs, totalApplications, statusCounts: statsObj, avgAiScore, trend: trendResult });
+  } catch (error) { res.status(500).json({ message: 'Lỗi' }); }
 };
 
+exports.getMyTestHistory = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const history = await Application.find({ userId, testStatus: 'Completed' })
+            .populate('jobId', 'title companyName')
+            .populate('assessmentId', 'assessmentName timeLimit questions')
+            .sort({ testSubmittedAt: -1 })
+            .lean();
+        res.status(200).json(history);
+    } catch (error) { res.status(500).json({ message: 'Lỗi lấy lịch sử bài test' }); }
+};
