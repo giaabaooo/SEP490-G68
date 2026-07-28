@@ -35,7 +35,14 @@ router.post('/', auth, authorize(['candidate']), (req, res, next) => {
     next();
   });
 }, applicationController.createApplication);
-
+router.post('/preview-match', auth, authorize(['candidate']), (req, res, next) => {
+  upload.single('cv')(req, res, (err) => {
+    if (err) return res.status(400).json({ message: err.message });
+    next();
+  });
+}, applicationController.previewCVMatch);
+router.get('/review-history/:jobId', auth, authorize(['candidate']), applicationController.getReviewHistory);
+router.get('/my-test-history', auth, authorize(['candidate']), applicationController.getMyTestHistory);
 // List applications (recruiter + admin + candidate)
 router.get('/', auth, authorize(['business', 'admin', 'candidate']), applicationController.list);
 

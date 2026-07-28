@@ -237,3 +237,39 @@ exports.evaluateCVMatch = async (job, cvText) => {
         };
     }
 };
+exports.calculateJobMatch = async (profileText, jobDescription) => {
+    const prompt = `
+    Bạn là một Chuyên gia Tuyển dụng cấp cao (Senior Talent Acquisition / Headhunter).
+    Nhiệm vụ của bạn là phân tích độ phù hợp giữa Hồ sơ ứng viên (CV) và Mô tả công việc (JD), sau đó đưa ra lời khuyên ĐẶC BIỆT CHI TIẾT để ứng viên sửa CV.
+
+    QUY TẮC ĐÁNH GIÁ:
+    1. Chấm điểm khắt khe (0-100). Nếu thiếu kỹ năng cốt lõi, điểm phải dưới 50.
+    2. Phần 'advice' (Gợi ý chỉnh sửa) PHẢI CỰC KỲ CHI TIẾT. Không nói chung chung "cần bổ sung kỹ năng". Bạn phải:
+       - Chỉ ra chính xác kỹ năng/từ khóa nào đang thiếu.
+       - Cung cấp VÍ DỤ CỤ THỂ về cách viết lại một gạch đầu dòng trong CV để ghi điểm với HR.
+       - Điểm càng thấp, phần advice càng phải dài và hướng dẫn chi tiết từng bước.
+       - Viết liền mạch, xuống dòng bằng \\n để dễ đọc.
+
+    --- HỒ SƠ ỨNG VIÊN ---
+    ${profileText}
+
+    --- MÔ TẢ CÔNG VIỆC ---
+    ${jobDescription}
+
+    --- YÊU CẦU KẾT QUẢ TRẢ VỀ (JSON CHUẨN) ---
+    {
+        "score": 85,
+        "verdict": "Rất phù hợp / Cần bổ sung nhiều / Khá phù hợp...",
+        "pros": ["Điểm mạnh 1 phân tích chi tiết", "Điểm mạnh 2..."],
+        "cons": ["Điểm yếu 1 phân tích chi tiết", "Điểm yếu 2..."],
+        "advice": "Đoạn văn hướng dẫn chi tiết. Có ví dụ cụ thể về cách đặt câu văn trong CV..."
+    }
+    `;
+
+    try {
+        return await generateWithFallback(prompt, true, 0.5);
+    } catch (error) {
+        console.error("AI Match Error:", error);
+        return { score: 0, verdict: "Lỗi phân tích", pros: [], cons: [], advice: "Không thể phân tích lúc này." };
+    }
+};

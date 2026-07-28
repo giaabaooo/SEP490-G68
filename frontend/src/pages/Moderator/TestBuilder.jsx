@@ -1,13 +1,12 @@
 // File: src/pages/Moderator/TestBuilder.jsx
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
   ArrowLeft, CheckCircle2, Sparkles, X, PlusCircle, Trash2, Copy, 
-  Settings, Save, CheckCircle, Clock, CheckSquare, Loader2
+  Settings, CheckCircle, Clock, CheckSquare, Loader2
 } from 'lucide-react';
 
-// --- MODAL AI GENERATOR CHUẨN UX MỚI ---
 const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
   const [topic, setTopic] = useState('');
   const [count, setCount] = useState(10);
@@ -21,22 +20,16 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
         <div className="bg-emerald-600 px-6 py-5 text-white flex justify-between items-center relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-10 translate-x-10"></div>
           <div className="relative z-10">
-            <h3 className="text-xl font-black flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-yellow-300" /> AI Generator (MCQ)
-            </h3>
+            <h3 className="text-xl font-black flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-300" /> AI Generator (MCQ)</h3>
             <p className="text-emerald-100 text-sm mt-1 font-medium">Tạo câu hỏi trắc nghiệm chuyên sâu tức thì</p>
           </div>
-          <button onClick={onClose} className="relative z-10 text-white hover:bg-white/20 p-2 rounded-full transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <button onClick={onClose} className="relative z-10 text-white hover:bg-white/20 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
         </div>
-
         <div className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Chủ đề cần kiểm tra</label>
             <input type="text" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-emerald-500 outline-none text-sm font-medium" placeholder="VD: ReactJS Hooks..." value={topic} onChange={(e) => setTopic(e.target.value)} />
           </div>
-
           <div className="grid grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Trình độ</label>
@@ -53,7 +46,6 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
             </div>
           </div>
         </div>
-
         <div className="p-6 pt-2 flex gap-3 border-t border-slate-100">
           <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 transition-colors">Hủy bỏ</button>
           <button onClick={() => topic.trim() ? onGenerate(topic, count, difficulty) : toast.error("Nhập chủ đề!")} disabled={loading} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all disabled:opacity-70 flex justify-center items-center gap-2">
@@ -65,10 +57,9 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
   );
 };
 
-// --- MAIN BUILDER ---
 export default function TestBuilder() {
   const navigate = useNavigate();
-  const { jobId, testId } = useParams(); // Nhận diện xem là route Tạo hay Sửa
+  const { jobId, testId } = useParams(); 
   const isEditMode = !!testId;
 
   const [loading, setLoading] = useState(isEditMode);
@@ -81,7 +72,10 @@ export default function TestBuilder() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
 
-  // LOAD DỮ LIỆU NẾU LÀ CHẾ ĐỘ EDIT
+  // TÍNH TIẾN ĐỘ DUYỆT CÂU HỎI
+  const totalQuestions = parsedQuestions.length;
+  const checkedQuestions = parsedQuestions.filter(q => q.isChecked).length;
+
   useEffect(() => {
     if (isEditMode) {
       const fetchTest = async () => {
@@ -102,13 +96,13 @@ export default function TestBuilder() {
     }
   }, [testId, isEditMode, navigate]);
 
-  const addManualQuestion = () => setParsedQuestions(prev => [...prev, { type: 'mcq', question: '', options: ['', '', '', ''], correctAnswer: 0, skill: '' }]);
+  // FIX: Khi thêm thủ công cũng có isChecked: false
+  const addManualQuestion = () => setParsedQuestions(prev => [...prev, { type: 'mcq', question: '', options: ['', '', '', ''], correctAnswer: 0, skill: '', isChecked: false }]);
   const updateQuestion = (idx, field, val) => { const arr = [...parsedQuestions]; arr[idx][field] = val; setParsedQuestions(arr); };
   const handleOptionChange = (qIdx, oIdx, val) => { const arr = [...parsedQuestions]; arr[qIdx].options[oIdx] = val; setParsedQuestions(arr); };
   const duplicateQuestion = (idx) => { const arr = [...parsedQuestions]; arr.splice(idx + 1, 0, JSON.parse(JSON.stringify(arr[idx]))); setParsedQuestions(arr); };
   const removeQuestion = (idx) => setParsedQuestions(parsedQuestions.filter((_, i) => i !== idx));
 
-  // GỌI AI GENERATE
   const handleAIGenerate = async (topic, count, difficulty) => {
     setIsAILoading(true);
     const token = localStorage.getItem('token');
@@ -120,16 +114,25 @@ export default function TestBuilder() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message);
 
-      setParsedQuestions(prev => [...prev, ...data.questions]);
+      // Map kết quả AI trả về, thêm thuộc tính isChecked: false
+      const aiQuestions = data.questions.map(q => ({...q, isChecked: false}));
+      setParsedQuestions(prev => [...prev, ...aiQuestions]);
       setShowAIModal(false);
       toast.success(`Đã tạo ${data.questions.length} câu hỏi thành công!`);
     } catch (error) { toast.error(error.message); } 
     finally { setIsAILoading(false); }
   };
 
-  // LƯU DATA (CREATE / UPDATE)
   const handleSave = async (status) => {
     if (!assessmentName || parsedQuestions.length === 0) return toast.error('Vui lòng nhập tên bài thi và thêm câu hỏi!');
+    
+    // Nếu chọn Publish mà chưa duyệt hết, hỏi lại cho chắc
+    if (status === 'PUBLISHED' && checkedQuestions < totalQuestions) {
+        if (!window.confirm(`Bạn mới duyệt ${checkedQuestions}/${totalQuestions} câu. Bạn có chắc chắn muốn Xuất bản bài test này không?`)) {
+            return;
+        }
+    }
+
     setIsSaving(true);
     
     const payload = { assessmentName, description, timeLimit, questions: parsedQuestions, status };
@@ -164,7 +167,15 @@ export default function TestBuilder() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="h-6 w-px bg-slate-200"></div>
-          <input type="text" value={assessmentName} onChange={(e) => setAssessmentName(e.target.value)} className="border-none text-xl font-extrabold text-slate-800 outline-none w-[450px] bg-transparent focus:bg-slate-50 px-3 py-1.5 rounded-lg" placeholder="Tên bài kiểm tra..." />
+          <input type="text" value={assessmentName} onChange={(e) => setAssessmentName(e.target.value)} className="border-none text-xl font-extrabold text-slate-800 outline-none w-[350px] bg-transparent focus:bg-slate-50 px-3 py-1.5 rounded-lg" placeholder="Tên bài kiểm tra..." />
+          
+          {/* HIỂN THỊ TIẾN ĐỘ DUYỆT */}
+          {totalQuestions > 0 && (
+            <div className={`px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm transition-colors ${checkedQuestions === totalQuestions ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+               <CheckCircle2 className="w-4 h-4" /> 
+               Đã duyệt: {checkedQuestions}/{totalQuestions}
+            </div>
+          )}
         </div>
         
         <div className="flex items-center gap-3">
@@ -172,19 +183,18 @@ export default function TestBuilder() {
             Lưu nháp
           </button>
           <button onClick={() => handleSave('PUBLISHED')} disabled={isSaving} className="px-6 py-2.5 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2">
-            <CheckCircle className="w-4 h-4" /> {isEditMode ? 'Cập nhật & Duyệt' : 'Duyệt & Gửi HR'}
+            <CheckCircle className="w-4 h-4" /> Xuất bản (Duyệt)
           </button>
         </div>
       </header>
 
-      {/* LAYOUT 2 CỘT GỌN GÀNG */}
+      {/* LAYOUT 2 CỘT */}
       <div className="flex flex-1 overflow-hidden">
         
         {/* CỘT TRÁI: SOẠN CÂU HỎI */}
         <main className="flex-1 overflow-y-auto p-10">
           <div className="max-w-[800px] mx-auto">
 
-            {/* Gọi AI Khổng Lồ */}
             <div className="mb-8">
               <div onClick={() => setShowAIModal(true)} className="bg-gradient-to-r from-emerald-50 to-teal-50/50 border-2 border-dashed border-emerald-300 rounded-[24px] p-8 flex flex-col items-center justify-center cursor-pointer transition-all hover:border-emerald-500 hover:bg-emerald-50 group">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm mb-4 group-hover:scale-110 transition-transform">
@@ -200,13 +210,26 @@ export default function TestBuilder() {
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Nhập lời chào hoặc dặn dò ứng viên..." className="w-full min-h-[50px] border-none outline-none text-[14px] font-medium text-slate-700 resize-none" />
             </div>
 
-            {/* Render Danh sách Câu hỏi (Chỉ UI Trắc nghiệm) */}
+            {/* Render Danh sách Câu hỏi */}
             {parsedQuestions.map((q, idx) => (
-              <div key={idx} className="bg-white border-2 border-slate-100 rounded-[20px] mb-6 overflow-hidden transition-all hover:border-emerald-200 hover:shadow-md">
-                <div className="bg-slate-50 border-b border-slate-100 px-5 py-3.5 flex justify-between items-center">
+              <div key={idx} className={`border-2 rounded-[20px] mb-6 overflow-hidden transition-all hover:shadow-md ${q.isChecked ? 'bg-emerald-50/20 border-emerald-300' : 'bg-white border-slate-200'}`}>
+                
+                <div className={`px-5 py-3.5 flex justify-between items-center border-b ${q.isChecked ? 'bg-emerald-50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg text-xs font-black uppercase tracking-wide"><CheckSquare className="w-3.5 h-3.5" /> MCQ</div>
-                    <div className="flex items-center gap-2"><span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Tag:</span>
+                    
+                    {/* CHECKBOX DUYỆT CÂU HỎI */}
+                    <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors">
+                        <input
+                            type="checkbox"
+                            className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
+                            checked={!!q.isChecked}
+                            onChange={(e) => updateQuestion(idx, 'isChecked', e.target.checked)}
+                        />
+                        <span className="text-xs font-bold text-slate-600">Đã duyệt</span>
+                    </label>
+
+                    <div className="flex items-center gap-2 ml-2"><span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Tag:</span>
                       <input type="text" value={q.skill || ''} onChange={(e) => updateQuestion(idx, 'skill', e.target.value)} placeholder="Nhập skill..." className="border-none bg-white focus:ring-1 focus:ring-emerald-500 rounded px-2.5 py-1.5 text-xs font-bold text-emerald-700 w-32 outline-none shadow-sm" />
                     </div>
                   </div>
@@ -215,11 +238,12 @@ export default function TestBuilder() {
                     <button onClick={() => removeQuestion(idx)} className="text-slate-400 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
+                
                 <div className="p-5">
-                  <textarea className="w-full border-none p-0 text-[15px] leading-relaxed font-bold text-slate-800 focus:ring-0 resize-none outline-none mb-4" rows={2} value={q.question} onChange={(e) => updateQuestion(idx, 'question', e.target.value)} placeholder="Nội dung câu hỏi..." />
+                  <textarea className="w-full border-none p-0 text-[15px] leading-relaxed font-bold text-slate-800 focus:ring-0 resize-none outline-none mb-4 bg-transparent" rows={2} value={q.question} onChange={(e) => updateQuestion(idx, 'question', e.target.value)} placeholder="Nội dung câu hỏi..." />
                   <div className="space-y-3">
                     {(q.options || []).map((opt, optIdx) => (
-                      <div key={optIdx} onClick={() => updateQuestion(idx, 'correctAnswer', optIdx)} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${optIdx === q.correctAnswer ? 'border-emerald-400 bg-emerald-50/40' : 'border-slate-100 hover:bg-slate-50'}`}>
+                      <div key={optIdx} onClick={() => updateQuestion(idx, 'correctAnswer', optIdx)} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${optIdx === q.correctAnswer ? 'border-emerald-400 bg-emerald-50/60' : 'border-slate-100 bg-white hover:bg-slate-50'}`}>
                         <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${optIdx === q.correctAnswer ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>
                           {optIdx === q.correctAnswer && <CheckCircle2 className="w-3.5 h-3.5" />}
                         </div>
@@ -231,7 +255,7 @@ export default function TestBuilder() {
               </div>
             ))}
 
-            <button onClick={addManualQuestion} className="w-full py-5 rounded-[20px] border-2 border-dashed border-slate-300 text-slate-500 font-bold flex items-center justify-center gap-2 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors">
+            <button onClick={addManualQuestion} className="w-full py-5 rounded-[20px] border-2 border-dashed border-slate-300 text-slate-500 font-bold flex items-center justify-center gap-2 hover:border-emerald-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors bg-white">
               <PlusCircle className="w-5 h-5" /> Thêm câu hỏi thủ công
             </button>
           </div>
@@ -257,7 +281,6 @@ export default function TestBuilder() {
         </aside>
 
       </div>
-      <style>{` .create-job-page * { font-family: 'Inter', sans-serif !important; } `}</style>
     </div>
   );
 }
