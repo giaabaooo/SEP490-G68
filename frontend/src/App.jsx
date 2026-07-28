@@ -42,6 +42,10 @@ import Jobs from './pages/Jobs/Jobs';
 import JobDetail from './pages/Jobs/JobDetail';
 import AIInterview from './pages/Candidate/AIInterview';
 import Notifications from './pages/Candidate/Notifications';
+import TakeTest from './pages/Candidate/TakeTest';
+import TestHistory from './pages/Candidate/TestHistory';
+import TestResult from './pages/Candidate/TestResult';
+import TestListPage from './pages/Candidate/TestListPage';
 
 
 // Import trang Moderator
@@ -106,6 +110,10 @@ function App() {
           <Route path="/candidate/notifications" element={<Notifications />} />
           <Route path="/candidate/practice" element={<ComingSoon />} />
           <Route path="/candidate/courses" element={<ComingSoon />} />
+          <Route path="/candidate/tests" element={<TestListPage />} />
+          <Route path="/candidate/test-history" element={<TestHistory />} />
+          <Route path="/candidate/test-result" element={<TestResult />} />
+          <Route path="/assessments/:id/take" element={<TakeTest />} />
 
 
           {/* === CÁC TRANG DÀNH CHO BUSINESS === */}

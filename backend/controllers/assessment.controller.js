@@ -2,6 +2,7 @@
 const Assessment = require('../models/Assessment');
 const Job = require('../models/Job');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const Application = require('../models/Application');
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -154,6 +155,81 @@ exports.getTestById = async (req, res) => {
         const test = await Assessment.findById(req.params.id);
         if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
         res.json(test);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.getTestForCandidate = async (req, res) => {
+    try {
+        const test = await Assessment.findById(req.params.id).populate('jobId', 'title companyName companyLogo');
+        if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
+
+        const safeTest = test.toObject();
+        safeTest.questions = safeTest.questions.map(q => {
+            delete q.correctAnswer;
+            return q;
+        });
+
+        res.json(safeTest);
+    } catch (error) { res.status(500).json({ message: error.message }); }
+};
+
+// NỘP BÀI THI & CHẤM ĐIỂM TỰ ĐỘNG (CHỈ MCQ)
+exports.submitTest = async (req, res) => {
+    try {
+        const { id } = req.params; 
+        const { answers, duration } = req.body; 
+        const userId = req.user.id;
+
+        const test = await Assessment.findById(id);
+        if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
+
+        let correctCount = 0;
+        const totalQuestions = test.questions.length;
+
+        test.questions.forEach((q, index) => {
+            const userAnswer = answers[index.toString()];
+            if (userAnswer !== undefined && userAnswer === q.correctAnswer) {
+                correctCount++;
+            }
+        });
+
+        const score = Math.round((correctCount / totalQuestions) * 100);
+
+        // ✅ FIX TẠI ĐÂY: Tìm Application MỚI NHẤT của ứng viên cho Job này
+        const application = await Application.findOne({ userId, jobId: test.jobId }).sort({ createdAt: -1 });
+        
+        if (!application) {
+            return res.status(400).json({ message: "Bạn chưa nộp CV ứng tuyển vị trí này, không thể lưu điểm!" });
+        }
+        
+        if (application.testStatus === 'Completed') {
+            return res.status(400).json({ message: "Lần ứng tuyển này bạn đã hoàn thành bài Test. Vui lòng nộp lại CV để có thêm lượt làm bài (Tối đa 3 lần)." });
+        }
+
+        // Cập nhật kết quả vào Application mới nhất
+        application.testStatus = 'Completed';
+        application.testScore = score;
+        application.testAnswers = answers;
+        application.testDuration = duration || 0;
+        application.testSubmittedAt = new Date();
+        await application.save();
+
+        res.json({ message: "Nộp bài thành công!", score: score, correctCount, totalQuestions });
+    } catch (error) {
+        console.error("Lỗi nộp bài thi:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+exports.getPublicTests = async (req, res) => {
+    try {
+        const tests = await Assessment.find({ isPublic: true, status: 'PUBLISHED' })
+            .populate('createdBy', 'companyName fullName avatar')
+            .populate('jobId', 'companyName') // Phòng trường hợp Test này gắn với Job nhưng vẫn được Public
+            .sort({ createdAt: -1 })
+            .lean();
+            
+        res.json(tests);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

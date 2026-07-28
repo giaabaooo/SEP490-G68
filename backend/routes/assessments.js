@@ -9,7 +9,9 @@ router.post("/create", auth, assessmentController.createAssessment);
 
 // 3 API MỚI CHO TÍNH NĂNG NGÂN HÀNG TEST VÀ EDIT TEST
 router.get("/my-tests", auth, assessmentController.getMyTests);
+router.get("/public", assessmentController.getPublicTests);
 router.get("/:id", auth, assessmentController.getTestById);
 router.put("/:id", auth, assessmentController.updateAssessment);
-
+router.get("/:id/take", auth, assessmentController.getTestForCandidate);
+router.post("/:id/submit", auth, assessmentController.submitTest);
 module.exports = router;
