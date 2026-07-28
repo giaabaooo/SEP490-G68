@@ -224,6 +224,11 @@ const Navbar = () => {
                   Việc làm <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                 </NavLink>
               </div>
+              <div className="nav-item-dropdown">
+                <NavLink to="/candidate/tests" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>
+                  Đánh giá Năng lực
+                </NavLink>
+              </div>
 
               <div className="nav-item-dropdown">
                 <div className="nav-link-item">Tạo CV <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg></div>
@@ -335,6 +340,11 @@ const Navbar = () => {
                       <Link to="/candidate/applications" className="dropdown-item">Việc làm đã ứng tuyển</Link>
                       <Link to="/candidate" className="dropdown-item">Việc làm phù hợp với bạn</Link>
                       <Link to="/candidate/notifications" className="dropdown-item">Thông báo tuyển dụng</Link>
+                    </div>
+                    <div className="menu-section">
+                      <div className="menu-section-title">Đánh giá & Luyện tập</div>
+                      <Link to="/candidate/tests" className="dropdown-item">Kho bài Test (Luyện tập)</Link>
+                      <Link to="/candidate/test-history" className="dropdown-item">Lịch sử làm bài</Link>
                     </div>
                     <div className="menu-section">
                       <div className="menu-section-title">Quản lý CV & Cover letter</div>

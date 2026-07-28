@@ -5,7 +5,8 @@ const practiceQuestionSchema = new mongoose.Schema({
   options: [{ type: String, required: true }],
   correctAnswer: { type: Number, required: true },
   skill: { type: String, required: true, trim: true },
-  difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' }
+  difficulty: { type: String, enum: ['Easy', 'Medium', 'Hard'], default: 'Medium' },
+  isChecked: { type: Boolean, default: false }
 }, { _id: false });
 
 const practiceTopicSchema = new mongoose.Schema({

@@ -7,7 +7,8 @@ const questionSchema = new mongoose.Schema({
   options: [String], 
   correctAnswer: { type: Number },
   mediaUrl: { type: String },
-  mediaType: { type: String, enum: ['image', 'audio', 'none'], default: 'none' }
+  mediaType: { type: String, enum: ['image', 'audio', 'none'], default: 'none' },
+  isChecked: { type: Boolean, default: false }
 }, { _id: false });
 
 const assessmentSchema = new mongoose.Schema({
