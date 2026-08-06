@@ -28,6 +28,7 @@ const assessmentRoutes = require("./routes/assessments");
 const staffRoutes = require('./routes/staff.routes');
 const categoryRoutes = require('./routes/categories');
 const practiceTopicRoutes = require("./routes/practiceTopics");
+const roadmapRoutes = require("./routes/roadmap.route");
 const app = express();
 
 
@@ -63,6 +64,7 @@ app.use("/api/assessments", assessmentRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/admin/categories', categoryRoutes);
 app.use("/api/practice-topics", practiceTopicRoutes);
+app.use("/api/roadmaps", roadmapRoutes);
 app.get("/", (req, res) => {
   res.send("Careerio API Running");
 });

@@ -59,6 +59,7 @@ async function generateWithFallback(prompt, isJson = true, temp = null) {
     }
     throw new Error("Tất cả các model AI đều bị lỗi API: " + (lastError?.message || "Vui lòng kiểm tra lại GEMINI_API_KEY"));
 }
+exports.generateWithFallback = generateWithFallback;
 
 async function generateSpeech(text) {
     try {
@@ -79,9 +80,57 @@ async function generateSpeech(text) {
         return null; 
     }
 }
+// Export để dùng ở controller
+exports.textToSpeech = generateSpeech; 
+
+// --- [HÀM MỚI] 0. Logic sinh danh sách câu hỏi tĩnh cho Job Position ---
+exports.generateQuestionsList = async (jobPosition) => {
+    const prompt = `
+    Đóng vai là một Giám đốc nhân sự (HR Director). 
+    Hãy chuẩn bị một danh sách gồm 5 câu hỏi phỏng vấn chuẩn mực dành cho vị trí: "${jobPosition}".
+    
+    YÊU CẦU:
+    1. Câu 1 luôn là câu hỏi giới thiệu bản thân.
+    2. Câu 2-4 là câu hỏi chuyên môn/kỹ năng cứng.
+    3. Câu 5 là câu hỏi về tình huống/kỹ năng mềm.
+    4. Trả về đúng định dạng MẢNG JSON, không có text dư thừa.
+
+    VÍ DỤ ĐỊNH DẠNG TRẢ VỀ:
+    [
+        "Chào bạn, bạn có thể giới thiệu đôi nét về bản thân và kinh nghiệm làm việc được không?",
+        "Câu hỏi chuyên môn 1...",
+        "Câu hỏi chuyên môn 2...",
+        "Câu hỏi chuyên môn 3...",
+        "Câu hỏi tình huống..."
+    ]
+    `;
+
+    try {
+        // Dùng temp = 0.5 để câu hỏi ổn định, không quá bay bổng
+        const result = await generateWithFallback(prompt, true, 0.5);
+        if (Array.isArray(result) && result.length > 0) {
+            return result;
+        }
+        throw new Error("AI không trả về mảng câu hỏi hợp lệ");
+    } catch (error) {
+        console.error("Generate Questions List Error:", error);
+        // Fallback mặc định nếu AI lỗi để tránh block flow
+        return [
+            `Chào bạn, hãy giới thiệu đôi nét về bản thân và lý do bạn ứng tuyển vị trí ${jobPosition}?`,
+            `Bạn có kinh nghiệm gì nổi bật liên quan đến vị trí ${jobPosition} này?`,
+            `Khó khăn lớn nhất bạn từng gặp trong công việc là gì và cách bạn vượt qua?`,
+            `Bạn thường làm gì để cập nhật kiến thức mới trong lĩnh vực này?`,
+            `Bạn có câu hỏi nào dành cho công ty chúng tôi không?`
+        ];
+    }
+};
 
 // 1. Logic xử lý hội thoại phỏng vấn
 exports.conductMockInterview = async (conversationHistory, jobPosition) => {
+    // Logic trong phần này giờ sẽ được Controller điều hướng. 
+    // Nếu Controller thấy hết câu hỏi cứng, nó có thể gọi hàm này để AI sinh câu tuỳ biến 
+    // (nhưng theo luồng mới của chúng ta, Controller đã dùng danh sách cố định)
+    
     const systemPrompt = `
     Bạn là một chuyên gia phỏng vấn cấp cao đang tuyển dụng vị trí: ${jobPosition}.
     
