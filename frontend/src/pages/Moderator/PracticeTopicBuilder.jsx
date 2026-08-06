@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
   ArrowLeft, PlusCircle, Trash2, Save, Clock, HelpCircle, 
-  Sparkles, X, Loader2, CheckSquare, Plus, ChevronDown, CheckCircle2
+  Sparkles, X, Loader2, CheckSquare, Plus, ChevronDown, CheckCircle2,
+  CreditCard, Check
 } from 'lucide-react';
 
 const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
@@ -62,6 +63,7 @@ export default function PracticeTopicBuilder() {
   const [topicName, setTopicName] = useState('');
   const [description, setDescription] = useState('');
   const [timeLimit, setTimeLimit] = useState(30);
+  const [level, setLevel] = useState('free'); // State phân loại Free/Paid
   const [questions, setQuestions] = useState([]);
   
   const [isSaving, setIsSaving] = useState(false);
@@ -70,7 +72,6 @@ export default function PracticeTopicBuilder() {
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-  // TÍNH TIẾN ĐỘ DUYỆT CÂU HỎI
   const totalQuestions = questions.length;
   const checkedQuestions = questions.filter(q => q.isChecked).length;
 
@@ -86,10 +87,11 @@ export default function PracticeTopicBuilder() {
           setTopicName(data.topicName);
           setDescription(data.description || '');
           setTimeLimit(data.timeLimit || 30);
+          setLevel(data.level || 'free'); // Set data cho level
           setQuestions(data.questions || []);
         } catch (err) {
           toast.error(err.message);
-          navigate('/moderator/practice-topics');
+          navigate('/admin/practice-topics'); // Quay về route admin
         } finally { setLoading(false); }
       };
       fetchTopic();
@@ -165,13 +167,14 @@ export default function PracticeTopicBuilder() {
     try {
       const res = await fetch(url, {
         method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ topicName, description, timeLimit: parseInt(timeLimit), status, questions })
+        // Gửi tham số level
+        body: JSON.stringify({ topicName, description, timeLimit: parseInt(timeLimit), status, questions, level })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Save failed');
 
       toast.success(status === 'PUBLISHED' ? 'Đã Xuất bản chủ đề thành công!' : 'Đã Lưu nháp thành công!');
-      navigate('/moderator/practice-topics');
+      navigate('/admin/practice-topics'); // Trả về route Admin
     } catch (err) { toast.error(err.message); } finally { setIsSaving(false); }
   };
 
@@ -183,11 +186,10 @@ export default function PracticeTopicBuilder() {
       {/* Top Controls */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-6">
-            <button onClick={() => navigate('/moderator/practice-topics')} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer">
+            <button onClick={() => navigate('/admin/practice-topics')} className="flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer">
             <ArrowLeft className="w-4 h-4" /> Quay lại
             </button>
 
-            {/* HIỂN THỊ TIẾN ĐỘ DUYỆT */}
             {totalQuestions > 0 && (
                 <div className={`px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm transition-colors ${checkedQuestions === totalQuestions ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
                     <CheckCircle2 className="w-4 h-4" /> Đã duyệt: {checkedQuestions}/{totalQuestions}
@@ -205,13 +207,25 @@ export default function PracticeTopicBuilder() {
           {/* Topic Header Card */}
           <div className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm space-y-6">
             <div className="border-b border-slate-100 pb-4">
-              <h2 className="text-xl font-black text-slate-900">{isEditMode ? 'Chỉnh sửa chủ đề luyện tập' : 'Tạo mới chủ đề luyện tập'}</h2>
+              <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                {isEditMode ? 'Chỉnh sửa chủ đề AI luyện tập' : 'Tạo mới chủ đề AI luyện tập'} 
+                <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold">AI</span>
+              </h2>
               <p className="text-slate-400 text-xs mt-1 font-semibold">Thiết lập cấu hình chung cho bài trắc nghiệm luyện tập</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* THAY ĐỔI: Bổ sung trường Level (Miễn phí/Trả phí) */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Tên chủ đề luyện tập</label>
                 <input type="text" required className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-emerald-500 outline-none text-sm font-bold text-slate-800" placeholder="VD: Lập trình ReactJS cơ bản..." value={topicName} onChange={(e) => setTopicName(e.target.value)} />
+              </div>
+              <div>
+                <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Loại bài tập</label>
+                <select className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-emerald-500 outline-none text-sm font-bold text-slate-800 cursor-pointer bg-white" value={level} onChange={(e) => setLevel(e.target.value)}>
+                    <option value="free">Miễn phí (Free)</option>
+                    <option value="paid">Trả phí (Premium)</option>
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Thời gian (phút)</label>
@@ -248,7 +262,6 @@ export default function PracticeTopicBuilder() {
                       <span className="w-7 h-7 bg-white border border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-600 text-xs">#{idx + 1}</span>
                       <span className="text-xs font-black text-slate-400 uppercase tracking-widest">MCQ</span>
                       
-                      {/* CHECKBOX DUYỆT CÂU HỎI */}
                       <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors ml-2">
                           <input
                               type="checkbox"
@@ -315,12 +328,8 @@ export default function PracticeTopicBuilder() {
 
           {/* Submit Actions */}
           <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
-            <button type="button" onClick={() => navigate('/moderator/practice-topics')} className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-sm font-bold transition-colors cursor-pointer">Hủy bỏ</button>
-            
-            {/* NÚT LƯU NHÁP */}
+            <button type="button" onClick={() => navigate('/admin/practice-topics')} className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-sm font-bold transition-colors cursor-pointer">Hủy bỏ</button>
             <button type="button" onClick={() => handleSave('DRAFT')} disabled={isSaving} className="px-6 py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl text-sm font-bold transition-colors cursor-pointer">Lưu Nháp</button>
-            
-            {/* NÚT XUẤT BẢN */}
             <button type="button" onClick={() => handleSave('PUBLISHED')} disabled={isSaving} className="px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-500/10 transition-all disabled:opacity-50 cursor-pointer">
               {isSaving ? 'Đang lưu...' : 'Xuất bản'}
             </button>
