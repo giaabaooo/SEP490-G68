@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, PlusCircle, Edit3, Trash2, Clock, HelpCircle, AlertCircle } from 'lucide-react';
+import { BookOpen, PlusCircle, Edit3, Trash2, Clock, HelpCircle, AlertCircle, Sparkles, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const PracticeTopicsList = () => {
@@ -55,21 +55,21 @@ const PracticeTopicsList = () => {
   };
 
   return (
-    <div className="animate-fade-in pb-12 max-w-6xl mx-auto mt-6">
+    <div className="animate-fade-in pb-12 max-w-7xl mx-auto mt-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-black text-slate-900 mb-2 flex items-center gap-3">
             <BookOpen className="w-8 h-8 text-emerald-600" />
-            Chủ đề bài test <span className="text-emerald-600">luyện tập</span>
+            Chủ đề bài test <span className="text-emerald-600 flex items-center gap-1">AI luyện tập <Sparkles className="w-5 h-5 text-yellow-400" /></span>
           </h1>
           <p className="text-slate-500 text-sm">
-            Quản lý các chủ đề và danh sách câu hỏi trắc nghiệm dùng để luyện tập cho ứng viên.
+            Quản lý các chủ đề và danh sách câu hỏi trắc nghiệm dùng để luyện tập cho ứng viên (Hệ thống tạo).
           </p>
         </div>
 
         <button
-          onClick={() => navigate('/moderator/create-practice-topic')}
+          onClick={() => navigate('/admin/create-practice-topic')} // Đã đổi sang route admin
           className="flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold shadow-lg shadow-emerald-600/20 transition-all cursor-pointer"
         >
           <PlusCircle className="w-4 h-4" />
@@ -88,7 +88,7 @@ const PracticeTopicsList = () => {
           </div>
         ) : topics.length === 0 ? (
           <div className="p-16 text-center text-slate-400 font-medium">
-            Chưa có chủ đề bài test luyện tập nào. Hãy bắt đầu bằng cách tạo mới!
+            Chưa có chủ đề bài test AI luyện tập nào. Hãy bắt đầu bằng cách tạo mới!
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -96,6 +96,7 @@ const PracticeTopicsList = () => {
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-100 text-xs uppercase tracking-wider text-slate-400 font-black">
                   <th className="p-6">Tên chủ đề</th>
+                  <th className="p-6">Phân loại</th>
                   <th className="p-6">Mô tả</th>
                   <th className="p-6 text-center">Thời gian</th>
                   <th className="p-6 text-center">Số câu hỏi</th>
@@ -107,7 +108,23 @@ const PracticeTopicsList = () => {
                 {topics.map((topic) => (
                   <tr key={topic._id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="p-6">
-                      <span className="font-extrabold text-slate-900 block">{topic.topicName}</span>
+                      <span className="font-extrabold text-slate-900 block flex items-center gap-2">
+                        {topic.topicName}
+                        <span className="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                          AI
+                        </span>
+                      </span>
+                    </td>
+                    <td className="p-6">
+                      {topic.level === 'paid' ? (
+                        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-md border border-amber-200">
+                           <CreditCard className="w-3.5 h-3.5" /> Trả phí
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-md border border-emerald-200">
+                           Miễn phí
+                        </span>
+                      )}
                     </td>
                     <td className="p-6 max-w-xs truncate text-slate-500">
                       {topic.description || '—'}
@@ -125,12 +142,12 @@ const PracticeTopicsList = () => {
                       </div>
                     </td>
                     <td className="p-6 text-center text-xs text-slate-500">
-                      {topic.createdBy?.fullName || 'Moderator'}
+                      {topic.createdBy?.fullName || 'Admin'}
                     </td>
                     <td className="p-6">
                       <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => navigate(`/moderator/edit-practice-topic/${topic._id}`)}
+                          onClick={() => navigate(`/admin/edit-practice-topic/${topic._id}`)} // Đã đổi sang route admin
                           className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"
                           title="Chỉnh sửa chủ đề"
                         >
