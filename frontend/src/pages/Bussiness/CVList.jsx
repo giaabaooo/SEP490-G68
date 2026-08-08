@@ -271,25 +271,25 @@ const CVList = () => {
       </div>
 
       {viewMode === 'pipeline' ? (
-        <div className="flex gap-6 overflow-x-auto pb-6 items-start hide-scrollbar" style={{ minHeight: '600px' }}>
+        <div className="flex gap-4 overflow-x-auto pb-6 items-start hide-scrollbar" style={{ minHeight: '600px' }}>
           {['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].map((status) => {
             const columnApps = applications.filter((app) => app.status === status);
-            const statusNames = { Applied: 'Hồ sơ ứng tuyển', Testing: 'Làm bài kiểm tra', Interviewing: 'Đang phỏng vấn', Offered: 'Đề nghị (Offer)', Rejected: 'Đã từ chối' };
+            const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Làm Test', Interviewing: 'Phỏng vấn', Offered: 'Nhận việc', Rejected: 'Từ chối' };
             const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-amber-500 bg-amber-50/10', Interviewing: 'border-t-4 border-t-blue-500 bg-blue-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
             
             return (
-              <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-shrink-0 w-80 rounded-[28px] border border-slate-200 p-5 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
-                <div className="flex items-center justify-between mb-5 pb-2 border-b border-slate-100">
-                  <h3 className="font-black text-slate-800 text-sm tracking-tight">{statusNames[status]}</h3>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-black bg-white text-slate-500 shadow-sm border border-slate-100">{columnApps.length}</span>
+              <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-1 min-w-[190px] max-w-[280px] rounded-2xl border border-slate-200 p-4 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-xs tracking-tight">{statusNames[status]}</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-500 shadow-sm border border-slate-100">{columnApps.length}</span>
                 </div>
                 
-                <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                   {columnApps.length === 0 ? (
-                    <div className="py-12 border-2 border-dashed border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-slate-400 text-xs font-medium bg-white/40">Kéo thả hồ sơ vào đây</div>
+                    <div className="py-10 border-2 border-dashed border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-slate-400 text-[10px] font-medium bg-white/40">Kéo thả vào đây</div>
                   ) : (
                     columnApps.map((app) => (
-                      <div key={app._id || app.id} draggable onDragStart={(e) => handleDragStart(e, app._id || app.id)} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-grab active:cursor-grabbing group relative">
+                      <div key={app._id || app.id} draggable onDragStart={(e) => handleDragStart(e, app._id || app.id)} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-grab active:cursor-grabbing group relative">
                         <div className="flex items-start gap-3 mb-4">
                           <img src={app.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userId?.fullName || 'U')}&background=eff6ff&color=3b82f6`} alt={app.userId?.fullName} className="w-10 h-10 rounded-full border border-slate-100 object-cover" />
                           <div className="flex-grow">
