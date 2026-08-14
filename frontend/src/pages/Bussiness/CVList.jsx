@@ -93,7 +93,6 @@ const AiDetailModal = ({ isOpen, onClose, data, candidateName }) => {
 };
 // =======================================================
 
-
 const CVList = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -101,7 +100,7 @@ const CVList = () => {
   const currentJobId = searchParams.get('jobId');
 
   const [applications, setApplications] = useState([]);
-  const [deduplicatedApps, setDeduplicatedApps] = useState([]); // State lưu mảng đã lọc trùng
+  const [deduplicatedApps, setDeduplicatedApps] = useState([]); 
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -130,19 +129,19 @@ const CVList = () => {
   const templates = {
     test: {
       subject: 'Thư mời thực hiện bài đánh giá năng lực - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nChúng tôi rất ấn tượng với hồ sơ của bạn và muốn mời bạn tham gia thực hiện bài đánh giá kỹ năng chuyên môn. Điều này sẽ giúp chúng tôi hiểu rõ hơn về năng lực thực tế của bạn.\n\nVui lòng hoàn thành bài đánh giá của bạn trước thời hạn quy định.\n\nChúc bạn làm bài thật tốt!\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nChúng tôi rất ấn tượng với hồ sơ của bạn và muốn mời bạn tham gia thực hiện bài đánh giá kỹ năng chuyên môn.\n\nVui lòng hoàn thành bài đánh giá của bạn trước thời hạn quy định.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     },
     interview: {
       subject: 'Thư mời phỏng vấn - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã hoàn thành bài đánh giá năng lực cho vị trí ${jobTitle}.\n\nChúng tôi muốn mời bạn tham gia một buổi phỏng vấn trực tuyến để thảo luận chi tiết hơn về kinh nghiệm, kỹ năng và mức độ phù hợp của bạn với đội ngũ của chúng tôi.\n\nThời gian dự kiến: [Vui lòng điền giờ và ngày tại đây]\nHình thức: Phỏng vấn trực tuyến qua Google Meet.\n\nVui lòng phản hồi email này để xác nhận lịch phỏng vấn.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã hoàn thành bài đánh giá năng lực cho vị trí ${jobTitle}.\n\nChúng tôi muốn mời bạn tham gia một buổi phỏng vấn trực tuyến để thảo luận chi tiết hơn về kinh nghiệm của bạn.\n\nThời gian dự kiến: [Vui lòng điền giờ và ngày tại đây]\nHình thức: Phỏng vấn trực tuyến qua Google Meet.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     },
     offer: {
       subject: 'Thư mời nhận việc (Job Offer) - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nChúc mừng bạn! Chúng tôi rất vui mừng được gửi lời mời hợp tác chính thức đến bạn cho vị trí ${jobTitle}.\n\nBan giám đốc và toàn thể đội ngũ đánh giá cao năng lực của bạn qua các vòng ứng tuyển và tin rằng bạn sẽ là một mảnh ghép tuyệt vời giúp công ty phát triển vững mạnh.\n\nChi tiết về mức lương, phúc lợi và ngày bắt đầu công việc sẽ được gửi kèm trong hợp đồng chính thức. Vui lòng phản hồi trước ngày [Vui lòng điền ngày phản hồi] để xác nhận đồng ý nhận việc.\n\nChào mừng bạn gia nhập đội ngũ của chúng tôi!\nTrân trọng,\nBộ phận Nhân sự.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nChúc mừng bạn! Chúng tôi rất vui mừng được gửi lời mời hợp tác chính thức đến bạn cho vị trí ${jobTitle}.\n\nChi tiết về mức lương, phúc lợi sẽ được gửi kèm trong hợp đồng chính thức.\n\nChào mừng bạn gia nhập đội ngũ của chúng tôi!\nTrân trọng,\nBộ phận Nhân sự.`
     },
     reject: {
       subject: 'Thư cảm ơn ứng tuyển - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã dành thời gian quan tâm và ứng tuyển vị trí ${jobTitle} tại công ty chúng tôi.\n\nHồ sơ của bạn rất ấn tượng, tuy nhiên ở thời điểm hiện tại, chúng tôi đang tìm kiếm một ứng viên có kinh nghiệm phù hợp hơn với các tiêu chí đặc thù của dự án. Chúng tôi rất tiếc khi chưa thể đồng hành cùng bạn lần này.\n\nThông tin hồ sơ của bạn đã được lưu lại trong cơ sở dữ liệu của chúng tôi cho các cơ hội nghề nghiệp phù hợp hơn trong tương lai.\n\nChúc bạn luôn may mắn và thành công trên con đường sự nghiệp!\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã dành thời gian quan tâm và ứng tuyển vị trí ${jobTitle}.\n\nChúng tôi rất tiếc khi chưa thể đồng hành cùng bạn lần này. Thông tin hồ sơ của bạn đã được lưu lại cho các cơ hội phù hợp hơn trong tương lai.\n\nChúc bạn luôn may mắn và thành công!\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     }
   };
 
@@ -224,8 +223,6 @@ const CVList = () => {
     return () => controller.abort();
   }, [fetchApplications]);
 
-  // LỌC DỮ LIỆU TRÙNG LẶP TRONG PIPELINE VÀ TABLE (DEDUPLICATION)
-  // Đảm bảo mỗi ứng viên chỉ xuất hiện 1 lần bằng cách lấy bản cập nhật mới nhất
   useEffect(() => {
       const uniqueAppsMap = new Map();
       applications.forEach(app => {
@@ -269,9 +266,7 @@ const CVList = () => {
   };
 
   const exportToExcel = () => {
-    if (deduplicatedApps.length === 0) {
-      return toast.warning('Không có ứng viên nào để xuất dữ liệu.');
-    }
+    if (deduplicatedApps.length === 0) return toast.warning('Không có ứng viên nào để xuất dữ liệu.');
     const headers = ['Tên ứng viên', 'Email', 'Vị trí', 'Điểm CV (%)', 'Điểm Test (/100)', 'Ngày nộp', 'Trạng thái'];
     const csvRows = [headers.join(',')];
 
@@ -388,50 +383,53 @@ const CVList = () => {
       </div>
 
       {viewMode === 'pipeline' ? (
-        <div className="flex w-full gap-3 xl:gap-4 pb-6 items-start overflow-x-auto lg:overflow-hidden hide-scrollbar" style={{ minHeight: '600px' }}>
+        <div className="flex gap-4 overflow-x-auto pb-6 items-start hide-scrollbar" style={{ minHeight: '600px' }}>
           {['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].map((status) => {
-            // SỬ DỤNG MẢNG ĐÃ LỌC TRÙNG LẶP (DeduplicatedApps) ĐỂ HIỂN THỊ
             const columnApps = deduplicatedApps.filter((app) => app.status === status);
-            const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Làm test', Interviewing: 'Phỏng vấn', Offered: 'Offer', Rejected: 'Từ chối' };
-            const columnStyles = { Applied: 'border-t-slate-400 bg-slate-50/50', Testing: 'border-t-amber-500 bg-amber-50/10', Interviewing: 'border-t-blue-500 bg-blue-50/10', Offered: 'border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-red-500 bg-red-50/10' };
+            const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Làm Test', Interviewing: 'Phỏng vấn', Offered: 'Nhận việc', Rejected: 'Từ chối' };
+            const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-amber-500 bg-amber-50/10', Interviewing: 'border-t-4 border-t-blue-500 bg-blue-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
             
             return (
-              <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-1 min-w-[200px] rounded-[24px] border border-t-4 border-slate-200 p-4 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
-                <div className="flex items-center justify-between mb-5 pb-2 border-b border-slate-100">
-                  <h3 className="font-black text-slate-800 text-sm">{statusNames[status]}</h3>
-                  <span className="px-2.5 py-1 rounded-full text-xs font-black bg-white text-slate-500 shadow-sm border">{columnApps.length}</span>
+              <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-1 min-w-[190px] max-w-[280px] rounded-2xl border border-slate-200 p-4 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
+                <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-xs tracking-tight">{statusNames[status]}</h3>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-slate-500 shadow-sm border border-slate-100">{columnApps.length}</span>
                 </div>
                 
-                <div className="space-y-4">
-                  {columnApps.map((app) => (
-                    <div key={app._id || app.id} draggable onDragStart={(e) => handleDragStart(e, app._id || app.id)} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md cursor-grab active:cursor-grabbing group relative">
-                      <div className="flex items-start gap-3 mb-4">
-                        <img src={app.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userId?.fullName || 'U')}&background=eff6ff&color=3b82f6`} className="w-10 h-10 rounded-full border border-slate-100 object-cover shrink-0" />
-                        <div className="flex-grow min-w-0">
-                          <button onClick={() => navigate(`/bussiness/candidate/${app._id || app.id}`)} className="font-bold text-slate-900 text-sm truncate w-full text-left">{app.userId?.fullName}</button>
+                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                  {columnApps.length === 0 ? (
+                    <div className="py-10 border-2 border-dashed border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-slate-400 text-[10px] font-medium bg-white/40">Kéo thả vào đây</div>
+                  ) : (
+                    columnApps.map((app) => (
+                      <div key={app._id || app.id} draggable onDragStart={(e) => handleDragStart(e, app._id || app.id)} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-grab active:cursor-grabbing group relative">
+                        <div className="flex items-start gap-3 mb-4">
+                          <img src={app.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userId?.fullName || 'U')}&background=eff6ff&color=3b82f6`} alt={app.userId?.fullName} className="w-10 h-10 rounded-full border border-slate-100 object-cover" />
+                          <div className="flex-grow">
+                            <button onClick={() => navigate(`/bussiness/candidate/${app._id || app.id}`)} className="font-bold text-slate-900 text-sm hover:text-blue-600 transition-colors text-left block w-full mb-0.5">{app.userId?.fullName || 'Unknown'}</button>
+                            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">{app.jobId?.title || '—'}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between items-center">
+                          <button onClick={() => handleOpenAiModal(app)} title="Xem báo cáo chi tiết" className={`px-2 py-1 rounded-lg border flex items-center gap-1 text-[11px] font-bold transition-all ${getAiScoreStyle(app.aiScore ?? 0)}`}>
+                            {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-3.5 h-3.5" />}
+                            <span>AI: {(app.aiScore ?? 0)}%</span>
+                          </button>
+                        </div>
+
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex gap-1">
+                              <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100" title="Xem CV"><Eye className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleOpenNotifyModal(app)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white" title="Gửi thông báo"><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
+                            </div>
+                            <div className="flex gap-1">
+                              {status !== 'Offered' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-600 hover:text-white">Nhận</button>}
+                              {status !== 'Rejected' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black hover:bg-red-600 hover:text-white">Loại</button>}
+                            </div>
                         </div>
                       </div>
-
-                      <div className="flex justify-between items-center">
-                        <button onClick={() => handleOpenAiModal(app)} title="Xem báo cáo chi tiết" className={`px-2 py-1 rounded-lg border flex items-center gap-1 text-[11px] font-bold transition-all ${getAiScoreStyle(app.aiScore ?? 0)}`}>
-                          {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-3.5 h-3.5" />}
-                          <span>AI: {(app.aiScore ?? 0)}%</span>
-                        </button>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="flex gap-1">
-                            <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100" title="Xem CV"><Eye className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => handleOpenNotifyModal(app)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white" title="Gửi thông báo"><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
-                          </div>
-                          <div className="flex gap-1">
-                            {status !== 'Offered' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-600 hover:text-white">Nhận</button>}
-                            {status !== 'Rejected' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black hover:bg-red-600 hover:text-white">Loại</button>}
-                          </div>
-                      </div>
-
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             );

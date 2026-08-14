@@ -15,7 +15,7 @@ const Navbar = () => {
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [usageInfo, setUsageInfo] = useState(null); // Thêm state lấy gói cước
+  const [usageInfo, setUsageInfo] = useState(null);
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -96,7 +96,6 @@ const Navbar = () => {
   return (
     <>
       <style>{`
-        /* Giữ nguyên toàn bộ CSS cũ của bạn */
         .top-navbar { min-height: 76px !important; padding: 0 40px !important; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
         .nav-item-dropdown { position: relative; display: flex; align-items: center; height: 100%; padding: 10px 0; cursor: pointer; }
         .nav-item-dropdown::after { content: ''; position: absolute; bottom: -15px; left: 0; width: 100%; height: 15px; }
@@ -154,11 +153,7 @@ const Navbar = () => {
           {role === 'admin' && (
             <>
               <div className="nav-item-dropdown"><NavLink to="/admin" end className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Người Dùng</NavLink></div>
-              {/* <div className="nav-item-dropdown"><NavLink to="/admin/jobs" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Việc Làm</NavLink></div>
-              <div className="nav-item-dropdown"><NavLink to="/admin/categories" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Ngành Nghề</NavLink></div>
-              <div className="nav-item-dropdown"><NavLink to="/admin/reports" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Báo Cáo Thống Kê</NavLink></div> */}
               <div className="nav-item-dropdown"><NavLink to="/admin/practice-topics" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Luyện Tập (AI)</NavLink></div>
-              {/* <div className="nav-item-dropdown"><NavLink to="/admin/settings" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Cài Đặt Hệ Thống</NavLink></div> */}
             </>
           )}
 
@@ -258,18 +253,13 @@ const Navbar = () => {
               </div>
               <div className="dropdown-menu-content" style={{ width: '280px' }}>
                 
-                {/* NHẤP VÀO AVATAR & TÊN ĐỂ ĐẾN PROFILE */}
                 <div className="dropdown-header" onClick={() => navigate('/profile')} title="Xem Hồ sơ cá nhân">
                   <div className="avatar-circle" style={{ width: '48px', height: '48px', fontSize: '20px' }}><span style={{ color: '#059669', fontWeight: 'bold' }}>{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span></div>
                   <div className="dropdown-header-info">
                     <div className="dropdown-name">
                       {user?.fullName || 'bạn'}
-                      {/* BẬT HIỂN THỊ TAG GÓI */}
                       {role === 'candidate' && usageInfo && (
-                        <span style={{ 
-                          padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', border: '1px solid', 
-                          backgroundColor: isPro ? '#eef2ff' : '#f1f5f9', color: isPro ? '#4338ca' : '#475569', borderColor: isPro ? '#c7d2fe' : '#e2e8f0' 
-                        }}>
+                        <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', border: '1px solid', backgroundColor: isPro ? '#eef2ff' : '#f1f5f9', color: isPro ? '#4338ca' : '#475569', borderColor: isPro ? '#c7d2fe' : '#e2e8f0' }}>
                             GÓI {isPro ? 'PRO' : 'FREE'}
                         </span>
                       )}
@@ -278,7 +268,8 @@ const Navbar = () => {
                   </div>
                 </div>
 
-                {/* MODULE NÂNG CẤP GÓI DỊCH VỤ - CANDIDATE */}
+               
+
                 {role === 'candidate' && (
                   <div className="menu-section bg-indigo-50/50">
                     <div className="menu-section-title text-indigo-500">Gói Dịch Vụ AI</div>
@@ -289,7 +280,6 @@ const Navbar = () => {
                   </div>
                 )}
 
-                {/* MODULE NẠP TOKEN - BUSINESS */}
                 {role === 'business' && subRole !== 'moderator' && (
                   <div className="menu-section bg-indigo-50/50">
                     <div className="menu-section-title text-indigo-500">Tài nguyên hệ thống</div>

@@ -522,6 +522,8 @@ const Profile = () => {
           color: #475569;
           white-space: pre-line;
           line-height: 1.7;
+          word-break: break-word;
+          overflow-wrap: break-word;
         }
         .placeholder-text {
           color: #94a3b8;
@@ -607,6 +609,8 @@ const Profile = () => {
           padding: 12px 16px;
           border-radius: 12px;
           border-left: 3px solid #cbd5e1;
+          word-break: break-word;
+          overflow-wrap: break-word;
         }
         
         .timeline-actions {

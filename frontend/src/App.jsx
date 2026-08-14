@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import AuthGuard from './components/AuthGuard';
+import RoleGuard from './components/RoleGuard';
 
 // Import Layouts
 import PublicLayout from './components/layout/PublicLayout';
@@ -55,6 +56,7 @@ import QuestionForm from './pages/Staff/QuestionForm';
 import AdminCategories from './pages/Admin/AdminCategories';
 import UpgradePage from './pages/Upgrade/UpgradePage';
 import PaymentSuccess from './pages/Upgrade/PaymentSuccess';
+
 function App() {
   return (
     <Router>
@@ -74,57 +76,66 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
 
-          {/* === CÁC TRANG DÀNH CHO ADMIN === */}
-          <Route path="/admin" element={<UserManagement />} />
-          <Route path="/admin/categories" element={<AdminCategories />} />
-          <Route path="/admin/jobs" element={<ComingSoon />} />
-          <Route path="/admin/reports" element={<ComingSoon />} />
-          <Route path="/admin/practice-topics" element={<PracticeTopicsList />} />
-          <Route path="/admin/create-practice-topic" element={<PracticeTopicBuilder />} />
-          <Route path="/admin/edit-practice-topic/:topicId" element={<PracticeTopicBuilder />} />
-          <Route path="/admin/settings" element={<ComingSoon />} />
-
-          <Route path="/staff/questions" element={<QuestionList />} />
-          <Route path="/staff/questions/create" element={<QuestionForm />} />
-          <Route path="/staff/questions/edit/:id" element={<QuestionForm />} />
-
-          {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
-          <Route path="/jobs" element={<Jobs />} />
-          <Route path="/jobs/:id" element={<JobDetail />} />
-          <Route path="/candidate/manage-cv" element={<ManageCV />} />
-          <Route path="/candidate/applications" element={<Applications />} />
-          <Route path="/candidate/save" element={<SavedJobs />} />
-          <Route path="/candidate/cv-templates" element={<TemplateCV />} />
-          <Route path="/candidate/cv-builder" element={<EditCV />} />
-          <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
-          <Route path="/candidate/ai-interview" element={<AIInterview />} />
-          <Route path="/candidate/notifications" element={<Notifications />} />
-          <Route path="/candidate/tests" element={<TestListPage />} />
-          <Route path="/candidate/test-history" element={<TestHistory />} />
-          <Route path="/candidate/test-result" element={<TestResult />} />
-
-          {/* SỬ DỤNG CHUNG GIAO DIỆN TakeTest.jsx CHO CẢ 2 LOẠI TEST */}
-          <Route path="/assessments/:id/take" element={<TakeTest />} />
-          <Route path="/practice-test/:id/take" element={<TakeTest />} />
-
-          {/* === CÁC TRANG DÀNH CHO BUSINESS === */}
-          <Route path="/bussiness/dashboard" element={<BusinessDashboard />} />
-          <Route path="/bussiness/post-job" element={<PostJob />} />
-          <Route path="/bussiness/create" element={<Create />} />
-          <Route path="/bussiness/profile" element={<BussinessProfile />} />
-          <Route path="/bussiness/cvlist" element={<CVList />} />
-          <Route path="/bussiness/edit-job/:id" element={<EditJob />} />
-          <Route path="/bussiness/candidate/:id" element={<CandidateDetail />} />
-
-          {/* === CÁC TRANG DÀNH CHO MODERATOR === */}
-          <Route path="/moderator/requests" element={<ModeratorRequests />} />
-          <Route path="/moderator/create-test/:jobId" element={<TestBuilder />} />
-          <Route path="/moderator/edit-test/:testId" element={<TestBuilder />} />
-          <Route path="/moderator/test-bank" element={<TestBank />} />
-          <Route path="/moderator/job-detail/:jobId" element={<ModeratorJobDetail />} />
-
+          {/* Dùng chung cho các tính năng nâng cấp/thanh toán */}
           <Route path="/upgrade" element={<UpgradePage />} />
           <Route path="/payment/success" element={<PaymentSuccess />} />
+
+          {/* Việc làm công khai */}
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
+
+          {/* === CÁC TRANG DÀNH CHO ADMIN === */}
+          <Route element={<RoleGuard allowedRoles={['admin']} />}>
+            <Route path="/admin" element={<UserManagement />} />
+            <Route path="/admin/categories" element={<AdminCategories />} />
+            <Route path="/admin/jobs" element={<ComingSoon />} />
+            <Route path="/admin/reports" element={<ComingSoon />} />
+            <Route path="/admin/practice-topics" element={<PracticeTopicsList />} />
+            <Route path="/admin/create-practice-topic" element={<PracticeTopicBuilder />} />
+            <Route path="/admin/edit-practice-topic/:topicId" element={<PracticeTopicBuilder />} />
+            <Route path="/admin/settings" element={<ComingSoon />} />
+          </Route>
+          
+          {/* === CÁC TRANG DÀNH CHO STAFF / MODERATOR === */}
+          <Route element={<RoleGuard allowedRoles={['business', 'admin']} allowedSubRoles={['moderator', 'admin']} />}>
+            <Route path="/staff/questions" element={<QuestionList />} />
+            <Route path="/staff/questions/create" element={<QuestionForm />} />
+            <Route path="/staff/questions/edit/:id" element={<QuestionForm />} />
+            
+            <Route path="/moderator/requests" element={<ModeratorRequests />} />
+            <Route path="/moderator/create-test/:jobId" element={<TestBuilder />} />
+            <Route path="/moderator/edit-test/:testId" element={<TestBuilder />} />
+            <Route path="/moderator/test-bank" element={<TestBank />} />
+            <Route path="/moderator/job-detail/:jobId" element={<ModeratorJobDetail />} />
+          </Route>
+
+          {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
+          <Route element={<RoleGuard allowedRoles={['candidate', 'admin']} />}>
+            <Route path="/candidate/manage-cv" element={<ManageCV />} />
+            <Route path="/candidate/applications" element={<Applications />} />
+            <Route path="/candidate/save" element={<SavedJobs />} />
+            <Route path="/candidate/cv-templates" element={<TemplateCV />} />
+            <Route path="/candidate/cv-builder" element={<EditCV />} />
+            <Route path="/candidate/cv-builder/:id" element={<EditCV />} />
+            <Route path="/candidate/ai-interview" element={<AIInterview />} />
+            <Route path="/candidate/notifications" element={<Notifications />} />
+            <Route path="/candidate/tests" element={<TestListPage />} />
+            <Route path="/candidate/test-history" element={<TestHistory />} />
+            <Route path="/candidate/test-result" element={<TestResult />} />
+            <Route path="/assessments/:id/take" element={<TakeTest />} />
+            <Route path="/practice-test/:id/take" element={<TakeTest />} />
+          </Route>
+
+          {/* === CÁC TRANG DÀNH CHO BUSINESS / HR === */}
+          <Route element={<RoleGuard allowedRoles={['business', 'admin']} allowedSubRoles={['hr', 'admin']} />}>
+            <Route path="/bussiness/dashboard" element={<BusinessDashboard />} />
+            <Route path="/bussiness/post-job" element={<PostJob />} />
+            <Route path="/bussiness/create" element={<Create />} />
+            <Route path="/bussiness/profile" element={<BussinessProfile />} />
+            <Route path="/bussiness/cvlist" element={<CVList />} />
+            <Route path="/bussiness/edit-job/:id" element={<EditJob />} />
+            <Route path="/bussiness/candidate/:id" element={<CandidateDetail />} />
+          </Route>
         </Route>
       </Routes>
     </Router>
