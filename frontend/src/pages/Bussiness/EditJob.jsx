@@ -4,14 +4,41 @@ import { toast } from 'react-toastify';
 import { 
   FileText, CircleDollarSign, Briefcase, MapPin, 
   Calendar, ClipboardCheck, AlignLeft, ArrowLeft,
-  CheckCircle2, AlertCircle, Edit3, Loader2, Save
+  CheckCircle2, AlertCircle, Edit3, Loader2, Save,
+  X, Sparkles
 } from 'lucide-react';
+
+// ================= MODAL BÁO HẾT TOKEN =================
+const TokenTopupModal = ({ isOpen, onClose }) => {
+    const navigate = useNavigate();
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
+                    <Sparkles className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>Không đủ Token</h3>
+                <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    Số dư Token AI của bạn không đủ để yêu cầu tạo Bài Test (Cần tạm thu 200 Token để cấp hạn mức nội bộ cho Moderator). Vui lòng nạp thêm để tiếp tục!
+                </p>
+                <button type="button" onClick={() => navigate('/upgrade')} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-colors" style={{ fontFamily: 'Inter, sans-serif' }}>
+                    Nạp Token Ngay
+                </button>
+            </div>
+        </div>
+    )
+};
+// =======================================================
 
 const EditJob = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showTokenModal, setShowTokenModal] = useState(false);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -81,6 +108,11 @@ const EditJob = () => {
       return;
     }
 
+    if (formData.requireTest && !formData.moderatorEmail) {
+      toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test!');
+      return;
+    }
+
     setSubmitting(true);
     const token = localStorage.getItem('token');
 
@@ -97,7 +129,15 @@ const EditJob = () => {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Cập nhật thất bại');
+      
+      // BẮT LỖI HẾT TOKEN KHI BẬT REQUIRE TEST
+      if (!res.ok) {
+          if (res.status === 402 || res.status === 403) {
+              setShowTokenModal(true);
+              return;
+          }
+          throw new Error(data.message || 'Cập nhật thất bại');
+      }
 
       toast.success('Cập nhật tin tuyển dụng thành công!');
       setTimeout(() => navigate('/bussiness/post-job'), 1000);
@@ -119,9 +159,12 @@ const EditJob = () => {
 
   return (
     <div className="create-job-page animate-fade-in">
+      <TokenTopupModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} />
+
       <div className="job-form-container">
         
         <button 
+          type="button"
           onClick={() => navigate('/bussiness/post-job')}
           className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit transition-colors group"
         >
@@ -151,7 +194,7 @@ const EditJob = () => {
                     <select 
                       name="status" value={formData.status} onChange={handleChange}
                       style={{ 
-                        fontWeight: '700', paddingLeft: '14px',
+                        fontWeight: '700', paddingLeft: '14px', cursor: 'pointer',
                         color: formData.status === 'active' ? '#059669' : formData.status === 'closed' ? '#dc2626' : '#d97706',
                         backgroundColor: formData.status === 'active' ? '#ecfdf5' : formData.status === 'closed' ? '#fef2f2' : '#fffbeb'
                       }}
@@ -258,10 +301,17 @@ const EditJob = () => {
                       onChange={handleChange}
                       placeholder="vd: techlead@congty.com"
                     />
-                    <div className="helper-text">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      Bạn có thể thay đổi người phụ trách ra đề test tại đây.
+                    <div className="helper-text mt-3 bg-amber-50 text-amber-700 p-2.5 rounded-lg border border-amber-200">
+                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                        Lưu ý: Hệ thống sẽ tạm thu 200 Token từ ví của bạn để cấp "Hạn mức nội bộ" cho Moderator tạo câu hỏi AI. Vui lòng đảm bảo số dư khả dụng!
                     </div>
+                  </div>
+                )}
+
+                {formData.requireTest && formData.moderatorEmail && (
+                  <div className="assessment-success">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>Hệ thống sẽ cấp quyền Moderator cho Email này.</span>
                   </div>
                 )}
               </div>
@@ -304,7 +354,6 @@ const EditJob = () => {
         </form>
       </div>
 
-      {/* TÁI SỬ DỤNG LẠI CSS ĐÃ FIX CỦA TRANG CREATE */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -419,8 +468,15 @@ const EditJob = () => {
           display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 8px;
         }
         .helper-text {
-          display: flex; align-items: flex-start; gap: 6px; margin-top: 10px;
+          display: flex; align-items: flex-start; gap: 8px; margin-top: 10px;
           font-size: 12px; color: #D97706; font-weight: 500; line-height: 1.4;
+        }
+
+        .assessment-success {
+          margin-top: 16px;
+          display: flex; align-items: center; gap: 8px;
+          font-size: 12px; font-weight: 700; color: #059669;
+          background: #D1FAE5; padding: 10px 14px; border-radius: 8px; border: 1px solid #A7F3D0;
         }
 
         .form-footer {

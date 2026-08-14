@@ -1,6 +1,7 @@
 // File: backend/controllers/roadmap.controller.js
 const Roadmap = require('../models/Roadmap');
-const aiService = require('../services/ai.service'); // Trỏ đúng tới file chứa hàm generateWithFallback của bạn
+const aiService = require('../services/ai.service'); 
+const usageHelper = require('../utils/usageHelper');
 
 exports.getRoadmap = async (req, res) => {
     try {
@@ -13,6 +14,21 @@ exports.getRoadmap = async (req, res) => {
 
 exports.generateRoadmap = async (req, res) => {
     try {
+        const userId = req.user?.id;
+
+        // KIỂM TRA LIMIT TẠO LỘ TRÌNH CỦA CANDIDATE
+        if (req.user?.role === 'candidate') {
+            try {
+                await usageHelper.checkCandidateLimit(userId, 'roadmap');
+            } catch (err) {
+                if (err.message === 'LIMIT_EXCEEDED') {
+                    return res.status(403).json({ message: "Bạn đã sử dụng hết số lượt tạo AI Roadmap tháng này. Nâng cấp Pro ngay để không bị gián đoạn!" });
+                }
+                throw err;
+            }
+        }
+        
+        // Nhận động thời gian và mục tiêu từ UI gửi lên (Bao gồm cả custom time)
         const { sourceId, testType, timeframe, goal, testResult } = req.body;
         const { topic, score, totalQuestions, weakSkills, jd } = testResult;
 
@@ -33,7 +49,7 @@ exports.generateRoadmap = async (req, res) => {
 
         NHIỆM VỤ:
         1. Thiết kế lộ trình học tập trong khoảng thời gian: "${timeframe}" với mục tiêu chính là: "${goal}". 
-        Nội dung phải thực tế, chuyên sâu, khắc phục các kỹ năng còn yếu ở trên.
+        Nội dung phải thực tế, chuyên sâu, khắc phục các kỹ năng còn yếu ở trên. Đặc biệt chú trọng tới thời gian yêu cầu để phân bổ khối lượng kiến thức (tasks) cho hợp lý.
         2. Đề xuất 3-5 khóa học MIỄN PHÍ (Free/Audit/Open Courseware) chất lượng cao.
 
         YÊU CẦU VỀ KHÓA HỌC (QUAN TRỌNG - ANTI HALLUCINATION):

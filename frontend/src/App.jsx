@@ -5,7 +5,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import AuthGuard from './components/AuthGuard';
 import RoleGuard from './components/RoleGuard';
 
-
 // Import Layouts
 import PublicLayout from './components/layout/PublicLayout';
 import MainLayout from './components/layout/MainLayout';
@@ -55,6 +54,8 @@ import PracticeTopicBuilder from './pages/Moderator/PracticeTopicBuilder';
 import QuestionList from './pages/Staff/QuestionList';
 import QuestionForm from './pages/Staff/QuestionForm';
 import AdminCategories from './pages/Admin/AdminCategories';
+import UpgradePage from './pages/Upgrade/UpgradePage';
+import PaymentSuccess from './pages/Upgrade/PaymentSuccess';
 
 function App() {
   return (
@@ -74,6 +75,14 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
+
+          {/* Dùng chung cho các tính năng nâng cấp/thanh toán */}
+          <Route path="/upgrade" element={<UpgradePage />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
+
+          {/* Việc làm công khai */}
+          <Route path="/jobs" element={<Jobs />} />
+          <Route path="/jobs/:id" element={<JobDetail />} />
 
           {/* === CÁC TRANG DÀNH CHO ADMIN === */}
           <Route element={<RoleGuard allowedRoles={['admin']} />}>
@@ -101,9 +110,6 @@ function App() {
           </Route>
 
           {/* === CÁC TRANG DÀNH CHO CANDIDATE === */}
-          <Route path="/jobs" element={<Jobs />} />
-          <Route path="/jobs/:id" element={<JobDetail />} />
-          
           <Route element={<RoleGuard allowedRoles={['candidate', 'admin']} />}>
             <Route path="/candidate/manage-cv" element={<ManageCV />} />
             <Route path="/candidate/applications" element={<Applications />} />

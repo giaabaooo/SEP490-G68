@@ -1,28 +1,15 @@
+// models/User.js
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    fullName: {
-      type: String,
-      required: true,
-    },
-
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-    },
-
-    // CHỈ yêu cầu password nếu KHÔNG phải login Google
+    fullName: { type: String, required: true },
+    email: { type: String, required: true, unique: true, lowercase: true },
     password: {
       type: String,
-      required: function () {
-        return !this.googleId;
-      },
+      required: function () { return !this.googleId; },
       default: undefined,
     },
-
     role: {
       type: String,
       enum: ["admin", "candidate", "business"],
@@ -33,73 +20,23 @@ const userSchema = new mongoose.Schema(
       enum: ["admin", "hr", "moderator"],
       default: "hr",
     },
-
     status: {
       type: String,
       enum: ["active", "banned", "pending"],
       default: "pending",
     },
-
-    googleId: {
-      type: String,
-      default: "",
-    },
-
-    companyName: {
-      type: String,
-      default: "",
-    },
-
-    taxCode: {
-      type: String,
-      default: "",
-    },
-
-    city: {
-      type: String,
-      default: "",
-    },
-
-    website: {
-      type: String,
-      default: "",
-    },
-
-    companySize: {
-      type: String,
-      default: "",
-    },
-
-    address: {
-      type: String,
-      default: "",
-    },
-
-    phone: {
-      type: String,
-      default: "",
-    },
-
-    avatar: {
-      type: String,
-      default: "",
-    },
-
-    title: {
-      type: String,
-      default: "",
-    },
-
-    aboutMe: {
-      type: String,
-      default: "",
-    },
-
-    skills: {
-      type: [String],
-      default: [],
-    },
-
+    googleId: { type: String, default: "" },
+    companyName: { type: String, default: "" },
+    taxCode: { type: String, default: "" },
+    city: { type: String, default: "" },
+    website: { type: String, default: "" },
+    companySize: { type: String, default: "" },
+    address: { type: String, default: "" },
+    phone: { type: String, default: "" },
+    avatar: { type: String, default: "" },
+    title: { type: String, default: "" },
+    aboutMe: { type: String, default: "" },
+    skills: { type: [String], default: [] },
     experience: [
       {
         company: { type: String, default: "" },
@@ -110,7 +47,6 @@ const userSchema = new mongoose.Schema(
         description: { type: String, default: "" },
       },
     ],
-
     education: [
       {
         school: { type: String, default: "" },
@@ -121,20 +57,29 @@ const userSchema = new mongoose.Schema(
         description: { type: String, default: "" },
       },
     ],
+    cvUrl: { type: String, default: "" },
+    isVerified: { type: Boolean, default: false },
 
-    cvUrl: {
-      type: String,
-      default: "",
+    // ================= DÀNH CHO THANH TOÁN & QUẢN LÝ TÍNH NĂNG AI =================
+    // Dành cho Candidate (Gói đăng ký có thời hạn)
+    subscription: {
+      plan: { type: String, enum: ["free", "pro"], default: "free" },
+      startDate: { type: Date, default: null },
+      endDate: { type: Date, default: null },
+      usage: {
+        cvReviewCount: { type: Number, default: 0 },
+        mockInterviewMinutes: { type: Number, default: 0 },
+        roadmapCount: { type: Number, default: 0 },
+        lastResetDate: { type: Date, default: Date.now },
+      },
     },
 
-    isVerified: {
-      type: Boolean,
-      default: false,
+    // Dành cho Business (Hệ thống Token/Credit)
+    businessCredits: {
+      balance: { type: Number, default: 100 }, // Mặc định tặng 100 Token trải nghiệm
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("User", userSchema);

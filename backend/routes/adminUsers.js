@@ -20,4 +20,7 @@ router.patch("/:id/status", adminUserController.updateUserStatus);
 // UC51 - Phân quyền người dùng
 router.patch("/:id/role", adminUserController.updateUserRole);
 
+// UC52 - Cấp phát Gói (Plan) và Token cho người dùng
+router.patch("/:id/subscription", adminUserController.updateUserSubscriptionAndToken);
+
 module.exports = router;
