@@ -15,6 +15,7 @@ const Navbar = () => {
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [usageInfo, setUsageInfo] = useState(null); // Thêm state lấy gói cước
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -32,8 +33,19 @@ const Navbar = () => {
     } catch (err) {}
   };
 
+  const fetchUsageInfo = async () => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_BASE}/api/payment/my-usage`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) setUsageInfo(await res.json());
+    } catch (err) {}
+  };
+
   useEffect(() => {
     fetchNotifications();
+    fetchUsageInfo();
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [token]);
@@ -79,6 +91,8 @@ const Navbar = () => {
     return '/home';
   };
 
+  const isPro = usageInfo?.subscription?.plan === 'pro';
+
   return (
     <>
       <style>{`
@@ -102,9 +116,10 @@ const Navbar = () => {
         .user-dropdown-container .dropdown-menu-content { left: auto; right: 0; width: 320px; max-height: 85vh; overflow-y: auto; }
         .user-dropdown-container .dropdown-menu-content::-webkit-scrollbar { width: 6px; }
         .user-dropdown-container .dropdown-menu-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dropdown-header { padding: 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; gap: 12px;}
+        .dropdown-header { padding: 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; gap: 12px; transition: background 0.2s; cursor: pointer; }
+        .dropdown-header:hover { background: #f1f5f9; }
         .dropdown-header-info { display: flex; flex-direction: column; overflow: hidden; }
-        .dropdown-name { font-weight: 700; color: #1e293b; font-size: 15px; margin-bottom: 2px; }
+        .dropdown-name { font-weight: 700; color: #1e293b; font-size: 15px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
         .dropdown-id { font-size: 12px; color: #64748b; }
         .menu-section { border-bottom: 1px solid #e2e8f0; padding: 8px 0; }
         .menu-section:last-child { border-bottom: none; }
@@ -112,6 +127,8 @@ const Navbar = () => {
         .dropdown-item { padding: 10px 16px 10px 36px; font-size: 14px; color: #334155; font-weight: 500; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; cursor: pointer; }
         .dropdown-item.has-icon { padding-left: 16px; }
         .dropdown-item:hover { background: #f1f5f9; color: #059669; }
+        .dropdown-item.upgrade-btn { color: #4f46e5; font-weight: 700; }
+        .dropdown-item.upgrade-btn:hover { background: #e0e7ff; color: #4338ca; }
         .dropdown-item.logout { color: #dc2626; }
         .dropdown-item.logout:hover { background: #fef2f2; color: #dc2626; }
         .avatar-circle { width: 38px; height: 38px; border-radius: 50%; background: #eff6ff; border: 2px solid #bfdbfe; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; flex-shrink: 0; }
@@ -134,15 +151,14 @@ const Navbar = () => {
         </div>
 
         <div className="nav-center" style={{ display: 'flex', gap: '30px', height: '100%' }}>
-
           {role === 'admin' && (
             <>
               <div className="nav-item-dropdown"><NavLink to="/admin" end className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Người Dùng</NavLink></div>
-              <div className="nav-item-dropdown"><NavLink to="/admin/jobs" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Việc Làm</NavLink></div>
+              {/* <div className="nav-item-dropdown"><NavLink to="/admin/jobs" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Việc Làm</NavLink></div>
               <div className="nav-item-dropdown"><NavLink to="/admin/categories" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Ngành Nghề</NavLink></div>
-              <div className="nav-item-dropdown"><NavLink to="/admin/reports" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Báo Cáo Thống Kê</NavLink></div>
+              <div className="nav-item-dropdown"><NavLink to="/admin/reports" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Báo Cáo Thống Kê</NavLink></div> */}
               <div className="nav-item-dropdown"><NavLink to="/admin/practice-topics" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Luyện Tập (AI)</NavLink></div>
-              <div className="nav-item-dropdown"><NavLink to="/admin/settings" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Cài Đặt Hệ Thống</NavLink></div>
+              {/* <div className="nav-item-dropdown"><NavLink to="/admin/settings" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Cài Đặt Hệ Thống</NavLink></div> */}
             </>
           )}
 
@@ -160,7 +176,6 @@ const Navbar = () => {
              </>
           )}
 
-          {/* MENU CANDIDATE ĐÃ ĐƯỢC CẬP NHẬT */}
           {role === 'candidate' && (
             <>
               <div className="nav-item-dropdown">
@@ -194,10 +209,9 @@ const Navbar = () => {
                 </div>
               </div>
 
-              {/* Chuyển Đánh giá năng lực xuống cuối cùng */}
               <div className="nav-item-dropdown">
                 <NavLink to="/candidate/tests" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>
-                  Đánh giá Năng lực
+                  Kho bài luyện tập
                 </NavLink>
               </div>
             </>
@@ -243,15 +257,49 @@ const Navbar = () => {
                 <div className="avatar-circle"><span style={{ color: '#059669', fontWeight: 'bold' }}>{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span></div>
               </div>
               <div className="dropdown-menu-content" style={{ width: '280px' }}>
-                <div className="dropdown-header">
+                
+                {/* NHẤP VÀO AVATAR & TÊN ĐỂ ĐẾN PROFILE */}
+                <div className="dropdown-header" onClick={() => navigate('/profile')} title="Xem Hồ sơ cá nhân">
                   <div className="avatar-circle" style={{ width: '48px', height: '48px', fontSize: '20px' }}><span style={{ color: '#059669', fontWeight: 'bold' }}>{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span></div>
                   <div className="dropdown-header-info">
-                    <div className="dropdown-name">Chào {user?.fullName || 'bạn'}</div>
+                    <div className="dropdown-name">
+                      {user?.fullName || 'bạn'}
+                      {/* BẬT HIỂN THỊ TAG GÓI */}
+                      {role === 'candidate' && usageInfo && (
+                        <span style={{ 
+                          padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', border: '1px solid', 
+                          backgroundColor: isPro ? '#eef2ff' : '#f1f5f9', color: isPro ? '#4338ca' : '#475569', borderColor: isPro ? '#c7d2fe' : '#e2e8f0' 
+                        }}>
+                            GÓI {isPro ? 'PRO' : 'FREE'}
+                        </span>
+                      )}
+                    </div>
                     <div className="dropdown-id text-xs text-gray-500">{user?.email || 'Tài khoản đã xác thực'}</div>
                   </div>
                 </div>
 
-                {/* Các phần menu tương ứng user... (giữ nguyên logic render) */}
+                {/* MODULE NÂNG CẤP GÓI DỊCH VỤ - CANDIDATE */}
+                {role === 'candidate' && (
+                  <div className="menu-section bg-indigo-50/50">
+                    <div className="menu-section-title text-indigo-500">Gói Dịch Vụ AI</div>
+                    <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                      Nâng cấp Pro ngay
+                    </Link>
+                  </div>
+                )}
+
+                {/* MODULE NẠP TOKEN - BUSINESS */}
+                {role === 'business' && subRole !== 'moderator' && (
+                  <div className="menu-section bg-indigo-50/50">
+                    <div className="menu-section-title text-indigo-500">Tài nguyên hệ thống</div>
+                    <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                      Nạp Token AI
+                    </Link>
+                  </div>
+                )}
+
                 {role === 'candidate' && (
                   <>
                     <div className="menu-section">
@@ -275,7 +323,6 @@ const Navbar = () => {
                     </div>
                   </>
                 )}
-                {/* Giữ nguyên cho admin & business... */}
 
                 <div className="menu-section" style={{ paddingBottom: '16px' }}>
                   <div className="dropdown-item has-icon logout" onClick={handleLogout} style={{ justifyContent: 'center', background: '#f8fafc', margin: '0 16px', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '10px' }}>

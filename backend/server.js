@@ -1,5 +1,5 @@
-const dns = require("dns");
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
+// const dns = require("dns");
+// dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 
 require("dotenv").config();
@@ -29,6 +29,7 @@ const staffRoutes = require('./routes/staff.routes');
 const categoryRoutes = require('./routes/categories');
 const practiceTopicRoutes = require("./routes/practiceTopics");
 const roadmapRoutes = require("./routes/roadmap.route");
+const paymentRoutes = require("./routes/payment.routes");
 const app = express();
 
 
@@ -65,6 +66,7 @@ app.use('/api/staff', staffRoutes);
 app.use('/api/admin/categories', categoryRoutes);
 app.use("/api/practice-topics", practiceTopicRoutes);
 app.use("/api/roadmaps", roadmapRoutes);
+app.use("/api/payment", paymentRoutes);
 app.get("/", (req, res) => {
   res.send("Careerio API Running");
 });

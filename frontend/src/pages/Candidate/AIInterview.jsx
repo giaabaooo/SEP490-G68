@@ -1,7 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import UpgradeRequestModal from '../../components/UpgradeRequestModal';
+import { X, Sparkles } from 'lucide-react'; 
+
+// ================= MODAL BÁO HẾT LƯỢT =================
+const UpgradeModal = ({ isOpen, onClose, title, message }) => {
+    const navigate = useNavigate();
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 left-0 w-full h-2 bg-indigo-500"></div>
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 cursor-pointer"><X className="w-5 h-5"/></button>
+                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4 text-indigo-500">
+                    <Sparkles className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">{title}</h3>
+                <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">{message}</p>
+                <button onClick={() => navigate('/upgrade')} className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition-colors cursor-pointer">
+                    Nâng cấp gói ngay
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const ConfirmEndModal = ({ isOpen, onClose, onConfirm }) => {
     if (!isOpen) return null;
@@ -100,16 +122,15 @@ export default function AIInterview() {
     const [analyzing, setAnalyzing] = useState(false);
     const [jobPosition, setJobPosition] = useState(""); 
     
-    // Mảng này bây giờ sẽ lưu object { jobPosition: "...", questionCount: 5 }
     const [availablePositions, setAvailablePositions] = useState([]); 
     const [interviewHistory, setInterviewHistory] = useState([]);
     const [selectedHistory, setSelectedHistory] = useState(null);
 
     const [isStarted, setIsStarted] = useState(false);
     const [reportData, setReportData] = useState(null);
-    const [remainingTime, setRemainingTime] = useState(0); 
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false); 
+    const [usageInfo, setUsageInfo] = useState(null);
 
     const isListening = useRef(false); 
     const [isListeningState, setIsListeningState] = useState(false);
@@ -119,47 +140,45 @@ export default function AIInterview() {
     const userVideoRef = useRef(null);
     const streamRef = useRef(null);
     const chatContainerRef = useRef(null);
-    const timerIntervalRef = useRef(null);
 
     const VIDEO_AVATAR_URL = "/video/ai-interviewer.mp4"; 
     const FALLBACK_IMAGE = "https://img.freepik.com/free-photo/view-robot-working-laptop_23-2150880153.jpg";
 
     useEffect(() => {
-        setRemainingTime(3600); 
         fetchAvailablePositions(); 
         fetchHistoryData(); 
-        
-        return () => {
-            stopWebcam();
-            clearInterval(timerIntervalRef.current);
-        };
+        fetchUsageData();
+        return () => { stopWebcam(); };
     }, []);
 
     const fetchAvailablePositions = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/interview/templates`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setAvailablePositions(data);
-            }
+            const res = await fetch(`${API_URL}/api/interview/templates`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) setAvailablePositions(await res.json());
         } catch (error) { console.error("Lỗi lấy template:", error); }
     };
 
     const fetchHistoryData = async () => {
         try {
             const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/api/interview/history`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setInterviewHistory(data);
-            }
+            const res = await fetch(`${API_URL}/api/interview/history`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) setInterviewHistory(await res.json());
         } catch (error) { console.error("Lỗi lấy lịch sử:", error); }
     };
+
+    const fetchUsageData = async () => {
+        try {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/api/payment/my-usage`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if(res.ok) setUsageInfo(await res.json());
+        } catch(e){}
+    };
+
+    const isPro = usageInfo?.subscription?.plan === 'pro';
+    const limitMinutes = isPro ? 180 : 15;
+    const usedMinutes = usageInfo?.subscription?.usage?.mockInterviewMinutes || 0;
+    const remainMinutes = Math.max(0, limitMinutes - usedMinutes);
 
     useEffect(() => {
         if (chatContainerRef.current) {
@@ -167,31 +186,12 @@ export default function AIInterview() {
         }
     }, [messages, loading]);
 
-    const startTimer = () => {
-        clearInterval(timerIntervalRef.current);
-        timerIntervalRef.current = setInterval(() => {
-            setRemainingTime(prev => {
-                if (prev <= 1) { handleTimeOver(); return 0; }
-                return prev - 1;
-            });
-        }, 1000);
-    };
-
-    const handleTimeOver = () => {
-        clearInterval(timerIntervalRef.current);
-        stopWebcam();
-        setIsStarted(false);
-        setShowUpgradeModal(true);
-    };
-
     const startWebcam = async () => {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
             streamRef.current = stream;
             if (userVideoRef.current) userVideoRef.current.srcObject = stream;
-        } catch (err) {
-            toast.error("Không thể truy cập Camera. Vui lòng kiểm tra quyền hệ thống.");
-        }
+        } catch (err) { toast.error("Không thể truy cập Camera."); }
     };
 
     const stopWebcam = () => {
@@ -203,12 +203,12 @@ export default function AIInterview() {
 
     const startInterview = async () => {
         if (!jobPosition.trim()) return toast.warning("Vui lòng nhập vị trí ứng tuyển!");
-        if (remainingTime <= 0) return setShowUpgradeModal(true);
+        
+        if (remainMinutes <= 0) return setShowUpgradeModal(true); 
 
         setIsStarted(true);
         setLoading(true);
         startWebcam(); 
-        startTimer();
 
         try {
             const token = localStorage.getItem('token');
@@ -218,16 +218,19 @@ export default function AIInterview() {
                 body: JSON.stringify({ history: [], jobPosition })
             });
             const data = await res.json();
-            const fullText = data.fullText || data.nextQuestion;
+
+            if (!res.ok) {
+                if(res.status === 403) { setShowUpgradeModal(true); setIsStarted(false); stopWebcam(); return; }
+                throw new Error("Lỗi Server");
+            }
             
+            const fullText = data.fullText || data.nextQuestion;
             setMessages([{ role: 'model', content: fullText }]);
             if (data.audioData) playAIVoice(data.audioData);
-            
-        } catch (err) { 
-            toast.error("Không thể kết nối với AI. Hãy thử lại!"); 
-        } finally { 
-            setLoading(false); 
-        }
+
+            fetchUsageData(); 
+        } catch (err) { toast.error("Không thể kết nối với AI. Hãy thử lại!"); setIsStarted(false); stopWebcam(); } 
+        finally { setLoading(false); }
     };
 
     const endInterview = async () => {
@@ -257,13 +260,8 @@ export default function AIInterview() {
             });
 
             fetchHistoryData();
-
-        } catch (e) {
-            toast.error("Hệ thống AI đang bận, vui lòng thử lại sau.");
-        } finally {
-            setAnalyzing(false);
-            setIsStarted(false);
-        }
+        } catch (e) { toast.error("Hệ thống AI đang bận, vui lòng thử lại sau."); } 
+        finally { setAnalyzing(false); setIsStarted(false); }
     };
 
     const playAIVoice = (base64) => {
@@ -299,24 +297,24 @@ export default function AIInterview() {
             });
             const data = await res.json();
             
+            if (!res.ok) {
+                if(res.status === 403) { setShowUpgradeModal(true); return; }
+                throw new Error("Lỗi Server");
+            }
+
             const fullContent = data.fullText || data.nextQuestion || "Có vẻ bạn đã hoàn thành bài phỏng vấn.";
-            
             setMessages([...newHistory, { role: 'model', content: fullContent }]);
             
             if (data.audioData) playAIVoice(data.audioData);
-            
-            if (data.isFinished) {
-                toast.success("Bạn đã hoàn thành bộ câu hỏi! Hãy bấm Kết thúc.");
-            }
-            
-        } catch (err) { toast.error("Lỗi gửi tin nhắn tới máy chủ."); } finally { setLoading(false); }
+            if (data.isFinished) toast.success("Bạn đã hoàn thành bộ câu hỏi! Hãy bấm Kết thúc.");
+
+            fetchUsageData();
+        } catch (err) { toast.error("Lỗi gửi tin nhắn tới máy chủ."); } 
+        finally { setLoading(false); }
     };
 
     const handleVoiceInput = () => {
-        if (isListening.current) { 
-            recognitionRef.current?.stop(); 
-            return; 
-        }
+        if (isListening.current) { recognitionRef.current?.stop(); return; }
         
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (!SpeechRecognition) return toast.error("Trình duyệt hiện tại không hỗ trợ thu âm.");
@@ -393,8 +391,8 @@ export default function AIInterview() {
 
     return (
         <div className="bg-white min-h-screen pt-24 pb-10 px-4 font-sans">
+            <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} title="Đã hết thời gian mô phỏng" message="Bạn đã sử dụng hết số PHÚT mô phỏng phỏng vấn bằng giọng nói của tháng này. Hãy nâng cấp tài khoản để sử dụng công cụ mạnh mẽ này không giới hạn!" />
             <ConfirmEndModal isOpen={showConfirmModal} onClose={() => setShowConfirmModal(false)} onConfirm={endInterview} />
-            <UpgradeRequestModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} title="Hết thời gian" message="Bạn đã hết thời gian luyện tập hôm nay." targetPlan="Premium" />
             <HistoryDetailModal isOpen={!!selectedHistory} onClose={() => setSelectedHistory(null)} historyItem={selectedHistory} />
 
             {!isStarted ? (
@@ -412,17 +410,11 @@ export default function AIInterview() {
                         <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                             {interviewHistory.length > 0 ? (
                                 interviewHistory.map((item) => (
-                                    <div 
-                                        key={item._id} 
-                                        onClick={() => setSelectedHistory(item)}
-                                        className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition-all flex justify-between items-center group"
-                                    >
+                                    <div key={item._id} onClick={() => setSelectedHistory(item)} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-blue-300 cursor-pointer transition-all flex justify-between items-center group">
                                         <div className="flex-1">
-                                            <h3 className="font-bold text-gray-800 text-base group-hover:text-blue-600 transition-colors">
-                                                {item.jobPosition}
-                                            </h3>
+                                            <h3 className="font-bold text-gray-800 text-base group-hover:text-blue-600 transition-colors">{item.jobPosition}</h3>
                                             <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                                <span>{new Date(item.createdAt).toLocaleDateString('vi-VN')} - {new Date(item.createdAt).toLocaleTimeString('vi-VN', {hour: '2-digit', minute:'2-digit'})}</span>
+                                                <span>{new Date(item.createdAt).toLocaleDateString('vi-VN')}</span>
                                                 <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                                 <span className="font-medium text-indigo-600">{item.questionCount || 0} câu hỏi</span>
                                             </div>
@@ -445,40 +437,32 @@ export default function AIInterview() {
                     {/* BÊN PHẢI: FORM TẠO PHỎNG VẤN MỚI */}
                     <div className="w-full md:w-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
-                        <h1 className="text-2xl font-bold text-gray-900 mb-2 mt-2">Phòng Phỏng Vấn AI</h1>
+                        <div className="flex items-center justify-between mb-2 mt-2">
+                            <h1 className="text-2xl font-bold text-gray-900">Phòng Phỏng Vấn AI</h1>
+                            {usageInfo && (
+                                <div className="text-[11px] font-black uppercase tracking-wider px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg border border-indigo-100">
+                                    Còn {remainMinutes}/{limitMinutes} phút
+                                </div>
+                            )}
+                        </div>
                         <p className="text-gray-500 mb-8 text-sm">Chuẩn bị Camera & Micro. Hệ thống sẽ mô phỏng buổi phỏng vấn thực tế dựa trên vị trí bạn chọn.</p>
                          
                          <div className="mb-6">
                              <label className="block text-xs font-bold text-gray-700 uppercase mb-2">Vị trí ứng tuyển tự do</label>
-                             <input 
-                                type="text" 
-                                className="w-full border border-gray-300 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-500 outline-none font-semibold shadow-sm" 
-                                placeholder="VD: Nhập vị trí bất kỳ (Ví dụ: Frontend Developer...)" 
-                                value={jobPosition} 
-                                onChange={(e) => setJobPosition(e.target.value)} 
-                             />
-
+                             <input type="text" className="w-full border border-gray-300 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-500 outline-none font-semibold shadow-sm" placeholder="VD: Nhập vị trí bất kỳ (Ví dụ: Frontend Developer...)" value={jobPosition} onChange={(e) => setJobPosition(e.target.value)} />
+                             
                              <div className="relative mt-6 mb-2">
                                 <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
                                 <div className="relative flex justify-center text-sm"><span className="px-4 bg-white text-gray-400 text-xs font-bold uppercase">Hoặc</span></div>
                              </div>
 
-                             <label className="block text-xs font-bold text-blue-700 uppercase mb-2 flex items-center gap-1 mt-4">
-                                <span className="material-symbols-outlined text-sm">database</span> Bộ câu hỏi từ hệ thống
-                             </label>
+                             <label className="block text-xs font-bold text-blue-700 uppercase mb-2 flex items-center gap-1 mt-4"><span className="material-symbols-outlined text-sm">database</span> Bộ câu hỏi từ hệ thống</label>
                              <p className="text-xs text-gray-400 mb-2 italic">Dữ liệu được đúc kết từ các câu hỏi chuyên sâu do AI tạo ra cho các ứng viên trước đó.</p>
                              <div className="relative">
-                                 {/* SỬA OPTIONS HIỂN THỊ TRONG DROPDOWN */}
-                                 <select 
-                                    className="w-full border border-gray-300 bg-blue-50/50 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-gray-700 appearance-none cursor-pointer"
-                                    value={jobPosition}
-                                    onChange={(e) => setJobPosition(e.target.value)}
-                                 >
+                                 <select className="w-full border border-gray-300 bg-blue-50/50 rounded-xl p-3.5 focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-gray-700 appearance-none cursor-pointer" value={jobPosition} onChange={(e) => setJobPosition(e.target.value)}>
                                      <option value="" className="text-gray-500">-- Click để chọn vị trí có sẵn --</option>
                                      {availablePositions.map((pos, idx) => (
-                                         <option key={idx} value={pos.jobPosition} className="font-medium text-gray-800">
-                                             {pos.jobPosition} (Bộ {pos.questionCount} câu hỏi)
-                                         </option>
+                                         <option key={idx} value={pos.jobPosition} className="font-medium text-gray-800">{pos.jobPosition} (Bộ {pos.questionCount} câu hỏi)</option>
                                      ))}
                                  </select>
                                  <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">expand_more</span>
@@ -493,7 +477,6 @@ export default function AIInterview() {
             ) : (
                 <div className="max-w-7xl mx-auto h-[85vh] flex flex-col lg:flex-row gap-6">
                     <div className="lg:w-2/3 relative h-full bg-black rounded-2xl overflow-hidden shadow-2xl border border-gray-200 group">
-                        
                         <video ref={aiVideoRef} src={VIDEO_AVATAR_URL} className="w-full h-full object-cover" loop muted playsInline poster={FALLBACK_IMAGE} />
 
                         {loading && (

@@ -3,7 +3,7 @@ const Assessment = require('../models/Assessment');
 const Job = require('../models/Job');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Application = require('../models/Application');
-
+const usageHelper = require('../utils/usageHelper');
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Cơ chế Smart Fallback tránh sập hệ thống khi Model bị đổi tên
@@ -36,8 +36,21 @@ async function generateWithFallback(prompt) {
 // TẠO CÂU HỎI BẰNG AI (CHỈ MCQ)
 exports.generateAI = async (req, res) => {
     try {
-        const { topic, quantity = 10, difficulty = 'Intermediate' } = req.body; 
+        // Nhận thêm jobId từ Frontend gửi lên
+        const { topic, quantity = 10, difficulty = 'Intermediate', jobId } = req.body; 
+        
         if (!topic) return res.status(400).json({ message: "Thiếu chủ đề (topic)" });
+        if (!jobId) return res.status(400).json({ message: "Thiếu thông tin jobId để tính phí." });
+
+        // KIỂM TRA VÀ TRỪ HẠN MỨC NỘI BỘ CỦA JOB (Phí: 50 Token / 1 lần Generate)
+        try {
+            await usageHelper.checkJobQuotaToken(jobId, 50);
+        } catch (tokenError) {
+            if (tokenError.message === 'INSUFFICIENT_JOB_QUOTA') {
+                return res.status(402).json({ message: "Hạn mức Token nội bộ của Job này đã hết. Vui lòng liên hệ Business nạp thêm." });
+            }
+            throw tokenError;
+        }
 
         const prompt = `
         Vai trò: Chuyên gia tuyển dụng IT.
@@ -58,7 +71,6 @@ exports.generateAI = async (req, res) => {
 
         const aiData = await generateWithFallback(prompt);
         
-        // Đảm bảo ép đúng định dạng trước khi gửi xuống Client
         const questions = aiData.map(q => ({
             type: 'mcq',
             skill: topic,
@@ -67,7 +79,14 @@ exports.generateAI = async (req, res) => {
             correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0
         }));
 
-        res.json({ questions });
+        // Lấy số dư hiện tại trả về để Frontend update UI
+        const currentJob = await Job.findById(jobId).select('aiTokensQuota');
+
+        res.json({ 
+            questions, 
+            message: "Tạo câu hỏi thành công (-50 Token)",
+            remainingJobQuota: currentJob.aiTokensQuota 
+        });
     } catch (error) {
         console.error("AI Generate Error:", error);
         res.status(500).json({ message: error.message });

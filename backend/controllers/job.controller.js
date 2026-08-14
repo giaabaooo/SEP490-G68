@@ -1,5 +1,6 @@
 const Job = require("../models/Job");
 const User = require("../models/User");
+const usageHelper = require('../utils/usageHelper');
 
 const parseStringArray = (value) => {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
@@ -114,70 +115,66 @@ exports.getJobById = async (req, res) => {
 
 exports.createJob = async (req, res) => {
   try {
-    const {
-      title, description, requirements, salary, deadline, location, type, experience, tags, benefits,
-      requireTest, moderatorEmail
-    } = req.body;
+    const { title, description, requirements, salary, deadline, location, type, experience, tags, benefits, requireTest, moderatorEmail } = req.body;
 
-    if (!title || !description || !requirements || !deadline) {
-      return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin" });
-    }
+    if (!title || !description || !requirements || !deadline) return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin" });
 
     const parsedDeadline = parseDeadline(deadline);
     if (!parsedDeadline) return res.status(400).json({ message: "Ngày hết hạn không hợp lệ" });
 
     const normalizedModEmail = moderatorEmail ? moderatorEmail.toLowerCase().trim() : "";
     const finalStatus = requireTest ? "draft" : "active";
+    let aiTokensQuota = 0;
+
+    // KIỂM TRA VÀ TRỪ 200 TOKEN CỦA BUSINESS KHI TẠO JOB KÈM TEST
+    if (requireTest) {
+      try {
+        await usageHelper.checkBusinessToken(req.user.id, 200);
+        aiTokensQuota = 200; // Cấp hạn mức vào Job
+      } catch (err) {
+        if (err.message === 'INSUFFICIENT_TOKENS') {
+          return res.status(402).json({ message: "Số dư không đủ 200 Token để tạo bài Test (Mức khoán Moderator). Vui lòng nạp thêm!" });
+        }
+        throw err;
+      }
+    }
 
     const job = await Job.create({
-      recruiterId: req.user.id,
-      title,
-      description,
-      requirements,
-      location: location || "",
-      type: type || "Full-time",
-      experience: experience || "Không yêu cầu kinh nghiệm",
-      salary: salary || "",
-      tags: parseStringArray(tags),
-      benefits: parseLines(benefits),
-      recruitmentDeadline: parsedDeadline,
-      status: finalStatus,
-      requireTest: requireTest || false,
-      moderatorEmail: normalizedModEmail,
-      testStatus: requireTest ? "pending" : null
+      recruiterId: req.user.id, title, description, requirements, location: location || "",
+      type: type || "Full-time", experience: experience || "Không yêu cầu kinh nghiệm",
+      salary: salary || "", tags: parseStringArray(tags), benefits: parseLines(benefits),
+      recruitmentDeadline: parsedDeadline, status: finalStatus, requireTest: requireTest || false,
+      moderatorEmail: normalizedModEmail, testStatus: requireTest ? "pending" : null,
+      aiTokensQuota: aiTokensQuota
     });
 
     if (requireTest && normalizedModEmail) {
-      await User.updateOne(
-        { email: normalizedModEmail },
-        { 
-          $set: { role: "business", subRole: "moderator", status: "active" },
-          $setOnInsert: { email: normalizedModEmail, isVerified: true, fullName: "Chuyên gia (SME)" } 
-        },
-        { upsert: true }
-      );
+      await User.updateOne({ email: normalizedModEmail }, { $set: { role: "business", subRole: "moderator", status: "active" }, $setOnInsert: { email: normalizedModEmail, isVerified: true, fullName: "Chuyên gia (SME)" } }, { upsert: true });
     }
 
     const formattedJob = await serializeJob(job);
     res.status(201).json({ message: "Đăng tin tuyển dụng thành công", job: formattedJob });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 exports.updateJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { 
-      title, description, requirements, salary, deadline, location, type, experience, tags, benefits, 
-      status, requireTest, moderatorEmail
-    } = req.body;
+    const { title, description, requirements, salary, deadline, location, type, experience, tags, benefits, status, requireTest, moderatorEmail } = req.body;
 
     const job = await Job.findById(id);
     if (!job) return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
-    
-    if (String(job.recruiterId) !== String(req.user.id)) {
-        return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa tin này" });
+    if (String(job.recruiterId) !== String(req.user.id)) return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa tin này" });
+
+    // KIỂM TRA NẾU ĐỔI TỪ KHÔNG CÓ TEST SANG CÓ TEST -> TRỪ TIỀN
+    if (requireTest === true && !job.requireTest) {
+      try {
+        await usageHelper.checkBusinessToken(req.user.id, 200);
+        job.aiTokensQuota = (job.aiTokensQuota || 0) + 200;
+      } catch (err) {
+        if (err.message === 'INSUFFICIENT_TOKENS') return res.status(402).json({ message: "Không đủ 200 Token để kích hoạt bài Test. Vui lòng nạp thêm!" });
+        throw err;
+      }
     }
 
     let parsedDeadline = job.recruitmentDeadline;
@@ -186,54 +183,34 @@ exports.updateJob = async (req, res) => {
       if (!parsedDeadline) return res.status(400).json({ message: "Ngày hết hạn không hợp lệ" });
     }
 
-    job.title = title || job.title;
-    job.description = description || job.description;
-    job.requirements = requirements || job.requirements;
-    job.location = location || job.location;
-    job.type = type || job.type;
-    job.experience = experience || job.experience;
-    job.salary = salary || job.salary;
-    job.recruitmentDeadline = parsedDeadline;
+    job.title = title || job.title; job.description = description || job.description; job.requirements = requirements || job.requirements;
+    job.location = location || job.location; job.type = type || job.type; job.experience = experience || job.experience;
+    job.salary = salary || job.salary; job.recruitmentDeadline = parsedDeadline;
     
     if (tags) job.tags = parseStringArray(tags);
     if (benefits) job.benefits = parseLines(benefits);
-
     if (requireTest !== undefined) job.requireTest = requireTest;
     if (moderatorEmail !== undefined) job.moderatorEmail = moderatorEmail.toLowerCase().trim();
 
     if (job.requireTest) {
       if (job.testStatus !== 'approved') {
-        job.testStatus = 'pending';
-        job.status = 'draft';
+        job.testStatus = 'pending'; job.status = 'draft';
       }
       if (job.moderatorEmail) {
-        await User.updateOne(
-          { email: job.moderatorEmail },
-          { 
-            $set: { role: "business", subRole: "moderator", status: "active" },
-            $setOnInsert: { email: job.moderatorEmail, isVerified: true, fullName: "Chuyên gia (SME)" } 
-          },
-          { upsert: true }
-        );
+        await User.updateOne({ email: job.moderatorEmail }, { $set: { role: "business", subRole: "moderator", status: "active" }, $setOnInsert: { email: job.moderatorEmail, isVerified: true, fullName: "Chuyên gia (SME)" } }, { upsert: true });
       }
     } else {
-      job.testStatus = null;
-      job.moderatorEmail = "";
+      job.testStatus = null; job.moderatorEmail = "";
     }
 
     if (status && ["active", "draft", "closed"].includes(status)) {
-      if (!(job.requireTest && job.testStatus === 'pending')) {
-        job.status = status;
-      }
+      if (!(job.requireTest && job.testStatus === 'pending')) job.status = status;
     }
 
     await job.save();
     const formattedJob = await serializeJob(job);
-
     res.status(200).json({ message: "Cập nhật tin tuyển dụng thành công", job: formattedJob });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
+  } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
 exports.getModeratorRequests = async (req, res) => {
