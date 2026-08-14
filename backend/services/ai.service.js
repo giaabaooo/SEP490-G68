@@ -10,54 +10,58 @@ const openai = new OpenAI({
 });
 
 // Hàm gọi AI tích hợp "Smart Fallback"
+// Hàm gọi AI tích hợp "Smart Fallback"
 async function generateWithFallback(prompt, isJson = true, temp = null) {
-    // [QUAN TRỌNG NHẤT]: Đưa model "gemini-2.5-pro" của bạn trở lại vị trí đầu tiên
     const modelsToTry = [
-        "gemini-2.5-pro",         // Model gốc của bạn, dùng cho API trả phí
+        "gemini-2.5-pro",
         "gemini-2.0-flash",       
         "gemini-1.5-pro-latest",
         "gemini-1.5-flash-latest",
         "gemini-1.5-pro",
         "gemini-1.5-flash",
-        "gemini-pro"              // Fallback cuối cùng
+        "gemini-pro"
     ]; 
     
     let lastError;
     
     for (const modelName of modelsToTry) {
         try {
-            // Mặc định temp là 0.7 cho JSON. Nếu có truyền temp vào sẽ dùng temp đó
-            let temperature = temp !== null ? temp : (isJson ? 0.7 : 0.8);
+            let temperature = temp !== null ? temp : (isJson ? 0.2 : 0.7); // Giảm temp xuống 0.2 để AI bớt "sáng tạo" format
             const generationConfig = { temperature: temperature };
                 
-            // Chỉ ép định dạng JSON cho các model thế hệ mới hỗ trợ tính năng này
             if (isJson && (modelName.includes("1.5") || modelName.includes("2.0") || modelName.includes("2.5"))) {
                 generationConfig.responseMimeType = "application/json";
             }
 
-            const model = genAI.getGenerativeModel({ 
-                model: modelName, 
-                generationConfig 
-            });
-
+            const model = genAI.getGenerativeModel({ model: modelName, generationConfig });
             const result = await model.generateContent(prompt);
-            const response = await result.response;
-            let text = response.text();
+            let text = await result.response.text();
 
             if (isJson) {
-                // Làm sạch format markdown code block trước khi parse
-                text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-                return JSON.parse(text);
+                // TÌM CHÍNH XÁC ĐOẠN JSON ĐỂ BÓC TÁCH (Bảo vệ tuyệt đối khỏi Markdown)
+                const firstBrace = text.indexOf('{');
+                const lastBrace = text.lastIndexOf('}');
+                
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    text = text.substring(firstBrace, lastBrace + 1);
+                } else {
+                    text = text.replace(/```json/gi, '').replace(/```/gi, '').trim();
+                }
+                
+                try {
+                    return JSON.parse(text);
+                } catch (parseError) {
+                    throw new Error("Lỗi Parse: AI không trả về chuẩn JSON.");
+                }
             }
             
             return text;
         } catch (error) {
             console.warn(`⚠️ Model ${modelName} thất bại:`, error.message);
             lastError = error;
-            // Tự động bỏ qua lỗi và thử model tiếp theo
         }
     }
-    throw new Error("Tất cả các model AI đều bị lỗi API: " + (lastError?.message || "Vui lòng kiểm tra lại GEMINI_API_KEY"));
+    throw new Error("Tất cả models đều lỗi: " + (lastError?.message || "Vui lòng kiểm tra lại GEMINI_API_KEY"));
 }
 exports.generateWithFallback = generateWithFallback;
 
@@ -245,44 +249,98 @@ exports.parseCVForTemplate = async (pdfText) => {
     }
 };
 exports.evaluateCVMatch = async (job, cvText) => {
+    // 1. Lấy danh sách tiêu chí, fallback an toàn
+    const categories = (job.requirementCategories && job.requirementCategories.length > 0) 
+        ? job.requirementCategories 
+        : [{ name: "Đánh giá chung (Skill & Kinh nghiệm)", weight: 100, isKey: true }];
+
     try {
-        // Xử lý an toàn: Nếu requirements là mảng thì join, nếu là chuỗi thì giữ nguyên
-        let requirementsText = 'Không có dữ liệu yêu cầu';
-        if (Array.isArray(job.requirements)) {
-            requirementsText = job.requirements.join(', ');
-        } else if (typeof job.requirements === 'string') {
-            requirementsText = job.requirements;
-        }
+        const catPromptText = categories.map((c, index) => 
+            `- "${c.name}" (Trọng số: ${c.weight}%, Trọng điểm: ${c.isKey ? 'CÓ' : 'KHÔNG'})`
+        ).join('\n');
 
         const prompt = `
-        Đóng vai là hệ thống ATS (Applicant Tracking System). Hãy so sánh nội dung CV của ứng viên với Mô tả công việc sau:
+        Bạn là hệ thống AI đánh giá CV. Chấm điểm CV ứng viên dựa trên JD.
         
-        - Chức danh tuyển dụng: ${job.title}
-        - Mô tả công việc: ${job.description}
-        - Yêu cầu ứng viên: ${requirementsText}
+        --- THÔNG TIN CÔNG VIỆC ---
+        - Tiêu đề: ${job.title}
+        - Mô tả: ${job.description}
+        
+        --- TIÊU CHÍ CẦN CHẤM ---
+        ${catPromptText}
 
-        Nội dung CV ứng viên (Text đã parse):
+        --- CV ỨNG VIÊN ---
         ${cvText}
 
-        Hãy đánh giá và trả về định dạng JSON chính xác theo cấu trúc sau:
+        --- YÊU CẦU ĐẦU RA ---
+        Chỉ trả về JSON theo đúng định dạng sau, KHÔNG dùng // để comment:
         {
-            "score": <số nguyên từ 1 đến 100 thể hiện tỷ lệ % phù hợp>,
-            "matched": ["<Mục 1 CV đáp ứng tốt yêu cầu job>", "<Mục 2...>"],
-            "missing": ["<Yêu cầu 1 mà CV chưa có/thiếu sót>", "<Yêu cầu 2...>"],
-            "advice": "<Lời khuyên ngắn gọn 1-2 câu để ứng viên cải thiện CV>"
+            "verdict": "Tuyệt vời / Tiềm năng / Chưa phù hợp",
+            "reasonToHire": "Lý do nên nhận",
+            "reasonToReject": "Điểm yếu lớn nhất",
+            "categoryScores": [
+                {
+                    "name": "Copy chính xác tên tiêu chí ở trên",
+                    "score": 85,
+                    "feedback": "Nhận xét cụ thể"
+                }
+            ],
+            "advice": "Gợi ý cải thiện"
         }
+        Lưu ý: "categoryScores" BẮT BUỘC phải có đúng ${categories.length} object.
         `;
 
-        // Gọi hàm generateWithFallback đã cấu hình từ trước
-        const result = await generateWithFallback(prompt, true, 0.5); 
-        return result;
+        const result = await generateWithFallback(prompt, true, 0.2); 
+        
+        let totalWeightedScore = 0;
+        let finalCategoryScores = [];
+
+        categories.forEach((cat) => {
+            const aiCatResult = result.categoryScores?.find(c => 
+                c.name && c.name.toLowerCase().includes(cat.name.toLowerCase())
+            ) || { score: 0, feedback: "AI chưa đánh giá được tiêu chí này do thiếu thông tin." };
+            
+            const rawScore = Number(aiCatResult.score) || 0;
+            const weightedScore = rawScore * (cat.weight / 100);
+            totalWeightedScore += weightedScore;
+
+            finalCategoryScores.push({
+                name: cat.name,
+                weight: cat.weight,
+                isKey: cat.isKey,
+                rawScore: rawScore,
+                weightedScore: weightedScore,
+                feedback: aiCatResult.feedback || "Không có nhận xét."
+            });
+        });
+
+        return { 
+            score: Math.round(totalWeightedScore), 
+            verdict: result.verdict || "Chưa đánh giá",
+            reasonToHire: result.reasonToHire || "",
+            reasonToReject: result.reasonToReject || "",
+            categoryScores: finalCategoryScores, 
+            advice: result.advice || ""
+        };
+
     } catch (error) {
-        console.error("Lỗi AI đánh giá CV:", error.message);
+        console.error("Lỗi AI đánh giá CV chi tiết:", error);
+        
+        // SỬA LỖI TRẮNG UI: Trả về chính xác các tiêu chí nhưng với điểm 0 để UI render được mảng
         return { 
             score: 0, 
-            matched: [], 
-            missing: [], 
-            advice: "Hệ thống AI hiện đang bận, không thể đánh giá độ phù hợp lúc này." 
+            verdict: "Lỗi Server", 
+            reasonToHire: "Không thể phân tích lúc này.", 
+            reasonToReject: "Chi tiết lỗi AI: " + error.message, 
+            categoryScores: categories.map(cat => ({
+                name: cat.name,
+                weight: cat.weight,
+                isKey: cat.isKey,
+                rawScore: 0,
+                weightedScore: 0,
+                feedback: "Lỗi hệ thống hoặc quá tải API, vui lòng nộp lại!"
+            })), 
+            advice: "Hãy liên hệ HR hoặc thử lại sau." 
         };
     }
 };
@@ -307,7 +365,7 @@ exports.calculateJobMatch = async (profileText, jobDescription) => {
 
     --- YÊU CẦU KẾT QUẢ TRẢ VỀ (JSON CHUẨN) ---
     {
-        "score": 85,
+        "score": <Điểm 0-100>,
         "verdict": "Rất phù hợp / Cần bổ sung nhiều / Khá phù hợp...",
         "pros": ["Điểm mạnh 1 phân tích chi tiết", "Điểm mạnh 2..."],
         "cons": ["Điểm yếu 1 phân tích chi tiết", "Điểm yếu 2..."],

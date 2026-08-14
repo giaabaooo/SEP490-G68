@@ -61,7 +61,7 @@ export default function TestListPage() {
                         <Sparkles className="w-8 h-8 text-yellow-300" />
                     </div>
                     <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">
-                        Kho bài AI Luyện Tập
+                        Kho bài Luyện Tập
                     </h1>
                     <p className="text-blue-100/80 mb-10 text-lg font-medium max-w-2xl mx-auto">
                         Đánh giá kỹ năng, làm quen cấu trúc đề thi qua hệ thống sinh câu hỏi tự động. Phân loại chuẩn xác năng lực của bạn.

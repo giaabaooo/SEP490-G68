@@ -240,3 +240,62 @@ exports.updateUserRole = async (req, res) => {
         });
     }
 };
+exports.updateUserSubscriptionAndToken = async (req, res) => {
+    try {
+        const { plan, addTokens } = req.body;
+        const user = await User.findById(req.params.id).select("-password");
+
+        if (!user) {
+            return res.status(404).json({ message: "Người dùng không tồn tại" });
+        }
+
+        // 1. Cập nhật Gói (Plan) cho Candidate
+        if (user.role === "candidate" && plan && ["free", "pro"].includes(plan)) {
+            user.subscription.plan = plan;
+            
+            // Nếu admin cấp gói Pro, tự động gia hạn 30 ngày giống logic thanh toán
+            if (plan === "pro") {
+                const now = new Date();
+                const endDate = new Date();
+                endDate.setDate(now.getDate() + 30); 
+                
+                user.subscription.startDate = now;
+                user.subscription.endDate = endDate;
+                // Reset lại giới hạn sử dụng
+                if (!user.subscription.usage) user.subscription.usage = {};
+                user.subscription.usage.cvReviewCount = 0;
+                user.subscription.usage.mockInterviewMinutes = 0;
+                user.subscription.usage.roadmapCount = 0;
+                user.subscription.usage.lastResetDate = now;
+            }
+        }
+
+        // 2. Cấp phát hoặc trừ Token cho Business
+        if (user.role === "business" && addTokens !== undefined) {
+            const tokensToModify = Number(addTokens);
+            if (!isNaN(tokensToModify)) {
+                // Đảm bảo object businessCredits tồn tại
+                if (!user.businessCredits) user.businessCredits = { balance: 0 };
+                
+                user.businessCredits.balance += tokensToModify;
+                
+                // Không cho phép số dư Token bị âm
+                if (user.businessCredits.balance < 0) {
+                    user.businessCredits.balance = 0; 
+                }
+            }
+        }
+
+        await user.save();
+
+        res.json({
+            message: "Cập nhật Gói & Token thành công!",
+            user // Trả về toàn bộ user để frontend update lại state
+        });
+    } catch (error) {
+        console.error("Update subscription error:", error);
+        res.status(500).json({
+            message: error.message || "Lỗi cập nhật Gói & Token",
+        });
+    }
+};

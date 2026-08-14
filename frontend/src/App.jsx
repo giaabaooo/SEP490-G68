@@ -53,7 +53,8 @@ import PracticeTopicBuilder from './pages/Moderator/PracticeTopicBuilder';
 import QuestionList from './pages/Staff/QuestionList';
 import QuestionForm from './pages/Staff/QuestionForm';
 import AdminCategories from './pages/Admin/AdminCategories';
-
+import UpgradePage from './pages/Upgrade/UpgradePage';
+import PaymentSuccess from './pages/Upgrade/PaymentSuccess';
 function App() {
   return (
     <Router>
@@ -82,7 +83,7 @@ function App() {
           <Route path="/admin/create-practice-topic" element={<PracticeTopicBuilder />} />
           <Route path="/admin/edit-practice-topic/:topicId" element={<PracticeTopicBuilder />} />
           <Route path="/admin/settings" element={<ComingSoon />} />
-          
+
           <Route path="/staff/questions" element={<QuestionList />} />
           <Route path="/staff/questions/create" element={<QuestionForm />} />
           <Route path="/staff/questions/edit/:id" element={<QuestionForm />} />
@@ -101,7 +102,7 @@ function App() {
           <Route path="/candidate/tests" element={<TestListPage />} />
           <Route path="/candidate/test-history" element={<TestHistory />} />
           <Route path="/candidate/test-result" element={<TestResult />} />
-          
+
           {/* SỬ DỤNG CHUNG GIAO DIỆN TakeTest.jsx CHO CẢ 2 LOẠI TEST */}
           <Route path="/assessments/:id/take" element={<TakeTest />} />
           <Route path="/practice-test/:id/take" element={<TakeTest />} />
@@ -121,6 +122,9 @@ function App() {
           <Route path="/moderator/edit-test/:testId" element={<TestBuilder />} />
           <Route path="/moderator/test-bank" element={<TestBank />} />
           <Route path="/moderator/job-detail/:jobId" element={<ModeratorJobDetail />} />
+
+          <Route path="/upgrade" element={<UpgradePage />} />
+          <Route path="/payment/success" element={<PaymentSuccess />} />
         </Route>
       </Routes>
     </Router>
