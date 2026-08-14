@@ -18,17 +18,20 @@ const jobSchema = new mongoose.Schema(
       default: "active",
     },
     recruitmentDeadline: { type: Date, default: null },
-
+    vacancies: { type: Number, default: 1 }, // Số lượng cần tuyển
+    useAiReview: { type: Boolean, default: true }, // Tùy chọn bật/tắt AI chấm CV
+    requirementCategories: [{
+      name: { type: String, required: true }, // Tên tiêu chí (VD: Frontend, Giao tiếp)
+      weight: { type: Number, required: true }, // Trọng số (%)
+      isKey: { type: Boolean, default: false } // Có phải tiêu chí trọng điểm không
+    }],
     // ==========================================
-    // THÊM 3 TRƯỜNG NÀY ĐỂ PHỤC VỤ LUỒNG MODERATOR
+    // LUỒNG MODERATOR & KHOÁN TOKEN
     // ==========================================
     requireTest: { type: Boolean, default: false },
     moderatorEmail: { type: String, default: "", trim: true, lowercase: true },
-    testStatus: { 
-      type: String, 
-      enum: ["pending", "approved", null], 
-      default: null 
-    }
+    testStatus: { type: String, enum: ["pending", "approved", null], default: null },
+    aiTokensQuota: { type: Number, default: 0 } // Thêm trường Hạn mức Token nội bộ
   },
   { timestamps: true }
 );

@@ -7,6 +7,31 @@ import {
   CreditCard, Check
 } from 'lucide-react';
 
+// ================= MODAL BÁO HẾT TOKEN =================
+const TokenTopupModal = ({ isOpen, onClose }) => {
+    const navigate = useNavigate();
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden shadow-2xl">
+                <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
+                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-500">
+                    <Sparkles className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">Không đủ Token</h3>
+                <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">
+                    Số dư Token AI trong ví của bạn không đủ để tạo bộ câu hỏi. Vui lòng nạp thêm để tiếp tục!
+                </p>
+                <button onClick={() => navigate('/upgrade')} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-colors">
+                    Nạp Token Ngay
+                </button>
+            </div>
+        </div>
+    )
+};
+// =======================================================
+
 const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
   const [topic, setTopic] = useState('');
   const [count, setCount] = useState(10);
@@ -44,6 +69,11 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
               <input type="range" min="1" max="20" step="1" className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" value={count} onChange={(e) => setCount(parseInt(e.target.value))} />
             </div>
           </div>
+          
+          <div className="mt-4 flex justify-between items-center bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+             <span className="text-xs font-bold text-slate-500 uppercase">Chi phí dự kiến</span>
+             <span className="text-sm font-black text-emerald-600">{count * 5} Token</span>
+          </div>
         </div>
         <div className="p-6 pt-2 flex gap-3 border-t border-slate-100">
           <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">Hủy bỏ</button>
@@ -63,12 +93,15 @@ export default function PracticeTopicBuilder() {
   const [topicName, setTopicName] = useState('');
   const [description, setDescription] = useState('');
   const [timeLimit, setTimeLimit] = useState(30);
-  const [level, setLevel] = useState('free'); // State phân loại Free/Paid
+  const [level, setLevel] = useState('free'); 
   const [questions, setQuestions] = useState([]);
   
   const [isSaving, setIsSaving] = useState(false);
   const [showAIModal, setShowAIModal] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
+  
+  const [tokens, setTokens] = useState(0);
+  const [showTokenModal, setShowTokenModal] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -76,6 +109,18 @@ export default function PracticeTopicBuilder() {
   const checkedQuestions = questions.filter(q => q.isChecked).length;
 
   useEffect(() => {
+    const fetchUsage = async () => {
+        const token = localStorage.getItem('token');
+        try {
+            const res = await fetch(`${API_BASE}/api/payment/my-usage`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (res.ok) {
+                const data = await res.json();
+                setTokens(data.businessCredits?.balance || 0);
+            }
+        } catch (e) {}
+    };
+    fetchUsage();
+
     if (isEditMode) {
       const fetchTopic = async () => {
         const token = localStorage.getItem('token');
@@ -87,11 +132,11 @@ export default function PracticeTopicBuilder() {
           setTopicName(data.topicName);
           setDescription(data.description || '');
           setTimeLimit(data.timeLimit || 30);
-          setLevel(data.level || 'free'); // Set data cho level
+          setLevel(data.level || 'free'); 
           setQuestions(data.questions || []);
         } catch (err) {
           toast.error(err.message);
-          navigate('/admin/practice-topics'); // Quay về route admin
+          navigate('/admin/practice-topics'); 
         } finally { setLoading(false); }
       };
       fetchTopic();
@@ -106,17 +151,8 @@ export default function PracticeTopicBuilder() {
   };
 
   const handleDeleteQuestion = (idx) => setQuestions(prev => prev.filter((_, i) => i !== idx));
-
-  const handleQuestionChange = (idx, field, value) => {
-    setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
-  };
-
-  const handleOptionChange = (qIdx, optIdx, val) => {
-    setQuestions(prev => prev.map((q, i) => {
-      if (i === qIdx) { const newOpts = [...q.options]; newOpts[optIdx] = val; return { ...q, options: newOpts }; }
-      return q;
-    }));
-  };
+  const handleQuestionChange = (idx, field, value) => setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: value } : q));
+  const handleOptionChange = (qIdx, optIdx, val) => setQuestions(prev => prev.map((q, i) => { if (i === qIdx) { const newOpts = [...q.options]; newOpts[optIdx] = val; return { ...q, options: newOpts }; } return q; }));
 
   const handleAIGenerate = async (topicPrompt, count, difficulty) => {
     setIsAILoading(true);
@@ -128,7 +164,16 @@ export default function PracticeTopicBuilder() {
         body: JSON.stringify({ topic: topicPrompt, quantity: count, difficulty })
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'AI Generation failed');
+      
+      // BẮT LỖI HẾT TOKEN 402/403
+      if (!res.ok) {
+          if (res.status === 402 || res.status === 403) {
+              setShowAIModal(false);
+              setShowTokenModal(true);
+              return;
+          }
+          throw new Error(data.message || 'AI Generation failed');
+      }
 
       const mapped = (data.questions || []).map(q => ({
         questionText: q.question, options: q.options, correctAnswer: q.correctAnswer, skill: topicPrompt,
@@ -138,6 +183,7 @@ export default function PracticeTopicBuilder() {
 
       setQuestions(prev => [...prev, ...mapped]);
       setShowAIModal(false);
+      setTokens(prev => Math.max(0, prev - (count * 5))); // Trừ Token UI
       toast.success(`Successfully generated ${mapped.length} questions!`);
     } catch (err) { toast.error(err.message); } finally { setIsAILoading(false); }
   };
@@ -167,14 +213,13 @@ export default function PracticeTopicBuilder() {
     try {
       const res = await fetch(url, {
         method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        // Gửi tham số level
         body: JSON.stringify({ topicName, description, timeLimit: parseInt(timeLimit), status, questions, level })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Save failed');
 
       toast.success(status === 'PUBLISHED' ? 'Đã Xuất bản chủ đề thành công!' : 'Đã Lưu nháp thành công!');
-      navigate('/admin/practice-topics'); // Trả về route Admin
+      navigate('/admin/practice-topics'); 
     } catch (err) { toast.error(err.message); } finally { setIsSaving(false); }
   };
 
@@ -182,6 +227,7 @@ export default function PracticeTopicBuilder() {
 
   return (
     <div className="animate-fade-in pb-12 max-w-5xl mx-auto mt-6">
+      <TokenTopupModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} />
       
       {/* Top Controls */}
       <div className="flex justify-between items-center mb-8">
@@ -195,6 +241,11 @@ export default function PracticeTopicBuilder() {
                     <CheckCircle2 className="w-4 h-4" /> Đã duyệt: {checkedQuestions}/{totalQuestions}
                 </div>
             )}
+
+            {/* HIỂN THỊ SỐ DƯ TÀI KHOẢN CHO PRACTICE MAKER */}
+            <div className="px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm bg-indigo-50 text-indigo-700 border-indigo-200">
+               <Sparkles className="w-4 h-4" /> Số dư ví: {tokens} Token
+            </div>
         </div>
 
         <button onClick={() => setShowAIModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/10 transition-all cursor-pointer">
@@ -204,7 +255,6 @@ export default function PracticeTopicBuilder() {
 
       <form onSubmit={(e) => e.preventDefault()} className="space-y-8">
         <div className="space-y-8">
-          {/* Topic Header Card */}
           <div className="bg-white rounded-[32px] p-6 md:p-8 border border-slate-200 shadow-sm space-y-6">
             <div className="border-b border-slate-100 pb-4">
               <h2 className="text-xl font-black text-slate-900 flex items-center gap-2">
@@ -214,7 +264,6 @@ export default function PracticeTopicBuilder() {
               <p className="text-slate-400 text-xs mt-1 font-semibold">Thiết lập cấu hình chung cho bài trắc nghiệm luyện tập</p>
             </div>
             
-            {/* THAY ĐỔI: Bổ sung trường Level (Miễn phí/Trả phí) */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="md:col-span-2">
                 <label className="block text-xs font-black text-slate-400 uppercase tracking-wider mb-2">Tên chủ đề luyện tập</label>
@@ -241,7 +290,6 @@ export default function PracticeTopicBuilder() {
             </div>
           </div>
 
-          {/* Questions Section */}
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">Danh sách câu hỏi <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-black">{questions.length} câu</span></h3>
@@ -263,12 +311,7 @@ export default function PracticeTopicBuilder() {
                       <span className="text-xs font-black text-slate-400 uppercase tracking-widest">MCQ</span>
                       
                       <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors ml-2">
-                          <input
-                              type="checkbox"
-                              className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                              checked={!!q.isChecked}
-                              onChange={(e) => handleQuestionChange(idx, 'isChecked', e.target.checked)}
-                          />
+                          <input type="checkbox" className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer" checked={!!q.isChecked} onChange={(e) => handleQuestionChange(idx, 'isChecked', e.target.checked)} />
                           <span className="text-xs font-bold text-slate-600">Đã duyệt</span>
                       </label>
                     </div>
@@ -326,7 +369,6 @@ export default function PracticeTopicBuilder() {
             </div>
           </div>
 
-          {/* Submit Actions */}
           <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
             <button type="button" onClick={() => navigate('/admin/practice-topics')} className="px-6 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl text-sm font-bold transition-colors cursor-pointer">Hủy bỏ</button>
             <button type="button" onClick={() => handleSave('DRAFT')} disabled={isSaving} className="px-6 py-3.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-2xl text-sm font-bold transition-colors cursor-pointer">Lưu Nháp</button>
@@ -336,8 +378,6 @@ export default function PracticeTopicBuilder() {
           </div>
         </div>
       </form>
-
-      <AIGenerateModal isOpen={showAIModal} onClose={() => setShowAIModal(false)} onGenerate={handleAIGenerate} loading={isAILoading} />
     </div>
   );
 }

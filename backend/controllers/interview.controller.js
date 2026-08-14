@@ -1,29 +1,39 @@
 const aiService = require('../services/ai.service');
 const InterviewTemplate = require('../models/InterviewTemplate');
 const InterviewHistory = require('../models/InterviewHistory');
-
+const { checkCandidateLimit } = require('../utils/usageHelper');
 exports.conductInterview = async (req, res) => {
     try {
+        const userId = req.user.id || req.user._id || req.user.userId;
+        
+        // --- KIỂM TRA & TRỪ THỜI GIAN (PHÚT) SỬ DỤNG ---
+        try {
+            await checkCandidateLimit(userId, 'interview');
+        } catch (e) {
+            if (e.message === 'LIMIT_EXCEEDED') {
+                return res.status(403).json({ 
+                    message: "Bạn đã dùng hết số phút Phỏng vấn AI của tháng này. Vui lòng nâng cấp Pro!", 
+                    code: 'LIMIT_EXCEEDED' 
+                });
+            }
+        }
+        // ----------------------------------------------
+
         const { history, jobPosition } = req.body;
         const lowerCaseJob = jobPosition.toLowerCase().trim();
-        
         const userAnswersCount = (history || []).filter(msg => msg.role === 'user').length;
 
         let template = await InterviewTemplate.findOne({ jobPosition: lowerCaseJob });
 
         if (!template) {
             const generatedQuestions = await aiService.generateQuestionsList(lowerCaseJob); 
-            template = await InterviewTemplate.create({
-                jobPosition: lowerCaseJob,
-                questions: generatedQuestions
-            });
+            template = await InterviewTemplate.create({ jobPosition: lowerCaseJob, questions: generatedQuestions });
         }
 
         if (userAnswersCount >= template.questions.length) {
             return res.json({ 
                 fullText: "Bạn đã hoàn thành tất cả câu hỏi cho vị trí này. Vui lòng bấm Kết thúc để xem đánh giá.",
-                remainingTime: 99999,
-                isFinished: true // Thêm cờ báo hiệu đã hết câu hỏi
+                remainingTime: 99999, isFinished: true 
             });
         }
 
@@ -34,11 +44,7 @@ exports.conductInterview = async (req, res) => {
             audioData = await aiService.textToSpeech(nextQuestion);
         }
 
-        res.json({ 
-            fullText: nextQuestion,
-            audioData: audioData,
-            remainingTime: 99999 
-        });
+        res.json({ fullText: nextQuestion, audioData: audioData, remainingTime: 99999 });
     } catch (error) {
         console.error("Conduct Interview Error:", error);
         res.status(500).json({ message: error.message });

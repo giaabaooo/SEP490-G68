@@ -1,7 +1,97 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Eye, CheckCircle, XCircle, Download, Sparkles, Clock, ArrowLeft, DownloadCloud } from 'lucide-react';
+import { Search, Filter, Eye, CheckCircle, XCircle, Download, Sparkles, Clock, ArrowLeft, DownloadCloud, X, ThumbsUp, AlertTriangle } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+
+// ================= MODAL HIỂN THỊ KẾT QUẢ AI CHI TIẾT DÀNH CHO HR =================
+const AiDetailModal = ({ isOpen, onClose, data, candidateName }) => {
+    if (!isOpen || !data) return null;
+    
+    const details = data.aiMatchDetails || {};
+    const categoryScores = details.categoryScores || [];
+
+    // Tự động sắp xếp các tiêu chí có điểm quy đổi (weightedScore) cao nhất lên đầu
+    const sortedCategories = [...categoryScores].sort((a, b) => b.weightedScore - a.weightedScore);
+
+    return (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in" onClick={e => e.stopPropagation()}>
+                <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+                    <div>
+                        <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-blue-600" /> Báo cáo phân tích AI
+                        </h3>
+                        <p className="text-sm text-slate-500 font-medium">Ứng viên: <strong className="text-slate-800">{candidateName}</strong></p>
+                    </div>
+                    <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"><X className="w-4 h-4" /></button>
+                </div>
+
+                <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                    
+                    {/* BẢNG ĐIỂM CHI TIẾT THEO BAND */}
+                    <div className="mb-8">
+                        <h4 className="text-sm font-black text-slate-900 uppercase tracking-widest mb-2 border-b border-slate-200 pb-3 flex justify-between items-end">
+                            <span>Chi tiết điểm theo từng hạng mục</span>
+                            <span className="text-xs text-slate-500 font-medium normal-case">Đã sắp xếp theo mức độ ưu tiên</span>
+                        </h4>
+                        
+                        <div className="space-y-0">
+                            {sortedCategories.length > 0 ? sortedCategories.map((cat, idx) => (
+                                <div key={idx} className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-5 border-b border-slate-100 hover:bg-slate-50 transition-colors px-3 rounded-xl">
+                                    <div className="flex-1 pr-4">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <span className="font-bold text-slate-800">{cat.name}</span>
+                                            {cat.isKey && <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded uppercase border border-amber-200">Trọng điểm</span>}
+                                        </div>
+                                        <p className="text-sm text-slate-600 font-medium leading-relaxed">"{cat.feedback}"</p>
+                                    </div>
+                                    <div className="mt-3 sm:mt-0 text-right shrink-0 bg-white p-3 rounded-lg border border-slate-100 shadow-sm min-w-[140px]">
+                                        <div className="text-sm font-bold text-slate-500 mb-1">
+                                            Điểm gốc: <span className={`font-black ${cat.rawScore >= 80 ? 'text-blue-600' : cat.rawScore >= 50 ? 'text-emerald-600' : 'text-rose-600'}`}>{cat.rawScore}/100</span>
+                                        </div>
+                                        <div className="text-xs font-medium text-slate-500">
+                                            Trọng số: {cat.weight}% <br/>
+                                            <span className="inline-block mt-1 pt-1 border-t border-slate-100 w-full text-slate-800 font-black">
+                                                Quy đổi: +{cat.weightedScore.toFixed(1)} đ
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )) : (
+                                <p className="py-4 text-sm text-slate-500 italic">Không có dữ liệu chi tiết hạng mục.</p>
+                            )}
+                        </div>
+
+                        {/* TỔNG ĐIỂM Ở DƯỚI CÙNG */}
+                        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-2xl p-6 flex justify-between items-center shadow-sm">
+                            <div>
+                                <h4 className="text-xl font-black text-blue-900 mb-1">Tổng điểm Matching</h4>
+                                <p className="text-sm text-blue-700 font-medium">Tính dựa trên tổng điểm quy đổi của các hạng mục</p>
+                            </div>
+                            <div className="text-5xl font-black text-blue-700 tracking-tighter">
+                                {data.aiScore || 0}<span className="text-2xl text-blue-500 font-bold ml-1">/ 100</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* LÝ DO NÊN / KHÔNG NÊN CHỌN */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
+                            <h4 className="font-black text-emerald-800 text-base mb-3 flex items-center gap-2"><ThumbsUp className="w-5 h-5"/> Nên gọi phỏng vấn</h4>
+                            <p className="text-sm text-emerald-700 font-medium leading-relaxed">{details.reasonToHire || 'Chưa có nhận xét.'}</p>
+                        </div>
+                        <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100">
+                            <h4 className="font-black text-rose-800 text-base mb-3 flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> Rủi ro / Điểm yếu</h4>
+                            <p className="text-sm text-rose-700 font-medium leading-relaxed">{details.reasonToReject || 'Chưa có nhận xét.'}</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    );
+};
+// =======================================================
 
 const CVList = () => {
   const navigate = useNavigate();
@@ -10,6 +100,8 @@ const CVList = () => {
   const currentJobId = searchParams.get('jobId');
 
   const [applications, setApplications] = useState([]);
+  const [deduplicatedApps, setDeduplicatedApps] = useState([]); 
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -18,12 +110,12 @@ const CVList = () => {
 
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-
   const [activeFilter, setActiveFilter] = useState('All');
-
-  const jobTitle = location.state?.jobTitle || (applications[0]?.jobId?.title) || (currentJobId ? 'Chi tiết công việc' : 'Tất cả công việc');
-
   const [viewMode, setViewMode] = useState('list'); 
+
+  // AI MODAL STATE
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [selectedAiData, setSelectedAiData] = useState(null);
 
   const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
   const [selectedApp, setSelectedApp] = useState(null);
@@ -32,22 +124,24 @@ const CVList = () => {
   const [emailType, setEmailType] = useState('Pass');
   const [sendingEmail, setSendingEmail] = useState(false);
 
+  const jobTitle = location.state?.jobTitle || (applications[0]?.jobId?.title) || (currentJobId ? 'Chi tiết công việc' : 'Tất cả công việc');
+
   const templates = {
     test: {
       subject: 'Thư mời thực hiện bài đánh giá năng lực - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nChúng tôi rất ấn tượng với hồ sơ của bạn và muốn mời bạn tham gia thực hiện bài đánh giá kỹ năng chuyên môn. Điều này sẽ giúp chúng tôi hiểu rõ hơn về năng lực thực tế của bạn.\n\nVui lòng hoàn thành bài đánh giá của bạn trước thời hạn quy định.\n\nChúc bạn làm bài thật tốt!\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nChúng tôi rất ấn tượng với hồ sơ của bạn và muốn mời bạn tham gia thực hiện bài đánh giá kỹ năng chuyên môn.\n\nVui lòng hoàn thành bài đánh giá của bạn trước thời hạn quy định.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     },
     interview: {
       subject: 'Thư mời phỏng vấn - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã hoàn thành bài đánh giá năng lực cho vị trí ${jobTitle}.\n\nChúng tôi muốn mời bạn tham gia một buổi phỏng vấn trực tuyến để thảo luận chi tiết hơn về kinh nghiệm, kỹ năng và mức độ phù hợp của bạn với đội ngũ của chúng tôi.\n\nThời gian dự kiến: [Vui lòng điền giờ và ngày tại đây]\nHình thức: Phỏng vấn trực tuyến qua Google Meet.\n\nVui lòng phản hồi email này để xác nhận lịch phỏng vấn.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã hoàn thành bài đánh giá năng lực cho vị trí ${jobTitle}.\n\nChúng tôi muốn mời bạn tham gia một buổi phỏng vấn trực tuyến để thảo luận chi tiết hơn về kinh nghiệm của bạn.\n\nThời gian dự kiến: [Vui lòng điền giờ và ngày tại đây]\nHình thức: Phỏng vấn trực tuyến qua Google Meet.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     },
     offer: {
       subject: 'Thư mời nhận việc (Job Offer) - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nChúc mừng bạn! Chúng tôi rất vui mừng được gửi lời mời hợp tác chính thức đến bạn cho vị trí ${jobTitle}.\n\nBan giám đốc và toàn thể đội ngũ đánh giá cao năng lực của bạn qua các vòng ứng tuyển và tin rằng bạn sẽ là một mảnh ghép tuyệt vời giúp công ty phát triển vững mạnh.\n\nChi tiết về mức lương, phúc lợi và ngày bắt đầu công việc sẽ được gửi kèm trong hợp đồng chính thức. Vui lòng phản hồi trước ngày [Vui lòng điền ngày phản hồi] để xác nhận đồng ý nhận việc.\n\nChào mừng bạn gia nhập đội ngũ của chúng tôi!\nTrân trọng,\nBộ phận Nhân sự.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nChúc mừng bạn! Chúng tôi rất vui mừng được gửi lời mời hợp tác chính thức đến bạn cho vị trí ${jobTitle}.\n\nChi tiết về mức lương, phúc lợi sẽ được gửi kèm trong hợp đồng chính thức.\n\nChào mừng bạn gia nhập đội ngũ của chúng tôi!\nTrân trọng,\nBộ phận Nhân sự.`
     },
     reject: {
       subject: 'Thư cảm ơn ứng tuyển - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã dành thời gian quan tâm và ứng tuyển vị trí ${jobTitle} tại công ty chúng tôi.\n\nHồ sơ của bạn rất ấn tượng, tuy nhiên ở thời điểm hiện tại, chúng tôi đang tìm kiếm một ứng viên có kinh nghiệm phù hợp hơn với các tiêu chí đặc thù của dự án. Chúng tôi rất tiếc khi chưa thể đồng hành cùng bạn lần này.\n\nThông tin hồ sơ của bạn đã được lưu lại trong cơ sở dữ liệu của chúng tôi cho các cơ hội nghề nghiệp phù hợp hơn trong tương lai.\n\nChúc bạn luôn may mắn và thành công trên con đường sự nghiệp!\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã dành thời gian quan tâm và ứng tuyển vị trí ${jobTitle}.\n\nChúng tôi rất tiếc khi chưa thể đồng hành cùng bạn lần này. Thông tin hồ sơ của bạn đã được lưu lại cho các cơ hội phù hợp hơn trong tương lai.\n\nChúc bạn luôn may mắn và thành công!\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     }
   };
 
@@ -68,9 +162,9 @@ const CVList = () => {
   };
 
   const getAiScoreStyle = (score) => {
-    if (score >= 80) return 'text-indigo-600 bg-indigo-50 border-indigo-100';
-    if (score >= 60) return 'text-emerald-600 bg-emerald-50 border-emerald-100';
-    return 'text-slate-500 bg-slate-50 border-slate-100';
+    if (score >= 80) return 'text-indigo-600 bg-indigo-50 border-indigo-200 hover:bg-indigo-100 hover:shadow-sm cursor-pointer';
+    if (score >= 50) return 'text-emerald-600 bg-emerald-50 border-emerald-200 hover:bg-emerald-100 hover:shadow-sm cursor-pointer';
+    return 'text-rose-600 bg-rose-50 border-rose-200 hover:bg-rose-100 hover:shadow-sm cursor-pointer';
   };
 
   useEffect(() => {
@@ -85,7 +179,6 @@ const CVList = () => {
     return cv.startsWith('http') ? cv : `${API_BASE}${cv}`;
   };
 
-  // FETCH DATA
   const fetchApplications = useCallback(async (signal) => {
     try {
       setLoading(true);
@@ -130,7 +223,22 @@ const CVList = () => {
     return () => controller.abort();
   }, [fetchApplications]);
 
-  // UPDATE STATUS
+  useEffect(() => {
+      const uniqueAppsMap = new Map();
+      applications.forEach(app => {
+          const uid = app.userId?._id || app.userId?.id || app.userId;
+          if (!uniqueAppsMap.has(uid)) {
+              uniqueAppsMap.set(uid, app);
+          } else {
+              const existingApp = uniqueAppsMap.get(uid);
+              if (new Date(app.updatedAt) > new Date(existingApp.updatedAt)) {
+                  uniqueAppsMap.set(uid, app);
+              }
+          }
+      });
+      setDeduplicatedApps(Array.from(uniqueAppsMap.values()));
+  }, [applications]);
+
   const updateApplicationStatus = async (appId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
@@ -158,14 +266,11 @@ const CVList = () => {
   };
 
   const exportToExcel = () => {
-    if (applications.length === 0) {
-      return toast.warning('Không có ứng viên nào để xuất dữ liệu.');
-    }
-    // Cập nhật Header file Excel
+    if (deduplicatedApps.length === 0) return toast.warning('Không có ứng viên nào để xuất dữ liệu.');
     const headers = ['Tên ứng viên', 'Email', 'Vị trí', 'Điểm CV (%)', 'Điểm Test (/100)', 'Ngày nộp', 'Trạng thái'];
     const csvRows = [headers.join(',')];
 
-    applications.forEach(app => {
+    deduplicatedApps.forEach(app => {
       const name = `"${app.userId?.fullName || 'N/A'}"`;
       const email = `"${app.userId?.email || 'N/A'}"`;
       const job = `"${app.jobId?.title || 'N/A'}"`;
@@ -182,6 +287,11 @@ const CVList = () => {
     link.href = URL.createObjectURL(blob);
     link.download = `DanhSachUngVien_${currentJobId ? 'Job' : 'All'}.csv`;
     link.click();
+  };
+
+  const handleOpenAiModal = (app) => {
+    setSelectedAiData(app);
+    setAiModalOpen(true);
   };
 
   const handleOpenNotifyModal = (app) => {
@@ -228,6 +338,8 @@ const CVList = () => {
 
   return (
     <div className="animate-fade-in pb-12">
+      <AiDetailModal isOpen={aiModalOpen} onClose={() => setAiModalOpen(false)} data={selectedAiData} candidateName={selectedAiData?.userId?.fullName} />
+
       <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-200 mb-8">
         <div className="flex items-center gap-4 mb-6">
           <button onClick={() => navigate('/bussiness/post-job')} className="w-10 h-10 rounded-full hover:bg-slate-100 text-slate-500 flex items-center justify-center transition-colors">
@@ -273,7 +385,7 @@ const CVList = () => {
       {viewMode === 'pipeline' ? (
         <div className="flex gap-4 overflow-x-auto pb-6 items-start hide-scrollbar" style={{ minHeight: '600px' }}>
           {['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].map((status) => {
-            const columnApps = applications.filter((app) => app.status === status);
+            const columnApps = deduplicatedApps.filter((app) => app.status === status);
             const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Làm Test', Interviewing: 'Phỏng vấn', Offered: 'Nhận việc', Rejected: 'Từ chối' };
             const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-amber-500 bg-amber-50/10', Interviewing: 'border-t-4 border-t-blue-500 bg-blue-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
             
@@ -298,29 +410,22 @@ const CVList = () => {
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
-                          <div className={`px-2.5 py-1 rounded-lg border flex items-center gap-1 text-[11px] font-bold ${getAiScoreStyle(app.aiScore ?? 0)}`}>
+                        <div className="flex justify-between items-center">
+                          <button onClick={() => handleOpenAiModal(app)} title="Xem báo cáo chi tiết" className={`px-2 py-1 rounded-lg border flex items-center gap-1 text-[11px] font-bold transition-all ${getAiScoreStyle(app.aiScore ?? 0)}`}>
                             {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-3.5 h-3.5" />}
-                            <span>Match CV: {(app.aiScore ?? 0)}%</span>
-                          </div>
-                          <span className="text-[10px] text-slate-400 font-medium">{new Date(app.appliedAt || app.createdAt || Date.now()).toLocaleDateString('vi-VN')}</span>
+                            <span>AI: {(app.aiScore ?? 0)}%</span>
+                          </button>
                         </div>
 
-                        {app.mailSentStatus && app.mailSentStatus !== 'Pending' && (
-                          <div className="absolute top-4 right-4 flex items-center justify-center">
-                            <span className={`w-2 h-2 rounded-full ${app.mailSentStatus === 'Sent_Pass' ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} title={app.mailSentStatus === 'Sent_Pass' ? 'Đã báo đạt' : 'Đã báo loại'}></span>
-                          </div>
-                        )}
-
                         <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-                          <div className="flex gap-1">
-                            <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100" title="Xem CV"><Eye className="w-3.5 h-3.5" /></button>
-                            <button onClick={() => handleOpenNotifyModal(app)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white" title="Gửi thông báo"><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
-                          </div>
-                          <div className="flex gap-1">
-                            {status !== 'Offered' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-600 hover:text-white">Nhận</button>}
-                            {status !== 'Rejected' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black hover:bg-red-600 hover:text-white">Loại</button>}
-                          </div>
+                            <div className="flex gap-1">
+                              <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-1.5 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-100" title="Xem CV"><Eye className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => handleOpenNotifyModal(app)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white" title="Gửi thông báo"><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
+                            </div>
+                            <div className="flex gap-1">
+                              {status !== 'Offered' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-600 hover:text-white">Nhận</button>}
+                              {status !== 'Rejected' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black hover:bg-red-600 hover:text-white">Loại</button>}
+                            </div>
                         </div>
                       </div>
                     ))
@@ -339,10 +444,8 @@ const CVList = () => {
                 <tr className="bg-slate-50/80 border-b border-slate-100">
                   <th className="p-5 pl-6 text-xs font-semibold text-slate-500 w-12">#</th>
                   <th className="p-5 text-xs font-semibold text-slate-500">Ứng viên</th>
-                  <th className="p-5 text-xs font-semibold text-slate-500 text-center">Điểm CV (AI)</th>
-                  {/* THÊM CỘT ĐIỂM TEST */}
+                  <th className="p-5 text-xs font-semibold text-slate-500 text-center">Đánh giá CV (AI)</th>
                   <th className="p-5 text-xs font-semibold text-slate-500 text-center w-40">Điểm Bài Test</th>
-                  <th className="p-5 text-xs font-semibold text-slate-500">Ngày nộp</th>
                   <th className="p-5 text-xs font-semibold text-slate-500">Trạng thái hồ sơ</th>
                   <th className="p-5 pr-6 text-xs font-semibold text-slate-500 text-center">Hành động</th>
                 </tr>
@@ -350,22 +453,18 @@ const CVList = () => {
               <tbody className="divide-y divide-slate-100">
                 {loading && <tr><td colSpan={7} className="p-12 text-center text-slate-400">Đang tải...</td></tr>}
                 {!loading && error && <tr><td colSpan={7} className="p-12 text-center text-red-500">{error}</td></tr>}
-                {!loading && !error && applications.length === 0 && <tr><td colSpan={7} className="p-16 text-center"><p className="text-slate-400 font-medium italic">Chưa có ứng viên nào ứng tuyển vào vị trí này.</p></td></tr>}
+                {!loading && !error && deduplicatedApps.length === 0 && <tr><td colSpan={7} className="p-16 text-center"><p className="text-slate-400 font-medium italic">Chưa có ứng viên nào ứng tuyển vào vị trí này.</p></td></tr>}
 
-                {applications.filter(app => activeFilter === 'All' || app.status === activeFilter).map((app, index) => {
-                   // Logic kiểm tra dữ liệu thật từ field testScore và testStatus
+                {/* DÙNG DEDUPLICATED APPS */}
+                {deduplicatedApps.filter(app => activeFilter === 'All' || app.status === activeFilter).map((app, index) => {
                    const hasDoneTest = app.testStatus === 'Completed' || (app.testScore !== undefined && app.testScore !== null);
-                   
                    return (
                   <tr key={app._id || app.id} className="hover:bg-slate-50/60 transition-colors group animate-fade-in">
-                    
                     <td className="p-5 pl-6 text-sm font-medium text-slate-400">{(page - 1) * limit + index + 1}</td>
-
                     <td className="p-5">
                       <div className="flex items-center gap-4">
                         <img src={app.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userId?.fullName || 'U')}&background=eff6ff&color=3b82f6`} alt={app.userId?.fullName || 'Ứng viên'} className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
                         <div>
-                          {/* CLICK ĐỂ XEM CHI TIẾT BÀI LÀM */}
                           <p className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
                             <button 
                               onClick={() => navigate(`/bussiness/candidate/${app._id || app.id}`)}
@@ -382,41 +481,24 @@ const CVList = () => {
 
                     <td className="p-5 text-center">
                       <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 ${getAiScoreStyle(app.aiScore ?? 0)}`}>
-                          {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-3.5 h-3.5" />}
-                          <span className="font-black text-sm">{(app.aiScore ?? 0)}%</span>
-                        </div>
+                        <button onClick={() => handleOpenAiModal(app)} title="Click để xem phân tích chi tiết" className={`px-4 py-2 rounded-xl border flex items-center gap-1.5 transition-all shadow-sm ${getAiScoreStyle(app.aiScore ?? 0)}`}>
+                          {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-4 h-4" />}
+                          <span className="font-black text-sm">{(app.aiScore ?? 0)}% Match</span>
+                        </button>
                       </div>
                     </td>
 
-                    {/* HIỂN THỊ ĐIỂM TEST HOẶC TRẠNG THÁI CHƯA LÀM DỰA VÀO DỮ LIỆU THẬT */}
                     <td className="p-5 text-center">
                        {hasDoneTest ? (
                           <div className="flex flex-col items-center">
                              <div className="flex items-center gap-2 w-full justify-center">
-                                <span className={`font-black text-[15px] ${app.testScore >= 50 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                    {app.testScore}
-                                </span>
-                                <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden shrink-0">
-                                   <div className={`h-full rounded-full ${app.testScore >= 50 ? 'bg-emerald-500' : 'bg-red-500'}`} style={{ width: `${app.testScore || 0}%` }}></div>
-                                </div>
+                                <span className={`font-black text-[15px] ${app.testScore >= 50 ? 'text-emerald-600' : 'text-red-500'}`}>{app.testScore}</span>
                              </div>
-                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-0.5 rounded-md mt-1.5 border border-slate-200">
-                                Chấm điểm xong
-                             </span>
+                             <span className="text-[10px] font-bold text-slate-500 uppercase bg-slate-100 px-2 py-0.5 rounded mt-1.5 border border-slate-200">Hoàn thành</span>
                           </div>
                        ) : (
-                          <span className="text-[11px] font-bold text-slate-400 italic bg-slate-50 border border-slate-100 px-3 py-1.5 rounded-lg">
-                              Chưa làm bài
-                          </span>
+                          <span className="text-[11px] font-bold text-slate-400 italic bg-slate-50 border px-3 py-1.5 rounded-lg">Chưa làm bài</span>
                        )}
-                    </td>
-
-                    <td className="p-5">
-                      <div className="flex items-center gap-2 text-slate-500">
-                        <Clock className="w-4 h-4" />
-                        <span className="text-sm font-medium">{new Date(app.appliedAt || app.createdAt || Date.now()).toLocaleDateString('vi-VN')}</span>
-                      </div>
                     </td>
 
                     <td className="p-5">
@@ -425,25 +507,16 @@ const CVList = () => {
 
                     <td className="p-5 pr-6 text-center">
                       <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors tooltip" title="Xem CV"><Eye className="w-4 h-4" /></button>
-                        <button onClick={() => handleOpenNotifyModal(app)} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors tooltip" title="Gửi thông báo"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
-                        <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors tooltip" title="Đề nghị nhận việc"><CheckCircle className="w-4 h-4" /></button>
-                        <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors tooltip" title="Từ chối"><XCircle className="w-4 h-4" /></button>
+                        <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors"><Eye className="w-4 h-4" /></button>
+                        <button onClick={() => handleOpenNotifyModal(app)} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-slate-200 transition-colors"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
+                        <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors"><CheckCircle className="w-4 h-4" /></button>
+                        <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors"><XCircle className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
                 )})}
               </tbody>
             </table>
-          </div>
-
-          <div className="flex items-center justify-between p-5 border-t border-slate-100 bg-slate-50/50">
-            <div className="text-sm text-slate-500 font-medium">Tổng: {total} ứng viên</div>
-            <div className="flex items-center gap-2">
-              <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors">Trước</button>
-              <div className="px-4 py-2 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 text-sm font-bold">{page}</div>
-              <button disabled={page * limit >= total} onClick={() => setPage((p) => p + 1)} className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors">Sau</button>
-            </div>
           </div>
         </div>
       )}
