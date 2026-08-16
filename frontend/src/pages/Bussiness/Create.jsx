@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { 
   FileText, CircleDollarSign, Briefcase, MapPin, 
   Calendar, ClipboardCheck, AlignLeft, Send, Save, ArrowLeft,
-  CheckCircle2, AlertCircle, X, Sparkles, Plus, Trash2, Users
+  CheckCircle2, AlertCircle, X, Sparkles, Plus, Trash2, Users, Info, Loader2
 } from 'lucide-react';
 
 const TokenTopupModal = ({ isOpen, onClose }) => {
@@ -20,7 +20,7 @@ const TokenTopupModal = ({ isOpen, onClose }) => {
                 </div>
                 <h3 className="text-xl font-black text-slate-800 mb-2">Không đủ Token</h3>
                 <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">
-                    Số dư Token AI của bạn không đủ để yêu cầu tạo Bài Test. Vui lòng nạp thêm để tiếp tục!
+                    Số dư Token AI của bạn không đủ để yêu cầu tạo Bài Test (Cần tạm thu 200 Token). Vui lòng nạp thêm để tiếp tục!
                 </p>
                 <button type="button" onClick={() => navigate('/upgrade')} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-colors">
                     Nạp Token Ngay
@@ -32,7 +32,7 @@ const TokenTopupModal = ({ isOpen, onClose }) => {
 
 const Create = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -80,7 +80,7 @@ const Create = () => {
 
     if (formData.requireTest && !formData.moderatorEmail) return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test!');
 
-    setLoading(true);
+    setSubmitting(true);
     const token = localStorage.getItem('token');
     
     try {
@@ -91,8 +91,8 @@ const Create = () => {
           ...formData, 
           tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''), 
           status: isDraft ? 'draft' : 'active',
-          requirements: requirementsText, // Tương thích ngược
-          requirementCategories: categories // Lưu mảng tiêu chí bóc tách
+          requirements: requirementsText, 
+          requirementCategories: categories 
       };
 
       const res = await fetch('http://localhost:5000/api/jobs', {
@@ -110,7 +110,7 @@ const Create = () => {
 
       toast.success(isDraft ? 'Đã lưu Bản Nháp thành công!' : 'Đăng tin tuyển dụng thành công!');
       setTimeout(() => navigate('/bussiness/post-job'), 1500);
-    } catch (error) { toast.error(error.message); } finally { setLoading(false); }
+    } catch (error) { toast.error(error.message); } finally { setSubmitting(false); }
   };
 
   const totalWeight = categories.reduce((sum, cat) => sum + Number(cat.weight), 0);
@@ -121,17 +121,19 @@ const Create = () => {
 
       <div className="job-form-container max-w-[1050px] mx-auto p-4">
         
-        <button onClick={() => navigate('/bussiness/dashboard')} className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit transition-colors group">
-          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Quay lại Dashboard
+        <button type="button" onClick={() => navigate('/bussiness/post-job')} className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit transition-colors group">
+          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Quay lại Quản lý tuyển dụng
         </button>
 
-        <form>
+        <form onSubmit={(e) => handleSubmit(e, false)}>
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-6">
             
             {/* CỘT TRÁI */}
             <div className="space-y-6">
               <div className="bg-white rounded-[20px] p-7 shadow-sm border border-slate-200">
-                <h3 className="text-base font-black text-slate-900 mb-5 pb-4 border-b border-slate-100 flex items-center gap-2"><FileText className="w-5 h-5 text-blue-600" /> Thông tin cơ bản</h3>
+                <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2"><FileText className="w-5 h-5 text-blue-600" /> Thông tin cơ bản</h3>
+                </div>
                 
                 <div className="mb-4">
                   <label className="block text-[13px] font-bold text-slate-700 mb-2">Tiêu đề công việc <span className="text-red-500">*</span></label>
@@ -150,7 +152,7 @@ const Create = () => {
                     <label className="block text-[13px] font-bold text-slate-700 mb-2">Hạn chót <span className="text-red-500">*</span></label>
                     <div className="relative">
                       <Calendar className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                      <input type="date" required name="deadline" value={formData.deadline} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100" />
+                      <input type="date" required name="deadline" value={formData.deadline} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 cursor-pointer" />
                     </div>
                   </div>
                 </div>
@@ -167,7 +169,7 @@ const Create = () => {
                     <label className="block text-[13px] font-bold text-slate-700 mb-2">Loại hình</label>
                     <div className="relative">
                       <Briefcase className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                      <select name="type" value={formData.type} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100">
+                      <select name="type" value={formData.type} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100 cursor-pointer">
                         <option value="Full-time">Full-time</option><option value="Part-time">Part-time</option><option value="Remote">Remote</option><option value="Freelance">Freelance</option>
                       </select>
                     </div>
@@ -179,14 +181,14 @@ const Create = () => {
                     <label className="block text-[13px] font-bold text-slate-700 mb-2">Địa điểm</label>
                     <div className="relative">
                       <MapPin className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
-                      <select name="location" value={formData.location} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100">
+                      <select name="location" value={formData.location} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100 cursor-pointer">
                         <option value="Hà Nội">Hà Nội</option><option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option><option value="Đà Nẵng">Đà Nẵng</option><option value="Khác">Khác...</option>
                       </select>
                     </div>
                   </div>
                   <div>
                     <label className="block text-[13px] font-bold text-slate-700 mb-2">Kinh nghiệm</label>
-                    <select name="experience" value={formData.experience} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100">
+                    <select name="experience" value={formData.experience} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100 cursor-pointer" style={{ paddingLeft: '14px' }}>
                       <option value="Không yêu cầu kinh nghiệm">Không yêu cầu</option><option value="Dưới 1 năm">Dưới 1 năm</option><option value="1-3 năm">1-3 năm</option><option value="3-5 năm">3-5 năm</option><option value="Trên 5 năm">Trên 5 năm</option>
                     </select>
                   </div>
@@ -204,7 +206,7 @@ const Create = () => {
                   <div className="w-12 h-12 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center shrink-0"><ClipboardCheck className="w-6 h-6" /></div>
                   <div>
                     <h3 className="text-base font-black text-blue-900 mb-1">Kiểm duyệt Bài Test</h3>
-                    <p className="text-xs text-slate-500 font-medium">Chỉ định Chuyên gia (SME) tạo Test.</p>
+                    <p className="text-xs text-slate-500 font-medium">Chỉ định Chuyên gia (SME) tạo Test đánh giá năng lực.</p>
                   </div>
                 </div>
                 
@@ -229,11 +231,13 @@ const Create = () => {
             {/* CỘT PHẢI */}
             <div className="space-y-6">
               <div className="bg-white rounded-[20px] p-7 shadow-sm border border-slate-200">
-                <h3 className="text-base font-black text-slate-900 mb-5 pb-4 border-b border-slate-100 flex items-center gap-2"><AlignLeft className="w-5 h-5 text-blue-600" /> Chi tiết & Chuyên môn</h3>
+                <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2"><AlignLeft className="w-5 h-5 text-blue-600" /> Chi tiết & Chuyên môn</h3>
+                </div>
                 
                 <div className="mb-5">
                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Mô tả công việc (JD) <span className="text-red-500">*</span></label>
-                   <textarea required name="description" rows="5" value={formData.description} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Tham gia phát triển dự án..." />
+                   <textarea required name="description" rows="5" value={formData.description} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Tham gia phát triển dự án...&#10;- Báo cáo tiến độ công việc..." />
                 </div>
 
                 <div className="mb-5">
@@ -243,12 +247,12 @@ const Create = () => {
 
                 {/* KHU VỰC CHIA ĐẦU MỤC TIÊU CHÍ */}
                 <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
-                    <div className="flex justify-between items-center mb-4">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
                         <div>
                             <h4 className="font-black text-slate-800 text-sm">Yêu cầu chuyên môn (Bands)</h4>
                             <p className="text-xs text-slate-500 mt-1">Chia nhỏ tiêu chí để AI chấm điểm chính xác hơn.</p>
                         </div>
-                        <div className={`px-3 py-1 rounded-lg text-xs font-black ${totalWeight === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                        <div className={`px-3 py-1 rounded-lg text-xs font-black shrink-0 ${totalWeight === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
                             Tổng: {totalWeight}%
                         </div>
                     </div>
@@ -256,15 +260,25 @@ const Create = () => {
                     <div className="space-y-3 mb-4">
                         {categories.map((cat, idx) => (
                             <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-white p-3 rounded-xl border border-slate-200">
-                                <input type="text" placeholder="Tên tiêu chí (VD: Frontend React)" value={cat.name} onChange={(e) => handleCategoryChange(idx, 'name', e.target.value)} className="flex-1 min-w-[150px] p-2 text-sm border-b border-slate-200 focus:border-blue-500 outline-none" />
+                                <input type="text" placeholder="Tên tiêu chí (VD: Frontend React)" value={cat.name} onChange={(e) => handleCategoryChange(idx, 'name', e.target.value)} className="flex-1 min-w-[150px] p-2 text-sm border-b border-slate-200 focus:border-blue-500 outline-none font-medium" />
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <input type="number" min="0" max="100" value={cat.weight} onChange={(e) => handleCategoryChange(idx, 'weight', e.target.value)} className="w-16 p-2 text-sm text-center border rounded-lg bg-slate-50" title="Trọng số (%)" />
+                                    <input type="number" min="0" max="100" value={cat.weight} onChange={(e) => handleCategoryChange(idx, 'weight', e.target.value)} className="w-16 p-2 text-sm text-center font-bold border rounded-lg bg-slate-50" title="Trọng số (%)" />
                                     <span className="text-xs font-bold text-slate-500">%</span>
-                                    <label className="flex items-center gap-1 cursor-pointer bg-slate-50 px-2 py-2 rounded-lg border hover:bg-slate-100 transition-colors ml-2" title="Tiêu chí trọng điểm">
-                                        <input type="checkbox" checked={cat.isKey} onChange={(e) => handleCategoryChange(idx, 'isKey', e.target.checked)} className="w-4 h-4 accent-amber-500" />
-                                        <Sparkles className={`w-4 h-4 ${cat.isKey ? 'text-amber-500' : 'text-slate-400'}`} />
-                                    </label>
-                                    <button type="button" onClick={() => removeCategory(idx)} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                    
+                                    {/* GIẢI THÍCH TRỌNG ĐIỂM BẰNG TOOLTIP NỔI */}
+                                    <div className="relative group flex items-center">
+                                      <label className={`flex items-center justify-center w-8 h-8 rounded-lg border cursor-pointer transition-colors ml-2 ${cat.isKey ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'}`}>
+                                          <input type="checkbox" checked={cat.isKey} onChange={(e) => handleCategoryChange(idx, 'isKey', e.target.checked)} className="sr-only" />
+                                          <Sparkles className={`w-4 h-4 ${cat.isKey ? 'text-amber-500' : 'text-slate-400'}`} />
+                                      </label>
+                                      {/* Bảng Tooltip hiện khi di chuột */}
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 text-center shadow-xl">
+                                        Đánh dấu đây là <strong className="text-amber-300">Tiêu chí Trọng Điểm</strong>. AI sẽ soi xét cực kỳ khắt khe kỹ năng này trong CV ứng viên.
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                                      </div>
+                                    </div>
+
+                                    <button type="button" onClick={() => removeCategory(idx)} className="p-2 text-slate-400 hover:text-red-500 transition-colors ml-1"><Trash2 className="w-4 h-4" /></button>
                                 </div>
                             </div>
                         ))}
@@ -272,13 +286,20 @@ const Create = () => {
                     <button type="button" onClick={addCategory} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"><Plus className="w-4 h-4" /> Thêm tiêu chí</button>
                 </div>
 
-                {/* TUỲ CHỌN AI REVIEW */}
+                {/* TUỲ CHỌN AI REVIEW VỚI GIẢI THÍCH CHI TIẾT */}
                 <div className="mt-5">
-                    <label className="flex items-center gap-3 p-4 bg-emerald-50 rounded-xl border border-emerald-200 cursor-pointer hover:bg-emerald-100 transition-all">
-                        <input type="checkbox" name="useAiReview" checked={formData.useAiReview} onChange={handleChange} className="w-5 h-5 accent-emerald-600" />
+                    <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.useAiReview ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="pt-0.5">
+                          <input type="checkbox" name="useAiReview" checked={formData.useAiReview} onChange={handleChange} className="w-4 h-4 accent-emerald-600" />
+                        </div>
                         <div>
-                            <span className="text-sm font-black text-emerald-900 block">Sử dụng AI tự động lọc CV (Tốn Token)</span>
-                            <span className="text-xs font-medium text-emerald-700 block mt-1">Hệ thống sẽ dùng AI phân tích điểm Match % khi ứng viên nộp hồ sơ. Tắt đi nếu muốn duyệt tay.</span>
+                            <span className={`text-sm font-black block flex items-center gap-1.5 ${formData.useAiReview ? 'text-emerald-900' : 'text-slate-700'}`}>
+                                Sử dụng AI Sàng lọc Hồ sơ Tự động <Info className="w-4 h-4 text-emerald-500" />
+                            </span>
+                            <span className={`text-xs font-medium block mt-1.5 leading-relaxed ${formData.useAiReview ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                Khi ứng viên nộp CV, AI sẽ tự động phân tích và chấm điểm độ phù hợp (Match %) dựa trên các Tiêu chí bạn thiết lập ở trên. 
+                                <br/><strong className="text-amber-600 mt-1 inline-block bg-amber-50 px-2 py-0.5 rounded border border-amber-100">Lưu ý: Phí sàng lọc là 30 Token / 1 CV.</strong> Nếu tắt, CV sẽ được đẩy vào cột "Hồ sơ mới" để bạn duyệt thủ công.
+                            </span>
                         </div>
                     </label>
                 </div>
@@ -289,9 +310,11 @@ const Create = () => {
 
           <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
             <button type="button" className="px-6 py-3 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors" onClick={() => navigate('/bussiness/post-job')}>Hủy bỏ</button>
-            <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={loading} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Lưu Nháp</button>
-            <button type="button" onClick={(e) => handleSubmit(e, false)} disabled={loading} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2">
-              {loading ? 'Đang xử lý...' : (formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job</>)}
+            <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={submitting} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2">
+              <Save className="w-4 h-4" /> Lưu Nháp
+            </button>
+            <button type="submit" disabled={submitting} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2">
+              {submitting ? 'Đang xử lý...' : (formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job</>)}
             </button>
           </div>
         </form>
