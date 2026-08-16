@@ -7,6 +7,10 @@ const SavedJobs = () => {
   const [savedJobs, setSavedJobs] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // State Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 5;
+
   useEffect(() => {
     const loadSavedJobs = () => {
       setSavedJobs(getSavedJobs());
@@ -25,24 +29,38 @@ const SavedJobs = () => {
 
   const jobs = useMemo(() => savedJobs, [savedJobs]);
 
+  const totalPages = Math.ceil(jobs.length / jobsPerPage);
+  
+  // Tránh lỗi trang trống khi xóa hết item ở trang cuối
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [jobs.length, currentPage, totalPages]);
+
+  const currentJobs = jobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage);
+
   return (
     <div className="bg-slate-50 min-h-screen pb-12 font-inter">
-      <div className="bg-gradient-to-b from-slate-900 to-slate-800 pt-20 pb-16 px-4">
+      {/* HEADER SECTION TỐI GIẢN CHUẨN ENTERPRISE */}
+      <div className="bg-white border-b border-slate-200 pt-16 pb-16 px-4">
         <div className="max-w-6xl mx-auto text-center">
-          <h1 className="text-3xl md:text-4xl font-black text-white mb-3">Việc làm đã lưu</h1>
-          <p className="text-slate-300">Danh sách công việc bạn đã lưu để xem lại sau.</p>
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight">
+            Việc làm <span className="text-emerald-600">đã lưu</span>
+          </h1>
+          <p className="text-slate-500 text-base font-medium">Danh sách công việc bạn đã lưu để xem lại sau.</p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 -mt-8 relative z-20">
+      <div className="max-w-6xl mx-auto px-4 mt-8">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200">
             <Loader2 className="w-10 h-10 text-emerald-500 animate-spin mb-4" />
             <p className="text-slate-500 font-medium">Đang tải danh sách đã lưu...</p>
           </div>
-        ) : jobs.length > 0 ? (
+        ) : currentJobs.length > 0 ? (
           <div className="space-y-4">
-            {jobs.map((job) => {
+            {currentJobs.map((job) => {
               const jobId = job._id || job.id;
               return (
                 <div key={jobId} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-emerald-400 hover:shadow-md transition-all group relative">
@@ -93,6 +111,39 @@ const SavedJobs = () => {
                 </div>
               );
             })}
+
+            {/* THANG ĐIỀU HƯỚNG PHÂN TRANG */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-10 mb-4">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-sm transition-colors"
+                >
+                  Trước
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                  <button
+                    key={page}
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                      currentPage === page 
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20' 
+                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    } border`}
+                  >
+                    {page}
+                  </button>
+                ))}
+                <button 
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-sm transition-colors"
+                >
+                  Sau
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="bg-white rounded-2xl p-12 shadow-sm border border-slate-200 text-center">

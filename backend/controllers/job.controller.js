@@ -51,6 +51,8 @@ const serializeJob = async (job) => {
     requireTest: job.requireTest || false,
     moderatorEmail: job.moderatorEmail || "",
     testStatus: job.testStatus || null,
+    requirementCategories: job.requirementCategories || [],
+    useAiReview: job.useAiReview !== false,
   };
 };
 
@@ -189,6 +191,8 @@ exports.updateJob = async (req, res) => {
     
     if (tags) job.tags = parseStringArray(tags);
     if (benefits) job.benefits = parseLines(benefits);
+    if (requirementCategories) job.requirementCategories = requirementCategories;
+    if (useAiReview !== undefined) job.useAiReview = useAiReview;
     if (requireTest !== undefined) job.requireTest = requireTest;
     if (moderatorEmail !== undefined) job.moderatorEmail = moderatorEmail.toLowerCase().trim();
 

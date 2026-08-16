@@ -93,6 +93,10 @@ const ManageCV = () => {
   const [suggestedJobs, setSuggestedJobs] = useState([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
 
+  // State Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const cvsPerPage = 4;
+
   // Lấy keyword (Vị trí công việc) từ CV đầu tiên để hiển thị title gợi ý
   const getMainJobKeyword = () => {
     if (cvList.length > 0 && cvList[0].data?.personal?.jobTitle) {
@@ -165,8 +169,18 @@ const ManageCV = () => {
     navigate('/candidate/cv-builder', { state: { cvData: cv, autoDownload: true } });
   };
 
+  const totalPages = Math.ceil(cvList.length / cvsPerPage);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(totalPages);
+    }
+  }, [cvList.length, currentPage, totalPages]);
+
+  const currentCvs = cvList.slice((currentPage - 1) * cvsPerPage, currentPage * cvsPerPage);
+
   return (
-    <div className="max-w-7xl mx-auto my-8 px-4 font-sans animate-fade-in">
+    <div className="max-w-7xl mx-auto my-8 px-4 font-inter animate-fade-in">
       <ToastContainer position="top-right" autoClose={3000} />
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -186,32 +200,67 @@ const ManageCV = () => {
 
             {loading ? (
               <div className="py-20 text-center text-slate-400 font-medium animate-pulse">Đang tải dữ liệu...</div>
-            ) : cvList.length === 0 ? (
+            ) : currentCvs.length === 0 ? (
               <div className="py-20 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50">
                 <div className="text-4xl mb-3">📄</div>
                 <p className="text-slate-500 font-medium">Bạn chưa có bản CV nào.<br/>Hãy tạo CV đầu tiên của mình nhé!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {cvList.map(cv => (
-                  <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-emerald-300 transition-all group" key={cv._id}>
-                    <div className="h-[280px] bg-slate-50 border-b border-slate-100 p-6 relative flex justify-center items-center overflow-hidden">
-                      {/* Hiển thị Layout Skeleton thay cho ảnh mặc định */}
-                      <div className="w-[180px] h-[254px] shadow-md mx-auto">
-                        <MiniTemplatePreview layout={cv.design?.layout} color={cv.design?.color || '#059669'} />
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {currentCvs.map(cv => (
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-emerald-300 transition-all group" key={cv._id}>
+                      <div className="h-[280px] bg-slate-50 border-b border-slate-100 p-6 relative flex justify-center items-center overflow-hidden">
+                        {/* Hiển thị Layout Skeleton thay cho ảnh mặc định */}
+                        <div className="w-[180px] h-[254px] shadow-md mx-auto">
+                          <MiniTemplatePreview layout={cv.design?.layout} color={cv.design?.color || '#059669'} />
+                        </div>
+                        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+                          <button className="bg-white text-emerald-600 font-bold px-4 py-2 rounded-xl text-sm hover:scale-105 transition-transform shadow-md" onClick={() => handleEdit(cv)}>Chỉnh sửa</button>
+                          <button className="bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-sm hover:bg-slate-900 transition-transform shadow-md" onClick={() => handleDownload(cv)}>Tải xuống</button>
+                        </div>
                       </div>
-                      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
-                        <button className="bg-white text-emerald-600 font-bold px-4 py-2 rounded-xl text-sm hover:scale-105 transition-transform shadow-md" onClick={() => handleEdit(cv)}>Chỉnh sửa</button>
-                        <button className="bg-slate-800 text-white font-bold px-4 py-2 rounded-xl text-sm hover:bg-slate-900 transition-transform shadow-md" onClick={() => handleDownload(cv)}>Tải xuống</button>
+                      <div className="p-5">
+                        <h3 className="font-bold text-slate-800 text-lg mb-1 truncate">{cv.title || 'CV Chưa đặt tên'}</h3>
+                        <p className="text-slate-400 text-xs font-medium">Cập nhật: {new Date(cv.updatedAt).toLocaleDateString('vi-VN')}</p>
                       </div>
                     </div>
-                    <div className="p-5">
-                      <h3 className="font-bold text-slate-800 text-lg mb-1 truncate">{cv.title || 'CV Chưa đặt tên'}</h3>
-                      <p className="text-slate-400 text-xs font-medium">Cập nhật: {new Date(cv.updatedAt).toLocaleDateString('vi-VN')}</p>
-                    </div>
+                  ))}
+                </div>
+
+                {/* Phân trang */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center items-center gap-2 mt-8 mb-2">
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 bg-white font-bold text-sm transition-colors shadow-sm"
+                    >
+                      Trước
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`w-10 h-10 rounded-xl font-bold text-sm transition-all shadow-sm ${
+                          currentPage === page 
+                            ? 'bg-emerald-600 text-white border-emerald-600 shadow-emerald-600/20' 
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        } border`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button 
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 bg-white font-bold text-sm transition-colors shadow-sm"
+                    >
+                      Sau
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </div>

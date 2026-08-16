@@ -3,12 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
   FileText, CircleDollarSign, Briefcase, MapPin, 
-  Calendar, ClipboardCheck, AlignLeft, ArrowLeft,
-  CheckCircle2, AlertCircle, Edit3, Loader2, Save,
-  X, Sparkles
+  Calendar, ClipboardCheck, AlignLeft, Send, Save, ArrowLeft,
+  CheckCircle2, AlertCircle, X, Sparkles, Plus, Trash2, Users, Loader2, Info
 } from 'lucide-react';
 
-// ================= MODAL BÁO HẾT TOKEN =================
 const TokenTopupModal = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     if (!isOpen) return null;
@@ -17,81 +15,62 @@ const TokenTopupModal = ({ isOpen, onClose }) => {
             <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden shadow-2xl">
                 <div className="absolute top-0 left-0 w-full h-2 bg-blue-500"></div>
                 <button type="button" onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600">
-                    <Sparkles className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-black text-slate-800 mb-2" style={{ fontFamily: 'Inter, sans-serif' }}>Không đủ Token</h3>
-                <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed" style={{ fontFamily: 'Inter, sans-serif' }}>
-                    Số dư Token AI của bạn không đủ để yêu cầu tạo Bài Test (Cần tạm thu 200 Token để cấp hạn mức nội bộ cho Moderator). Vui lòng nạp thêm để tiếp tục!
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600"><Sparkles className="w-8 h-8" /></div>
+                <h3 className="text-xl font-black text-slate-800 mb-2">Không đủ Token</h3>
+                <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">
+                    Số dư Token AI của bạn không đủ để yêu cầu tạo Bài Test. Vui lòng nạp thêm để tiếp tục!
                 </p>
-                <button type="button" onClick={() => navigate('/upgrade')} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-colors" style={{ fontFamily: 'Inter, sans-serif' }}>
+                <button type="button" onClick={() => navigate('/upgrade')} className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-colors">
                     Nạp Token Ngay
                 </button>
             </div>
         </div>
     )
 };
-// =======================================================
 
 const EditJob = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Nếu là file Create.jsx thì bỏ dòng này đi
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(id ? true : false); // Nếu Create thì false
   const [submitting, setSubmitting] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
 
   const [formData, setFormData] = useState({
-    title: '',
-    salary: '',
-    location: 'Hà Nội',
-    type: 'Full-time',
-    experience: 'Không yêu cầu kinh nghiệm',
-    deadline: '',
-    tags: '',
-    description: '',
-    requirements: '',
-    benefits: '',
-    status: 'active',
-    requireTest: false,
-    moderatorEmail: ''
+    title: '', salary: '', location: 'Hà Nội', type: 'Full-time', experience: 'Không yêu cầu kinh nghiệm',
+    deadline: '', tags: '', description: '', benefits: '', requireTest: false, moderatorEmail: '',
+    vacancies: 1, useAiReview: true, status: 'active'
   });
 
-  // Load Data
+  const [categories, setCategories] = useState([{ name: '', weight: 100, isKey: false }]);
+
+  // CHỈ DÙNG TRONG EDIT JOB - NẾU CREATE THÌ BỎ QUA HOẶC ĐỂ TRỐNG
   useEffect(() => {
+    if (!id) return;
     const fetchJob = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/jobs/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
+        const res = await fetch(`http://localhost:5000/api/jobs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) throw new Error('Không thể tải thông tin tin tuyển dụng');
-        
         const data = await res.json();
         
         setFormData({
-          title: data.title || '',
-          location: data.location || '',
-          type: data.type || '',
-          experience: data.experience || '',
-          salary: data.salary || '',
-          deadline: data.deadline ? data.deadline.substring(0, 10) : '',
-          tags: data.tags ? data.tags.join(', ') : '',
-          description: data.description || '',
-          requirements: data.requirements ? data.requirements.join('\n') : '',
+          title: data.title || '', location: data.location || '', type: data.type || '',
+          experience: data.experience || '', salary: data.salary || '',
+          deadline: data.deadline ? data.deadline.substring(0, 10) : data.recruitmentDeadline ? data.recruitmentDeadline.substring(0, 10) : '',
+          tags: data.tags ? data.tags.join(', ') : '', description: data.description || '',
           benefits: data.benefits ? data.benefits.join('\n') : '',
-          status: data.status === 'Active' ? 'active' : data.status === 'Draft' ? 'draft' : 'closed',
-          requireTest: data.requireTest || false,
-          moderatorEmail: data.moderatorEmail || ''
+          status: data.status ? data.status.toLowerCase() : 'active',
+          requireTest: data.requireTest || false, moderatorEmail: data.moderatorEmail || '',
+          vacancies: data.vacancies || 1, useAiReview: data.useAiReview !== false, 
         });
-      } catch (error) {
-        toast.error(error.message);
-        navigate('/bussiness/post-job');
-      } finally {
-        setLoading(false);
-      }
-    };
 
+        if (data.requirementCategories && data.requirementCategories.length > 0) {
+            setCategories(data.requirementCategories);
+        } else {
+            setCategories([{ name: 'Đánh giá chung', weight: 100, isKey: true }]);
+        }
+      } catch (error) { toast.error(error.message); navigate('/bussiness/post-job'); } finally { setLoading(false); }
+    };
     fetchJob();
   }, [id, navigate]);
 
@@ -100,407 +79,273 @@ const EditJob = () => {
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.title || !formData.deadline || !formData.description) {
-      toast.error('Vui lòng điền các trường bắt buộc (*)');
-      return;
-    }
+  const handleCategoryChange = (index, field, value) => {
+    const newCats = [...categories];
+    newCats[index][field] = value;
+    setCategories(newCats);
+  };
 
-    if (formData.requireTest && !formData.moderatorEmail) {
-      toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test!');
-      return;
-    }
+  const addCategory = () => setCategories([...categories, { name: '', weight: 0, isKey: false }]);
+  const removeCategory = (index) => {
+    const newCats = categories.filter((_, i) => i !== index);
+    if(newCats.length === 0) newCats.push({ name: '', weight: 100, isKey: false });
+    setCategories(newCats);
+  };
+
+  const handleSubmit = async (e, isDraft = false) => {
+    e.preventDefault();
+    if (!formData.title || !formData.deadline || !formData.description) return toast.error('Vui lòng điền các trường bắt buộc (*)');
+    
+    const totalWeight = categories.reduce((sum, cat) => sum + Number(cat.weight), 0);
+    if (totalWeight !== 100) return toast.error(`Tổng trọng số các tiêu chí phải bằng 100%. Hiện tại đang là ${totalWeight}%`);
+    if (categories.some(c => !c.name.trim())) return toast.error('Tên tiêu chí không được để trống.');
+    if (formData.requireTest && !formData.moderatorEmail) return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test!');
 
     setSubmitting(true);
     const token = localStorage.getItem('token');
-
+    
     try {
-      const payload = {
-        ...formData,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '')
+      const requirementsText = categories.map(c => `- ${c.name} (${c.weight}%${c.isKey ? ' - Trọng điểm' : ''})`).join('\n');
+      const payload = { 
+          ...formData, 
+          tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''), 
+          requirements: requirementsText, requirementCategories: categories,
+          ...(isDraft !== undefined && !id ? { status: isDraft ? 'draft' : 'active' } : {}) 
       };
 
-      const res = await fetch(`http://localhost:5000/api/jobs/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(payload)
-      });
+      const endpoint = id ? `http://localhost:5000/api/jobs/${id}` : `http://localhost:5000/api/jobs`;
+      const method = id ? 'PUT' : 'POST';
 
-      const data = await res.json();
+      const res = await fetch(endpoint, {
+        method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload)
+      });
       
-      // BẮT LỖI HẾT TOKEN KHI BẬT REQUIRE TEST
+      const data = await res.json();
       if (!res.ok) {
-          if (res.status === 402 || res.status === 403) {
-              setShowTokenModal(true);
-              return;
-          }
-          throw new Error(data.message || 'Cập nhật thất bại');
+          if (res.status === 402 || res.status === 403) return setShowTokenModal(true);
+          throw new Error(data.message || 'Thao tác thất bại');
       }
 
-      toast.success('Cập nhật tin tuyển dụng thành công!');
-      setTimeout(() => navigate('/bussiness/post-job'), 1000);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setSubmitting(false);
-    }
+      toast.success(id ? 'Cập nhật tin tuyển dụng thành công!' : 'Đăng tin tuyển dụng thành công!');
+      setTimeout(() => navigate('/bussiness/post-job'), 1500);
+    } catch (error) { toast.error(error.message); } finally { setSubmitting(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" />
-        <p className="text-slate-500 font-bold">Đang tải thông tin...</p>
-      </div>
-    );
-  }
+  const totalWeight = categories.reduce((sum, cat) => sum + Number(cat.weight), 0);
+
+  if (loading) return <div className="flex flex-col items-center justify-center min-h-[60vh]"><Loader2 className="w-10 h-10 text-blue-500 animate-spin mb-4" /><p className="text-slate-500 font-bold">Đang tải thông tin...</p></div>;
 
   return (
-    <div className="create-job-page animate-fade-in">
+    <div className="create-job-page animate-fade-in pb-12">
       <TokenTopupModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} />
-
-      <div className="job-form-container">
+      <div className="job-form-container max-w-[1050px] mx-auto p-4">
         
-        <button 
-          type="button"
-          onClick={() => navigate('/bussiness/post-job')}
-          className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit transition-colors group"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> 
-          Quay lại Danh sách
+        <button onClick={() => navigate('/bussiness/post-job')} className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit transition-colors group">
+          <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Quay lại Danh sách
         </button>
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-grid">
-            {/* ================= CỘT TRÁI ================= */}
-            <div className="left-col">
-              <div className="card">
-                <h3 className="card-title">
-                  <FileText className="icon" /> Thông tin cơ bản
-                </h3>
+        <form onSubmit={(e) => handleSubmit(e)}>
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-6">
+            
+            {/* CỘT TRÁI */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-[20px] p-7 shadow-sm border border-slate-200">
+                <div className="flex justify-between items-center mb-5 pb-4 border-b border-slate-100">
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2"><FileText className="w-5 h-5 text-blue-600" /> Thông tin cơ bản</h3>
+                </div>
                 
-                <div className="form-group">
-                  <label>Tiêu đề công việc <span className="req">*</span></label>
-                  <div className="input-wrapper">
-                    <input required name="title" value={formData.title} onChange={handleChange} placeholder="VD: Senior ReactJS Developer" />
+                <div className="mb-4">
+                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Tiêu đề công việc <span className="text-red-500">*</span></label>
+                  <input required name="title" value={formData.title} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 focus:border-blue-500" placeholder="VD: Senior ReactJS Developer" />
+                </div>
+
+                <div className="mb-4">
+                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Trạng thái tin tuyển dụng</label>
+                  <select 
+                    name="status" value={formData.status} onChange={handleChange} 
+                    className={`w-full p-3 font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 ${formData.status === 'active' ? 'text-emerald-700 bg-emerald-50' : formData.status === 'closed' ? 'text-red-700 bg-red-50' : 'text-slate-700 bg-slate-50'}`}
+                  >
+                    <option value="active">🟢 Đang mở tuyển (Active)</option>
+                    <option value="draft">🟡 Bản nháp (Draft)</option>
+                    <option value="closed">🔴 Đã đóng (Closed)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Số lượng tuyển</label>
+                    <div className="relative">
+                      <Users className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                      <input type="number" min="1" name="vacancies" value={formData.vacancies} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Hạn chót <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <Calendar className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                      <input type="date" required name="deadline" value={formData.deadline} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100" />
+                    </div>
                   </div>
                 </div>
 
-                <div className="form-group" style={{ marginBottom: '24px' }}>
-                  <label>Trạng thái tuyển dụng</label>
-                  <div className="input-wrapper">
-                    <select 
-                      name="status" value={formData.status} onChange={handleChange}
-                      style={{ 
-                        fontWeight: '700', paddingLeft: '14px', cursor: 'pointer',
-                        color: formData.status === 'active' ? '#059669' : formData.status === 'closed' ? '#dc2626' : '#d97706',
-                        backgroundColor: formData.status === 'active' ? '#ecfdf5' : formData.status === 'closed' ? '#fef2f2' : '#fffbeb'
-                      }}
-                    >
-                      <option value="active">🟢 Đang mở tuyển (Active)</option>
-                      <option value="draft">🟡 Bản nháp (Draft)</option>
-                      <option value="closed">🔴 Đã đóng (Closed)</option>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Mức lương</label>
+                    <div className="relative">
+                      <CircleDollarSign className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                      <input name="salary" value={formData.salary} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100" placeholder="VD: 25 - 40 triệu" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Loại hình</label>
+                    <div className="relative">
+                      <Briefcase className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                      <select name="type" value={formData.type} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100">
+                        <option value="Full-time">Full-time</option><option value="Part-time">Part-time</option><option value="Remote">Remote</option><option value="Freelance">Freelance</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Địa điểm</label>
+                    <div className="relative">
+                      <MapPin className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
+                      <select name="location" value={formData.location} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100">
+                        <option value="Hà Nội">Hà Nội</option><option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option><option value="Đà Nẵng">Đà Nẵng</option><option value="Khác">Khác...</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Kinh nghiệm</label>
+                    <select name="experience" value={formData.experience} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100">
+                      <option value="Không yêu cầu kinh nghiệm">Không yêu cầu</option><option value="Dưới 1 năm">Dưới 1 năm</option><option value="1-3 năm">1-3 năm</option><option value="3-5 năm">3-5 năm</option><option value="Trên 5 năm">Trên 5 năm</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="row-2">
-                  <div className="form-group">
-                    <label>Mức lương</label>
-                    <div className="input-wrapper">
-                      <CircleDollarSign className="input-icon" />
-                      <input name="salary" value={formData.salary} onChange={handleChange} placeholder="VD: 25 - 40 triệu" />
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label>Loại hình</label>
-                    <div className="input-wrapper">
-                      <Briefcase className="input-icon" />
-                      <select name="type" value={formData.type} onChange={handleChange}>
-                        <option value="Full-time">Full-time</option>
-                        <option value="Part-time">Part-time</option>
-                        <option value="Remote">Remote</option>
-                        <option value="Freelance">Freelance</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row-2">
-                  <div className="form-group">
-                    <label>Địa điểm làm việc</label>
-                    <div className="input-wrapper">
-                      <MapPin className="input-icon" />
-                      <select name="location" value={formData.location} onChange={handleChange}>
-                        <option value="Hà Nội">Hà Nội</option>
-                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                        <option value="Đà Nẵng">Đà Nẵng</option>
-                        <option value="Khác">Khác...</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div className="form-group">
-                    <label>Kinh nghiệm</label>
-                    <div className="input-wrapper">
-                      <select name="experience" value={formData.experience} onChange={handleChange} style={{ paddingLeft: '14px' }}>
-                        <option value="Không yêu cầu kinh nghiệm">Không yêu cầu</option>
-                        <option value="Dưới 1 năm">Dưới 1 năm</option>
-                        <option value="1-3 năm">1-3 năm</option>
-                        <option value="3-5 năm">3-5 năm</option>
-                        <option value="Trên 5 năm">Trên 5 năm</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginTop: '4px' }}>
-                  <label>Từ khóa kỹ năng (Tags)</label>
-                  <div className="input-wrapper">
-                    <input name="tags" value={formData.tags} onChange={handleChange} placeholder="VD: ReactJS, NodeJS (Cách nhau dấu phẩy)" style={{ paddingLeft: '14px' }} />
-                  </div>
-                </div>
-
-                <div className="form-group pt-5 mt-2" style={{ borderTop: '1px solid #F3F4F6' }}>
-                  <label>Hạn chót ứng tuyển <span className="req">*</span></label>
-                  <div className="input-wrapper">
-                    <Calendar className="input-icon" />
-                    <input type="date" name="deadline" value={formData.deadline} onChange={handleChange} required style={{ cursor: 'pointer' }} />
-                  </div>
+                <div>
+                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Từ khóa kỹ năng (Tags)</label>
+                  <input name="tags" value={formData.tags} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100" placeholder="VD: ReactJS, NodeJS" />
                 </div>
               </div>
 
-              {/* CARD: YÊU CẦU KIỂM DUYỆT (MODERATOR) */}
-              <div className="card assessment-card">
-                <div className="assessment-header">
-                  <div className="icon-box"><ClipboardCheck className="w-6 h-6" /></div>
+              {/* KHU VỰC CÀI ĐẶT BÀI TEST */}
+              <div className="bg-gradient-to-br from-blue-50 to-white rounded-[20px] p-7 border border-blue-200">
+                <div className="flex gap-4 mb-5">
+                  <div className="w-12 h-12 bg-blue-100 text-blue-700 rounded-xl flex items-center justify-center shrink-0"><ClipboardCheck className="w-6 h-6" /></div>
                   <div>
-                    <h3 className="card-title" style={{ marginBottom: 4, color: '#1E40AF', border: 'none', padding: 0 }}>Luồng Kiểm duyệt Bài Test</h3>
-                    <p className="card-desc">Chỉ định một Chuyên gia (SME) tạo bài Test đánh giá năng lực cho Job này.</p>
+                    <h3 className="text-base font-black text-blue-900 mb-1">Kiểm duyệt Bài Test</h3>
+                    <p className="text-xs text-slate-500 font-medium">Chỉ định Chuyên gia (SME) tạo Test.</p>
                   </div>
                 </div>
                 
-                <label className="checkbox-wrapper">
-                  <input 
-                    type="checkbox" 
-                    name="requireTest" 
-                    checked={formData.requireTest} 
-                    onChange={handleChange} 
-                  />
-                  <span>Yêu cầu tạo Test & Kiểm duyệt nội dung</span>
+                <label className="flex items-center gap-3 p-4 bg-white rounded-xl border border-blue-200 cursor-pointer hover:border-blue-400 transition-all">
+                  <input type="checkbox" name="requireTest" checked={formData.requireTest} onChange={handleChange} className="w-5 h-5 accent-blue-600" />
+                  <span className="text-sm font-bold text-slate-700">Yêu cầu tạo Test & Kiểm duyệt</span>
                 </label>
 
                 {formData.requireTest && (
-                  <div className="moderator-email-box animate-fade-in">
-                    <label>Email người kiểm duyệt (SME) <span className="req">*</span></label>
-                    <input 
-                      type="email" 
-                      name="moderatorEmail" 
-                      value={formData.moderatorEmail} 
-                      onChange={handleChange}
-                      placeholder="vd: techlead@congty.com"
-                    />
-                    <div className="helper-text mt-3 bg-amber-50 text-amber-700 p-2.5 rounded-lg border border-amber-200">
+                  <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 animate-fade-in">
+                    <label className="block text-xs font-bold text-slate-700 mb-2">Email người kiểm duyệt (SME) <span className="text-red-500">*</span></label>
+                    <input type="email" name="moderatorEmail" value={formData.moderatorEmail} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-100" placeholder="vd: techlead@congty.com" />
+                    <div className="mt-3 flex items-start gap-2 text-xs font-medium text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
                         <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                        Lưu ý: Hệ thống sẽ tạm thu 200 Token từ ví của bạn để cấp "Hạn mức nội bộ" cho Moderator tạo câu hỏi AI. Vui lòng đảm bảo số dư khả dụng!
+                        Tạm thu 200 Token để cấp Hạn mức nội bộ cho Moderator tạo Test AI.
                     </div>
-                  </div>
-                )}
-
-                {formData.requireTest && formData.moderatorEmail && (
-                  <div className="assessment-success">
-                    <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>Hệ thống sẽ cấp quyền Moderator cho Email này.</span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* ================= CỘT PHẢI ================= */}
-            <div className="right-col">
-              <div className="card h-full">
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', borderBottom:'1px solid #F3F4F6', paddingBottom:'16px', marginBottom:'20px' }}>
-                  <h3 className="card-title" style={{ margin:0, border:0, padding:0 }}>
-                    <AlignLeft className="icon" /> Chi tiết công việc
-                  </h3>
+            {/* CỘT PHẢI */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-[20px] p-7 shadow-sm border border-slate-200">
+                <h3 className="text-base font-black text-slate-900 mb-5 pb-4 border-b border-slate-100 flex items-center gap-2"><AlignLeft className="w-5 h-5 text-blue-600" /> Chi tiết & Chuyên môn</h3>
+                
+                <div className="mb-5">
+                   <label className="block text-[13px] font-bold text-slate-700 mb-2">Mô tả công việc (JD) <span className="text-red-500">*</span></label>
+                   <textarea required name="description" rows="5" value={formData.description} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Tham gia phát triển dự án..." />
                 </div>
 
-                <div className="form-group">
-                  <label>Mô tả công việc (JD) <span className="req">*</span></label>
-                  <textarea required name="description" rows="6" value={formData.description} onChange={handleChange} placeholder="- Tham gia phát triển dự án...&#10;- Báo cáo tiến độ công việc..." />
+                <div className="mb-5">
+                   <label className="block text-[13px] font-bold text-slate-700 mb-2">Quyền lợi & Đãi ngộ <span className="text-red-500">*</span></label>
+                   <textarea required name="benefits" rows="4" value={formData.benefits} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Lương tháng 13..." />
                 </div>
 
-                <div className="form-group">
-                  <label>Yêu cầu chuyên môn <span className="req">*</span></label>
-                  <textarea required name="requirements" rows="6" value={formData.requirements} onChange={handleChange} placeholder="- Có ít nhất 2 năm kinh nghiệm...&#10;- Thành thạo ReactJS, Javascript..." />
+                {/* KHU VỰC CHIA ĐẦU MỤC TIÊU CHÍ */}
+                <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
+                        <div>
+                            <h4 className="font-black text-slate-800 text-sm">Yêu cầu chuyên môn (Bands)</h4>
+                            <p className="text-xs text-slate-500 mt-1">Chia nhỏ tiêu chí để AI chấm điểm chính xác hơn.</p>
+                        </div>
+                        <div className={`px-3 py-1 rounded-lg text-xs font-black shrink-0 ${totalWeight === 100 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'}`}>
+                            Tổng: {totalWeight}%
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 mb-4">
+                        {categories.map((cat, idx) => (
+                            <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-white p-3 rounded-xl border border-slate-200">
+                                <input type="text" placeholder="Tên tiêu chí (VD: Frontend React)" value={cat.name} onChange={(e) => handleCategoryChange(idx, 'name', e.target.value)} className="flex-1 min-w-[150px] p-2 text-sm border-b border-slate-200 focus:border-blue-500 outline-none font-medium" />
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <input type="number" min="0" max="100" value={cat.weight} onChange={(e) => handleCategoryChange(idx, 'weight', e.target.value)} className="w-16 p-2 text-sm text-center font-bold border rounded-lg bg-slate-50" title="Trọng số (%)" />
+                                    <span className="text-xs font-bold text-slate-500">%</span>
+                                    
+                                    {/* GIẢI THÍCH TRỌNG ĐIỂM */}
+                                    <div className="relative group flex items-center">
+                                      <label className={`flex items-center justify-center w-8 h-8 rounded-lg border cursor-pointer transition-colors ml-2 ${cat.isKey ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 hover:bg-slate-100 border-slate-200'}`}>
+                                          <input type="checkbox" checked={cat.isKey} onChange={(e) => handleCategoryChange(idx, 'isKey', e.target.checked)} className="sr-only" />
+                                          <Sparkles className={`w-4 h-4 ${cat.isKey ? 'text-amber-500' : 'text-slate-400'}`} />
+                                      </label>
+                                      {/* Tooltip */}
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-[10px] font-medium rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 text-center shadow-xl">
+                                        Đánh dấu đây là <strong className="text-amber-300">Tiêu chí Trọng Điểm</strong>. AI sẽ soi xét cực kỳ khắt khe kỹ năng này trong CV ứng viên.
+                                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div>
+                                      </div>
+                                    </div>
+
+                                    <button type="button" onClick={() => removeCategory(idx)} className="p-2 text-slate-400 hover:text-red-500 transition-colors ml-1"><Trash2 className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button type="button" onClick={addCategory} className="text-sm font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1"><Plus className="w-4 h-4" /> Thêm tiêu chí</button>
                 </div>
 
-                <div className="form-group">
-                  <label>Quyền lợi & Đãi ngộ <span className="req">*</span></label>
-                  <textarea required name="benefits" rows="6" value={formData.benefits} onChange={handleChange} placeholder="- Lương tháng 13, BHXH full lương...&#10;- Môi trường làm việc trẻ trung..." />
+                {/* TUỲ CHỌN AI REVIEW VỚI GIẢI THÍCH CHI TIẾT */}
+                <div className="mt-5">
+                    <label className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${formData.useAiReview ? 'bg-emerald-50 border-emerald-300' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="pt-0.5">
+                          <input type="checkbox" name="useAiReview" checked={formData.useAiReview} onChange={handleChange} className="w-4 h-4 accent-emerald-600" />
+                        </div>
+                        <div>
+                            <span className={`text-sm font-black block flex items-center gap-1.5 ${formData.useAiReview ? 'text-emerald-900' : 'text-slate-700'}`}>
+                                Sử dụng AI Sàng lọc Hồ sơ Tự động <Info className="w-4 h-4 text-emerald-500" />
+                            </span>
+                            <span className={`text-xs font-medium block mt-1.5 leading-relaxed ${formData.useAiReview ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                Khi ứng viên nộp CV, AI sẽ tự động phân tích và chấm điểm độ phù hợp (Match %) dựa trên các Tiêu chí bạn thiết lập ở trên. 
+                                <br/><strong className="text-amber-600 mt-1 inline-block bg-amber-50 px-2 py-0.5 rounded border border-amber-100">Lưu ý: Phí sàng lọc là 30 Token / 1 CV.</strong> Nếu tắt, CV sẽ được đẩy vào cột "Hồ sơ mới" để bạn duyệt thủ công.
+                            </span>
+                        </div>
+                    </label>
                 </div>
+
               </div>
             </div>
           </div>
 
-          {/* FOOTER ACTIONS */}
-          <div className="form-footer">
-            <button type="button" className="btn-cancel" onClick={() => navigate('/bussiness/post-job')}>Hủy bỏ</button>
-            <button type="submit" disabled={submitting} className="btn-submit">
-              {submitting ? 'Đang lưu...' : <><Save className="w-4 h-4" /> Lưu cập nhật</>}
+          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
+            <button type="button" className="px-6 py-3 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors" onClick={() => navigate('/bussiness/post-job')}>Hủy bỏ</button>
+            {!id && <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={loading} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Lưu Nháp</button>}
+            <button type="submit" disabled={submitting} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2">
+              {submitting ? 'Đang xử lý...' : id ? <><Save className="w-4 h-4" /> Cập nhật Job</> : (formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job</>)}
             </button>
           </div>
         </form>
       </div>
-
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
-        .create-job-page * {
-          font-family: 'Inter', sans-serif !important;
-        }
-
-        .create-job-page {
-          background-color: #F8FAFC;
-          border-radius: 24px;
-          color: #0F172A;
-        }
-        .job-form-container {
-          max-width: 1050px;
-          margin: 0 auto;
-        }
-        .form-grid {
-          display: grid;
-          grid-template-columns: 1fr 1.3fr; 
-          gap: 24px;
-        }
-        @media (max-width: 900px) { .form-grid { grid-template-columns: 1fr; } }
-
-        .card {
-          background: white;
-          border-radius: 20px;
-          padding: 28px;
-          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
-          border: 1px solid #E2E8F0;
-          margin-bottom: 24px;
-        }
-        .card-title {
-          font-size: 16px; font-weight: 800; color: #0F172A;
-          margin: 0 0 20px;
-          display: flex; align-items: center; gap: 10px;
-          padding-bottom: 16px;
-          border-bottom: 1px solid #F1F5F9;
-        }
-        .card-title .icon { color: #2563EB; width: 22px; height: 22px; }
-        
-        .form-group { margin-bottom: 20px; }
-        .form-group label {
-          display: block; font-size: 13px; font-weight: 700; color: #334155; margin-bottom: 8px;
-        }
-        .form-group label .req { color: #EF4444; }
-
-        .input-wrapper { position: relative; }
-        .input-wrapper .input-icon {
-          position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-          width: 18px; height: 18px; color: #94A3B8; pointer-events: none;
-        }
-        
-        input, select, textarea {
-          width: 100%;
-          padding: 12px 14px;
-          border: 1px solid #CBD5E1;
-          border-radius: 12px;
-          font-size: 14px;
-          font-weight: 500;
-          color: #0F172A;
-          outline: none;
-          transition: all 0.2s;
-          background: #FFFFFF;
-          box-sizing: border-box;
-        }
-        input::placeholder, textarea::placeholder { color: #94A3B8; font-weight: 400; }
-        .input-wrapper input, .input-wrapper select { padding-left: 42px; }
-        
-        input:focus, select:focus, textarea:focus {
-          border-color: #3B82F6;
-          box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
-        }
-        
-        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
-        .assessment-card {
-          background: linear-gradient(to bottom right, #F0F9FF, #FFFFFF);
-          border: 1px solid #BAE6FD;
-        }
-        .assessment-header { display: flex; gap: 16px; margin-bottom: 20px; }
-        .assessment-header .icon-box {
-          width: 52px; height: 52px;
-          background: #DBEAFE; color: #1E40AF;
-          border-radius: 14px;
-          display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
-        .card-desc { font-size: 13px; color: #475569; margin: 0; line-height: 1.5; font-weight: 500; }
-
-        .checkbox-wrapper {
-          display: flex; align-items: center; gap: 12px;
-          padding: 14px 16px; background: white;
-          border-radius: 12px; border: 1px solid #BFDBFE;
-          cursor: pointer; transition: 0.2s;
-        }
-        .checkbox-wrapper:hover { border-color: #60A5FA; }
-        
-        .checkbox-wrapper input[type="checkbox"] {
-          width: 20px; height: 20px;
-          cursor: pointer; padding: 0; margin: 0; flex-shrink: 0;
-          accent-color: #2563EB;
-        }
-        
-        .checkbox-wrapper span {
-          font-size: 14px; font-weight: 700; color: #334155; user-select: none;
-        }
-
-        .moderator-email-box {
-          margin-top: 16px; background: white; padding: 16px;
-          border-radius: 12px; border: 1px solid #DBEAFE;
-        }
-        .moderator-email-box label {
-          display: block; font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 8px;
-        }
-        .helper-text {
-          display: flex; align-items: flex-start; gap: 8px; margin-top: 10px;
-          font-size: 12px; color: #D97706; font-weight: 500; line-height: 1.4;
-        }
-
-        .assessment-success {
-          margin-top: 16px;
-          display: flex; align-items: center; gap: 8px;
-          font-size: 12px; font-weight: 700; color: #059669;
-          background: #D1FAE5; padding: 10px 14px; border-radius: 8px; border: 1px solid #A7F3D0;
-        }
-
-        .form-footer {
-          display: flex; justify-content: flex-end; gap: 12px;
-          margin-top: 12px; padding-top: 24px;
-          border-top: 1px solid #E2E8F0;
-        }
-        .btn-cancel, .btn-submit {
-          display: flex; align-items: center; gap: 8px; 
-          border-radius: 12px; font-size: 14px; font-weight: 700; 
-          cursor: pointer; transition: all 0.2s;
-        }
-        .btn-cancel {
-          padding: 12px 24px; border: 1px solid #CBD5E1; background: white; color: #475569;
-        }
-        .btn-cancel:hover { background: #F1F5F9; }
-
-        .btn-submit {
-          padding: 12px 28px; border: none; background: #2563EB; color: white;
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
-        }
-        .btn-submit:hover { background: #1D4ED8; transform: translateY(-1px); }
-        .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-      `}</style>
     </div>
   );
 };

@@ -18,7 +18,8 @@ const AuthGuard = () => {
     if (user.role === 'admin') {
       return <Navigate to="/admin" replace />;
     } else if (user.role === 'business') {
-      return <Navigate to="/business/dashboard" replace />;
+      // FIX LỖI TYPO: Đổi từ /business/dashboard thành /bussiness/dashboard (2 chữ s)
+      return <Navigate to="/bussiness/dashboard" replace />;
     } else {
       // Candidate hoặc mặc định
       return <Navigate to="/home" replace />;
