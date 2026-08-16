@@ -196,25 +196,26 @@ export default function TestResult() {
         <div className="bg-slate-50 min-h-screen pb-16 font-inter">
             <UpgradeModal isOpen={showUpgradeModal} onClose={() => setShowUpgradeModal(false)} title="Hết lượt tạo Lộ Trình" message="Mỗi tài khoản miễn phí chỉ được tạo 1 lộ trình học tập cá nhân hóa mỗi tháng. Vui lòng nâng cấp tài khoản Pro để sử dụng không giới hạn!" />
 
-            <div className={`${isPractice ? 'bg-amber-700' : 'bg-indigo-900'} pt-8 pb-24 px-4 transition-colors relative`}>
+            {/* HEADER SECTION TỐI GIẢN CHUẨN ENTERPRISE */}
+            <div className="bg-white border-b border-slate-200 pt-10 pb-12 px-4">
                 <div className="max-w-4xl mx-auto">
-                    <button onClick={() => navigate(-1)} className="flex items-center text-white/70 hover:text-white font-medium text-sm mb-6 transition-colors w-fit">
+                    <button onClick={() => navigate(-1)} className="flex items-center text-slate-500 hover:text-blue-600 font-semibold text-sm mb-6 transition-colors w-fit">
                         <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại lịch sử
                     </button>
-                    <div className="text-center text-white">
-                        <h1 className="text-3xl font-black mb-2">{testTitle}</h1>
-                        <p className="text-white/80 font-medium">{app.jobId?.title}</p>
+                    <div className="text-center">
+                        <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-3 tracking-tight">{testTitle}</h1>
+                        <p className="text-slate-500 text-base font-medium">{app.jobId?.title || 'Đánh giá kỹ năng cá nhân'}</p>
                     </div>
                 </div>
             </div>
 
-            <div className="max-w-4xl mx-auto px-4 -mt-14 space-y-6 relative z-10">
-                <div className="flex justify-center mb-2">
-                    <div className="bg-white/10 backdrop-blur-md p-1.5 rounded-2xl flex gap-2 border border-white/20 shadow-lg">
-                        <button onClick={() => setActiveTab('RESULT')} className={`px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'RESULT' ? 'bg-white text-slate-800 shadow-md' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+            <div className="max-w-4xl mx-auto px-4 mt-8 space-y-6">
+                <div className="flex justify-center mb-6">
+                    <div className="bg-white p-1.5 rounded-2xl flex gap-2 border border-slate-200 shadow-sm">
+                        <button onClick={() => setActiveTab('RESULT')} className={`px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'RESULT' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
                             <CheckCircle2 className="w-4 h-4" /> Chi tiết Điểm số
                         </button>
-                        <button onClick={() => setActiveTab('ROADMAP')} className={`px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'ROADMAP' ? 'bg-white text-indigo-600 shadow-md' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <button onClick={() => setActiveTab('ROADMAP')} className={`px-8 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'ROADMAP' ? 'bg-blue-50 text-blue-600 shadow-sm' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'}`}>
                             <Map className="w-4 h-4" /> Lộ trình học (AI)
                         </button>
                     </div>

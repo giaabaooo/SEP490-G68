@@ -13,6 +13,10 @@ const Jobs = () => {
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedExps, setSelectedExps] = useState([]);
 
+  // State Phân trang
+  const [currentPage, setCurrentPage] = useState(1);
+  const jobsPerPage = 5;
+
   useEffect(() => {
     fetch('https://provinces.open-api.vn/api/?depth=1').then(res => res.json()).then(data => setProvinces(data)).catch(console.error);
   }, []);
@@ -29,6 +33,7 @@ const Jobs = () => {
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/jobs?${queryParams.toString()}`);
       if (!response.ok) throw new Error('Lấy dữ liệu thất bại');
       setJobs(await response.json());
+      setCurrentPage(1); // Reset về trang 1 khi lọc/tìm kiếm mới
     } catch (error) { console.error('Lỗi:', error); } finally { setLoading(false); }
   };
 
@@ -46,6 +51,10 @@ const Jobs = () => {
   const handleExpChange = (exp) => setSelectedExps(prev => prev.includes(exp) ? prev.filter(e => e !== exp) : [...prev, exp]);
   const handleToggleSaved = (job) => setSavedJobs(toggleSavedJob(job).jobs);
   const clearFilters = () => { setSearchTerm(''); setLocation(''); setSelectedTypes([]); setSelectedExps([]); setTimeout(() => fetchJobs(), 0); };
+
+  // Logic cắt data hiển thị cho trang hiện tại
+  const totalPages = Math.ceil(jobs.length / jobsPerPage);
+  const currentJobs = jobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage);
 
   return (
     <div className="bg-[#f8fafc] min-h-screen pb-12 font-inter">
@@ -132,75 +141,106 @@ const Jobs = () => {
               <Loader2 className="w-8 h-8 text-blue-600 animate-spin mb-4" />
               <p className="text-slate-500 font-medium text-sm">Đang tải danh sách...</p>
             </div>
-          ) : jobs.length > 0 ? (
-            jobs.map((job) => {
-              const jobId = job._id || job.id;
-              const isSaved = savedJobs.some(saved => String(saved._id || saved.id) === String(jobId));
+          ) : currentJobs.length > 0 ? (
+            <>
+              {currentJobs.map((job) => {
+                const jobId = job._id || job.id;
+                const isSaved = savedJobs.some(saved => String(saved._id || saved.id) === String(jobId));
 
-              return (
-                <div key={jobId} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 group relative">
-                  
-                  {/* GIẢI QUYẾT LỖI ĐÈ GIAO DIỆN: Đặt Badges ở góc trên cùng bên trái của Avatar, và Bookmark góc phải */}
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                     <div className="flex gap-4">
-                        <div className="w-16 h-16 rounded-xl border border-slate-100 p-2 shrink-0 overflow-hidden flex items-center justify-center bg-white shadow-sm">
-                            <img src={job.companyLogo || `https://ui-avatars.com/api/?name=${job.companyName}&background=eff6ff&color=1e3a8a`} alt={job.companyName} className="w-full h-full object-contain" />
-                        </div>
-                        <div>
-                            <Link to={`/jobs/${jobId}`}>
-                                <h2 className="text-[17px] font-black text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">{job.title}</h2>
-                                <p className="text-sm font-semibold text-slate-500 mt-1 hover:underline">{job.companyName}</p>
-                            </Link>
-                            
-                            {/* Badges hiển thị ngay dưới Tên Công ty, cách ly hoàn toàn với Bookmark */}
-                            <div className="flex items-center gap-2 mt-2.5">
-                                {job.testStatus === 'approved' && (
-                                <div className="bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded flex items-center gap-1 border border-indigo-100">
-                                    <FileText className="w-3 h-3" /> CÓ BÀI TEST
-                                </div>
-                                )}
-                                {job.status === 'Active' && job.hot && (
-                                <div className="bg-rose-50 text-rose-600 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded flex items-center gap-1 border border-rose-100">
-                                    <Zap className="w-3 h-3 fill-current" /> TUYỂN GẤP
-                                </div>
-                                )}
-                            </div>
-                        </div>
-                     </div>
+                return (
+                  <div key={jobId} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 group relative">
+                    <div className="flex items-start justify-between gap-4 mb-4">
+                       <div className="flex gap-4">
+                          <div className="w-16 h-16 rounded-xl border border-slate-100 p-2 shrink-0 overflow-hidden flex items-center justify-center bg-white shadow-sm">
+                              <img src={job.companyLogo || `https://ui-avatars.com/api/?name=${job.companyName}&background=eff6ff&color=1e3a8a`} alt={job.companyName} className="w-full h-full object-contain" />
+                          </div>
+                          <div>
+                              <Link to={`/jobs/${jobId}`}>
+                                  <h2 className="text-[17px] font-black text-slate-900 group-hover:text-blue-600 transition-colors line-clamp-1">{job.title}</h2>
+                                  <p className="text-sm font-semibold text-slate-500 mt-1 hover:underline">{job.companyName}</p>
+                              </Link>
+                              
+                              <div className="flex items-center gap-2 mt-2.5">
+                                  {job.testStatus === 'approved' && (
+                                  <div className="bg-indigo-50 text-indigo-700 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded flex items-center gap-1 border border-indigo-100">
+                                      <FileText className="w-3 h-3" /> CÓ BÀI TEST
+                                  </div>
+                                  )}
+                                  {job.status === 'Active' && job.hot && (
+                                  <div className="bg-rose-50 text-rose-600 text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded flex items-center gap-1 border border-rose-100">
+                                      <Zap className="w-3 h-3 fill-current" /> TUYỂN GẤP
+                                  </div>
+                                  )}
+                              </div>
+                          </div>
+                       </div>
 
-                     {/* Nút Lưu Job đứng riêng biệt một góc */}
-                     <button
-                        type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleSaved(job); }}
-                        className={`transition-colors p-2 rounded-lg border ${isSaved ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
-                        title={isSaved ? 'Bỏ lưu việc làm' : 'Lưu việc làm'}
-                      >
-                        <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-                      </button>
+                       <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleToggleSaved(job); }}
+                          className={`transition-colors p-2 rounded-lg border ${isSaved ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-slate-600'}`}
+                          title={isSaved ? 'Bỏ lưu việc làm' : 'Lưu việc làm'}
+                        >
+                          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                        </button>
+                    </div>
+
+                    <Link to={`/jobs/${jobId}`} className="block">
+                        <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-600 mb-4">
+                          <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-slate-400" /> {job.location || 'Chưa cập nhật'}</div>
+                          <div className="flex items-center gap-1.5 text-emerald-600"><DollarSign className="w-4 h-4" /> {job.salary || 'Thỏa thuận'}</div>
+                          <div className="flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-slate-400" /> {job.experience}</div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-md">{job.type}</span>
+                              {job.tags && job.tags.slice(0,3).map((tag, idx) => (
+                                  <span key={idx} className="px-3 py-1 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-medium rounded-md">{tag}</span>
+                              ))}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
+                              <Clock className="w-3.5 h-3.5" /> {job.postedAt ? new Date(job.postedAt).toLocaleDateString('vi-VN') : 'Mới cập nhật'}
+                          </div>
+                        </div>
+                    </Link>
                   </div>
+                );
+              })}
 
-                  <Link to={`/jobs/${jobId}`} className="block">
-                      <div className="flex flex-wrap items-center gap-4 text-sm font-semibold text-slate-600 mb-4">
-                        <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4 text-slate-400" /> {job.location || 'Chưa cập nhật'}</div>
-                        <div className="flex items-center gap-1.5 text-emerald-600"><DollarSign className="w-4 h-4" /> {job.salary || 'Thỏa thuận'}</div>
-                        <div className="flex items-center gap-1.5"><Briefcase className="w-4 h-4 text-slate-400" /> {job.experience}</div>
-                      </div>
-
-                      <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-semibold rounded-md">{job.type}</span>
-                            {job.tags && job.tags.slice(0,3).map((tag, idx) => (
-                                <span key={idx} className="px-3 py-1 bg-slate-50 border border-slate-200 text-slate-600 text-xs font-medium rounded-md">{tag}</span>
-                            ))}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                            <Clock className="w-3.5 h-3.5" /> {job.postedAt ? new Date(job.postedAt).toLocaleDateString('vi-VN') : 'Mới cập nhật'}
-                        </div>
-                      </div>
-                  </Link>
+              {/* THANG ĐIỀU HƯỚNG PHÂN TRANG */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-8 mb-4">
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-sm transition-colors"
+                  >
+                    Trước
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
+                        currentPage === page 
+                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' 
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      } border`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button 
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-sm transition-colors"
+                  >
+                    Sau
+                  </button>
                 </div>
-              );
-            })
+              )}
+            </>
           ) : (
             <div className="bg-white rounded-2xl p-16 border border-slate-200 text-center">
               <Search className="w-10 h-10 text-slate-300 mx-auto mb-4" />
