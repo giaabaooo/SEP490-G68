@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { X, Sparkles } from 'lucide-react'; 
 
-// ================= MODAL BÁO HẾT LƯỢT =================
 const UpgradeModal = ({ isOpen, onClose, title, message }) => {
     const navigate = useNavigate();
     if (!isOpen) return null;
@@ -62,8 +61,8 @@ const HistoryDetailModal = ({ isOpen, onClose, historyItem }) => {
                     {reportData && (
                         <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
                             <div className="flex items-center gap-4 mb-4">
-                                <div className="w-16 h-16 rounded-full bg-blue-100 text-blue-700 text-2xl font-bold flex items-center justify-center border-4 border-blue-50">
-                                    {reportData.score}
+                                <div className="w-20 h-20 rounded-full bg-blue-50 text-blue-700 text-2xl font-black flex items-center justify-center border-4 border-blue-100 shrink-0">
+                                    {reportData.score}<span className="text-[10px] text-blue-400 mt-2">/100</span>
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-gray-800 text-lg">Đánh giá chung</h3>
@@ -72,16 +71,16 @@ const HistoryDetailModal = ({ isOpen, onClose, historyItem }) => {
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="bg-green-50 p-3 rounded-lg border border-green-100">
+                                <div className="bg-green-50 p-4 rounded-xl border border-green-100">
                                     <h4 className="text-sm font-bold text-green-700 mb-2">Điểm mạnh</h4>
-                                    <ul className="text-xs space-y-1 text-gray-700">
-                                        {reportData.strengths?.map((s, i) => <li key={i}>• {s}</li>)}
+                                    <ul className="text-xs space-y-1.5 text-gray-700">
+                                        {reportData.strengths?.length > 0 ? reportData.strengths.map((s, i) => <li key={i}>• {s}</li>) : <li>Chưa ghi nhận điểm mạnh.</li>}
                                     </ul>
                                 </div>
-                                <div className="bg-red-50 p-3 rounded-lg border border-red-100">
+                                <div className="bg-red-50 p-4 rounded-xl border border-red-100">
                                     <h4 className="text-sm font-bold text-red-600 mb-2">Cần cải thiện</h4>
-                                    <ul className="text-xs space-y-1 text-gray-700">
-                                        {reportData.weaknesses?.map((w, i) => <li key={i}>• {w}</li>)}
+                                    <ul className="text-xs space-y-1.5 text-gray-700">
+                                        {reportData.weaknesses?.length > 0 ? reportData.weaknesses.map((w, i) => <li key={i}>• {w}</li>) : <li>Chưa ghi nhận điểm yếu.</li>}
                                     </ul>
                                 </div>
                             </div>
@@ -188,10 +187,13 @@ export default function AIInterview() {
 
     const startWebcam = async () => {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            // Đảm bảo xin quyền audio
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             streamRef.current = stream;
             if (userVideoRef.current) userVideoRef.current.srcObject = stream;
-        } catch (err) { toast.error("Không thể truy cập Camera."); }
+        } catch (err) { 
+            toast.error("Không thể truy cập Camera và Micro. Vui lòng cấp quyền trên trình duyệt!"); 
+        }
     };
 
     const stopWebcam = () => {
@@ -313,11 +315,15 @@ export default function AIInterview() {
         finally { setLoading(false); }
     };
 
+    // FIX: Khôi phục cấu trúc nhận dạng giọng nói cũ để hiển thị Text ổn định
     const handleVoiceInput = () => {
-        if (isListening.current) { recognitionRef.current?.stop(); return; }
+        if (isListening.current) { 
+            recognitionRef.current?.stop(); 
+            return; 
+        }
         
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) return toast.error("Trình duyệt hiện tại không hỗ trợ thu âm.");
+        if (!SpeechRecognition) return toast.error("Trình duyệt không hỗ trợ Mic");
         
         const recognition = new SpeechRecognition();
         recognitionRef.current = recognition;
@@ -325,8 +331,14 @@ export default function AIInterview() {
         recognition.continuous = true;
         recognition.interimResults = true;
         
-        recognition.onstart = () => { isListening.current = true; setIsListeningState(true); };
-        recognition.onend = () => { isListening.current = false; setIsListeningState(false); };
+        recognition.onstart = () => {
+            isListening.current = true;
+            setIsListeningState(true);
+        };
+        recognition.onend = () => {
+            isListening.current = false;
+            setIsListeningState(false);
+        };
         
         let silenceTimer;
         recognition.onresult = (e) => {
@@ -361,25 +373,63 @@ export default function AIInterview() {
         return (
             <div className="min-h-screen bg-gray-50 pt-28 pb-10 px-4 font-sans">
                 <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden animate-fadeIn">
-                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white text-center">
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white text-center relative">
                         <h2 className="text-3xl font-bold mb-2">Kết quả Phỏng vấn AI</h2>
                         <p className="opacity-90 text-lg">Vị trí: {jobPosition}</p>
-                        <div className="mt-6 inline-flex items-center justify-center w-24 h-24 rounded-full bg-white text-blue-700 text-4xl font-extrabold border-4 border-blue-200 shadow-lg">
-                            {reportData.score}
-                        </div>
                     </div>
-                    <div className="p-8 space-y-8">
-                        <div>
-                            <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2">
-                                <span className="material-symbols-outlined text-blue-600">overview</span> Tổng quan
-                            </h3>
-                            <p className="text-gray-600 leading-relaxed bg-blue-50 p-4 rounded-xl border border-blue-100">{reportData.overview}</p>
+                    
+                    <div className="p-8 space-y-6">
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 -mt-14 relative z-10">
+                            <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
+                                <div className="w-28 h-28 rounded-full bg-blue-50 text-blue-700 text-4xl font-black flex items-center justify-center border-4 border-blue-100 shrink-0 shadow-lg">
+                                    {reportData.score}<span className="text-xs text-blue-400 mt-3">/100</span>
+                                </div>
+                                <div className="text-center md:text-left">
+                                    <h3 className="font-bold text-gray-800 text-xl mb-2">Đánh giá chung</h3>
+                                    <p className="text-gray-600 text-sm leading-relaxed">{reportData.overview}</p>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="bg-green-50 p-5 rounded-xl border border-green-100">
+                                    <h4 className="text-sm font-bold text-green-700 mb-3">Điểm mạnh</h4>
+                                    <ul className="text-xs space-y-2 text-gray-700">
+                                        {reportData.strengths?.length > 0 ? reportData.strengths.map((s, i) => <li key={i}>• {s}</li>) : <li>Chưa ghi nhận điểm mạnh.</li>}
+                                    </ul>
+                                </div>
+                                <div className="bg-red-50 p-5 rounded-xl border border-red-100">
+                                    <h4 className="text-sm font-bold text-red-600 mb-3">Cần cải thiện</h4>
+                                    <ul className="text-xs space-y-2 text-gray-700">
+                                        {reportData.weaknesses?.length > 0 ? reportData.weaknesses.map((w, i) => <li key={i}>• {w}</li>) : <li>Chưa ghi nhận điểm yếu.</li>}
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
-                        <div className="mt-10 text-center flex justify-center gap-4">
-                            <button onClick={() => navigate('/home')} className="px-8 py-3.5 rounded-full font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 transition-all">
+
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                            <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <span className="material-symbols-outlined">forum</span> Lịch sử hội thoại
+                            </h3>
+                            <div className="space-y-4 bg-gray-50 p-5 rounded-xl border border-gray-100 h-96 overflow-y-auto custom-scrollbar">
+                                {messages?.map((msg, idx) => (
+                                    <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-[85%] p-4 rounded-xl text-sm leading-relaxed shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none border border-gray-200'}`}>
+                                            <span className="font-bold text-xs opacity-70 block mb-1.5 uppercase tracking-wider">
+                                                {msg.role === 'user' ? 'Bạn' : 'AI Interviewer'}
+                                            </span>
+                                            {msg.content}
+                                        </div>
+                                    </div>
+                                ))}
+                                {(!messages || messages.length === 0) && <p className="text-center text-gray-400 text-sm">Không có dữ liệu hội thoại.</p>}
+                            </div>
+                        </div>
+
+                        <div className="mt-8 pt-6 border-t border-gray-100 text-center flex flex-col sm:flex-row justify-center gap-4">
+                            <button onClick={() => navigate('/home')} className="px-8 py-3.5 rounded-xl font-bold text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 transition-all">
                                 Về trang chủ
                             </button>
-                            <button onClick={() => { setReportData(null); setMessages([]); }} className="px-8 py-3.5 rounded-full font-bold text-white bg-gray-900 hover:bg-black shadow-lg hover:shadow-xl transition-all flex items-center gap-2">
+                            <button onClick={() => { setReportData(null); setMessages([]); }} className="px-8 py-3.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2">
                                 <span className="material-symbols-outlined">refresh</span> Phỏng vấn lại
                             </button>
                         </div>
@@ -398,7 +448,6 @@ export default function AIInterview() {
             {!isStarted ? (
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8 items-start animate-fadeIn">
                     
-                    {/* BÊN TRÁI: DANH SÁCH LỊCH SỬ PHỎNG VẤN */}
                     <div className="w-full md:w-1/2 bg-gray-50 border border-gray-200 rounded-2xl p-6 h-[70vh] flex flex-col shadow-sm">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
@@ -421,7 +470,7 @@ export default function AIInterview() {
                                         </div>
                                         <div className="flex flex-col items-center justify-center ml-4 pl-4 border-l border-gray-100">
                                             <span className="text-2xl font-black text-blue-600">{item.reportData?.score || 0}</span>
-                                            <span className="text-[10px] uppercase text-gray-400 font-bold">Điểm</span>
+                                            <span className="text-[10px] uppercase text-gray-400 font-bold">/100 Điểm</span>
                                         </div>
                                     </div>
                                 ))
@@ -434,7 +483,6 @@ export default function AIInterview() {
                         </div>
                     </div>
 
-                    {/* BÊN PHẢI: FORM TẠO PHỎNG VẤN MỚI */}
                     <div className="w-full md:w-1/2 bg-white rounded-2xl shadow-2xl border border-gray-100 p-8 relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
                         <div className="flex items-center justify-between mb-2 mt-2">

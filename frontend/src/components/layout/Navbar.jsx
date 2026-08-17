@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { Bell, ArrowRight } from 'lucide-react';
+import { toast } from 'react-toastify';
 import './Layout.css';
 
 const Navbar = () => {
@@ -91,6 +92,15 @@ const Navbar = () => {
     return '/home';
   };
 
+  const handleProtectedNav = (e) => {
+    const currentToken = localStorage.getItem('token');
+    if (!currentToken) {
+        e.preventDefault();
+        toast.info('Vui lòng đăng nhập để sử dụng tính năng này!');
+        navigate('/login');
+    }
+  };
+
   const isPro = usageInfo?.subscription?.plan === 'pro';
 
   return (
@@ -98,47 +108,54 @@ const Navbar = () => {
       <style>{`
         .top-navbar { min-height: 76px !important; padding: 0 40px !important; background: #ffffff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
         .nav-item-dropdown { position: relative; display: flex; align-items: center; height: 100%; padding: 10px 0; cursor: pointer; }
-        .nav-item-dropdown::after { content: ''; position: absolute; bottom: -15px; left: 0; width: 100%; height: 15px; }
-        .dropdown-menu-content { visibility: hidden; opacity: 0; position: absolute; top: calc(100% + 10px); left: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); transition: all 0.2s ease-out; z-index: 1000; transform: translateY(-10px); }
+        
+        .dropdown-menu-content { visibility: hidden; opacity: 0; position: absolute; top: calc(100% + 5px); left: 0; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); transition: all 0.2s ease-out; z-index: 1000; transform: translateY(-10px); }
+        .dropdown-menu-content::before { content: ''; position: absolute; top: -15px; left: 0; right: 0; height: 15px; background: transparent; }
         .nav-item-dropdown:hover .dropdown-menu-content { visibility: visible; opacity: 1; transform: translateY(0); }
         .dropdown-menu-content.mega-menu { left: 50%; transform: translate(-50%, -10px); }
         .nav-item-dropdown:hover .dropdown-menu-content.mega-menu { transform: translate(-50%, 0); }
+        
         .mega-menu { width: 650px; display: flex; padding: 20px; gap: 30px; }
         .mega-col { flex: 1; }
         .mega-group { margin-bottom: 20px; }
         .mega-group:last-child { margin-bottom: 0; }
-        .mega-title { font-size: 14px; font-weight: 600; color: #059669; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
-        .mega-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; color: #334155; font-size: 14px; font-weight: 500; text-decoration: none; transition: background 0.2s, color 0.2s; }
+        .mega-title { font-size: 14px; font-weight: 800; color: #059669; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+        .mega-item { display: flex; align-items: center; gap: 12px; padding: 10px; border-radius: 8px; color: #000000; font-size: 14px; font-weight: 600; text-decoration: none; transition: background 0.2s, color 0.2s; }
         .mega-item:hover { background: #f1f5f9; color: #059669; }
-        .mega-item svg { flex-shrink: 0; color: #64748b; }
+        .mega-item svg { flex-shrink: 0; color: #000000; }
         .mega-item:hover svg { color: #059669; }
+        
         .user-dropdown-container .dropdown-menu-content { left: auto; right: 0; width: 320px; max-height: 85vh; overflow-y: auto; }
         .user-dropdown-container .dropdown-menu-content::-webkit-scrollbar { width: 6px; }
         .user-dropdown-container .dropdown-menu-content::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        
         .dropdown-header { padding: 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; gap: 12px; transition: background 0.2s; cursor: pointer; }
         .dropdown-header:hover { background: #f1f5f9; }
         .dropdown-header-info { display: flex; flex-direction: column; overflow: hidden; }
-        .dropdown-name { font-weight: 700; color: #1e293b; font-size: 15px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
-        .dropdown-id { font-size: 12px; color: #64748b; }
+        .dropdown-name { font-weight: 800; color: #000000; font-size: 15px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
+        .dropdown-id { font-size: 12px; color: #000000; font-weight: 500; }
         .menu-section { border-bottom: 1px solid #e2e8f0; padding: 8px 0; }
         .menu-section:last-child { border-bottom: none; }
-        .menu-section-title { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; margin: 8px 16px 4px; letter-spacing: 0.5px; }
-        .dropdown-item { padding: 10px 16px 10px 36px; font-size: 14px; color: #334155; font-weight: 500; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; cursor: pointer; }
+        .menu-section-title { font-size: 12px; font-weight: 800; color: #000000; text-transform: uppercase; margin: 8px 16px 4px; letter-spacing: 0.5px; }
+        
+        .dropdown-item { padding: 10px 16px 10px 36px; font-size: 14px; color: #000000; font-weight: 600; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; cursor: pointer; }
         .dropdown-item.has-icon { padding-left: 16px; }
         .dropdown-item:hover { background: #f1f5f9; color: #059669; }
-        .dropdown-item.upgrade-btn { color: #4f46e5; font-weight: 700; }
+        .dropdown-item.upgrade-btn { color: #4f46e5; font-weight: 800; }
         .dropdown-item.upgrade-btn:hover { background: #e0e7ff; color: #4338ca; }
-        .dropdown-item.logout { color: #dc2626; }
+        .dropdown-item.logout { color: #dc2626; font-weight: 800; }
         .dropdown-item.logout:hover { background: #fef2f2; color: #dc2626; }
+        
         .avatar-circle { width: 38px; height: 38px; border-radius: 50%; background: #eff6ff; border: 2px solid #bfdbfe; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.2s; flex-shrink: 0; }
         .user-dropdown-container:hover .avatar-circle { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
-        .user-profile { display: flex; align-items: center; gap: 8px; font-weight: 600; color: #334155; }
-        .nav-link-item { display: flex; align-items: center; gap: 4px; color: #334155; font-weight: 600; text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; transition: 0.2s;}
+        .user-profile { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #000000; }
+        
+        .nav-link-item { display: flex; align-items: center; gap: 4px; color: #000000; font-weight: 700; text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; transition: 0.2s;}
         .nav-link-item:hover { color: #059669; border-bottom-color: #059669; }
         .nav-link-item.active { color: #059669; border-bottom-color: #059669; }
       `}</style>
 
-      <header className="top-navbar">
+      <header className="top-navbar font-inter">
         <div className="nav-left" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
           <Link to={getHomeLink()} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
             <img src="/logo-careerio.png" alt="Careerio Logo" style={{ height: '52px', width: 'auto', objectFit: 'contain' }} />
@@ -150,10 +167,12 @@ const Navbar = () => {
         </div>
 
         <div className="nav-center" style={{ display: 'flex', gap: '30px', height: '100%' }}>
+          {/* ĐÃ THÊM TAB QUẢN LÝ GIAO DỊCH CHO ADMIN */}
           {role === 'admin' && (
             <>
               <div className="nav-item-dropdown"><NavLink to="/admin" end className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Người Dùng</NavLink></div>
               <div className="nav-item-dropdown"><NavLink to="/admin/practice-topics" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Luyện Tập (AI)</NavLink></div>
+              <div className="nav-item-dropdown"><NavLink to="/admin/payments" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Giao Dịch</NavLink></div>
             </>
           )}
 
@@ -189,15 +208,10 @@ const Navbar = () => {
                       <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg> Mẫu CV Ấn tượng</Link>
                       <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg> Mẫu CV Chuyên nghiệp</Link>
                     </div>
-                    <div className="mega-group">
-                      <div className="mega-title">Mẫu CV theo vị trí</div>
-                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg> Lập trình viên</Link>
-                      <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg> Nhân viên kế toán</Link>
-                    </div>
                   </div>
                   <div className="mega-col" style={{ borderLeft: '1px solid #f1f5f9', paddingLeft: '30px' }}>
                     <div className="mega-group" style={{ marginTop: '30px' }}>
-                      <Link to="/candidate/manage-cv" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg> Quản lý CV</Link>
+                      <Link to="/candidate/manage-cv" onClick={handleProtectedNav} className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg> Quản lý CV</Link>
                       <Link to="/candidate/cv-templates" className="mega-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg> Tải CV lên</Link>
                     </div>
                   </div>
@@ -216,31 +230,31 @@ const Navbar = () => {
         <div className="nav-right" style={{ height: '100%', display: 'flex', alignItems: 'center', gap: '16px' }}>
           {isLoggedIn && (
             <div className="nav-item-dropdown notification-dropdown-container">
-              <div className="relative p-2 text-slate-500 hover:text-emerald-600 transition-colors cursor-pointer">
+              <div className="relative p-2 text-black hover:text-emerald-600 transition-colors cursor-pointer">
                 <Bell className="w-5 h-5" />
                 {unreadCount > 0 && <span className="absolute top-0 right-0 w-4.5 h-4.5 bg-red-500 text-[10px] text-white font-extrabold rounded-full flex items-center justify-center border border-white">{unreadCount}</span>}
               </div>
               <div className="dropdown-menu-content notification-dropdown-panel" style={{ right: 0, left: 'auto', width: '360px', padding: '16px' }}>
                 <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-3">
-                  <h3 className="font-extrabold text-slate-800 text-sm">Thông báo gần đây</h3>
+                  <h3 className="font-extrabold text-black text-sm">Thông báo gần đây</h3>
                   {unreadCount > 0 && <button onClick={handleMarkAllAsRead} className="text-xs font-bold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer">Đọc tất cả</button>}
                 </div>
                 <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
                   {notifications.length === 0 ? (
-                    <div className="py-8 text-center text-xs text-slate-400 font-medium">Chưa có thông báo nào.</div>
+                    <div className="py-8 text-center text-xs text-black font-medium">Chưa có thông báo nào.</div>
                   ) : (
                     notifications.slice(0, 5).map((n) => (
                       <div key={n._id} onClick={() => handleMarkAsRead(n._id)} className={`p-3 rounded-xl border transition-all cursor-pointer text-left relative ${!n.isRead ? 'bg-emerald-50/20 border-emerald-100' : 'bg-slate-50/30 border-slate-100'}`}>
-                        <h4 className={`text-xs font-bold text-slate-800 mb-0.5 leading-tight ${!n.isRead ? 'font-extrabold text-slate-900' : ''}`}>{n.title}</h4>
-                        <p className="text-[11px] font-medium text-slate-500 line-clamp-2 leading-relaxed">{n.message}</p>
-                        <span className="text-[9px] font-bold text-slate-400 mt-1 block">{new Date(n.createdAt).toLocaleDateString('vi-VN')}</span>
+                        <h4 className={`text-xs font-bold text-black mb-0.5 leading-tight ${!n.isRead ? 'font-extrabold' : ''}`}>{n.title}</h4>
+                        <p className="text-[11px] font-medium text-black line-clamp-2 leading-relaxed">{n.message}</p>
+                        <span className="text-[9px] font-bold text-black mt-1 block">{new Date(n.createdAt).toLocaleDateString('vi-VN')}</span>
                         {!n.isRead && <span className="absolute top-3.5 right-3 w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>}
                       </div>
                     ))
                   )}
                 </div>
                 <div className="mt-3 pt-3 border-t border-slate-100 flex justify-center">
-                  <Link to="/candidate/notifications" className="text-xs font-bold text-slate-500 hover:text-emerald-600 flex items-center gap-1">Xem tất cả thông báo <ArrowRight className="w-3.5 h-3.5" /></Link>
+                  <Link to="/candidate/notifications" className="text-xs font-bold text-black hover:text-emerald-600 flex items-center gap-1">Xem tất cả thông báo <ArrowRight className="w-3.5 h-3.5" /></Link>
                 </div>
               </div>
             </div>
@@ -253,7 +267,18 @@ const Navbar = () => {
               </div>
               <div className="dropdown-menu-content" style={{ width: '280px' }}>
                 
-                <div className="dropdown-header" onClick={() => navigate('/profile')} title="Xem Hồ sơ cá nhân">
+                <div 
+                  className="dropdown-header" 
+                  onClick={() => {
+                    if (role === 'business') {
+                        navigate('/bussiness/profile');
+                    } else {
+                        navigate('/profile');
+                    }
+                  }} 
+                  title={role === 'business' ? "Xem hồ sơ doanh nghiệp" : "Xem Hồ sơ cá nhân"}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="avatar-circle" style={{ width: '48px', height: '48px', fontSize: '20px' }}><span style={{ color: '#059669', fontWeight: 'bold' }}>{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span></div>
                   <div className="dropdown-header-info">
                     <div className="dropdown-name">
@@ -264,15 +289,13 @@ const Navbar = () => {
                         </span>
                       )}
                     </div>
-                    <div className="dropdown-id text-xs text-gray-500">{user?.email || 'Tài khoản đã xác thực'}</div>
+                    <div className="dropdown-id text-xs text-black">{user?.email || 'Tài khoản đã xác thực'}</div>
                   </div>
                 </div>
 
-               
-
                 {role === 'candidate' && (
                   <div className="menu-section bg-indigo-50/50">
-                    <div className="menu-section-title text-indigo-500">Gói Dịch Vụ AI</div>
+                    <div className="menu-section-title text-indigo-700">Gói Dịch Vụ AI</div>
                     <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
                       Nâng cấp Pro ngay
@@ -282,7 +305,7 @@ const Navbar = () => {
 
                 {role === 'business' && subRole !== 'moderator' && (
                   <div className="menu-section bg-indigo-50/50">
-                    <div className="menu-section-title text-indigo-500">Tài nguyên hệ thống</div>
+                    <div className="menu-section-title text-indigo-700">Tài nguyên hệ thống</div>
                     <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
                       Nạp Token AI
@@ -324,8 +347,8 @@ const Navbar = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <Link to="/login" style={{ textDecoration: 'none' }}><button style={{ background: 'transparent', color: '#059669', border: '1px solid #059669', padding: '8px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s' }}>Đăng nhập</button></Link>
-              <Link to="/register" style={{ textDecoration: 'none' }}><button style={{ backgroundColor: '#059669', color: '#ffffff', border: 'none', padding: '9px 20px', borderRadius: '8px', fontWeight: '600', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.2)' }}>Đăng ký</button></Link>
+              <Link to="/login" style={{ textDecoration: 'none' }}><button style={{ background: 'transparent', color: '#059669', border: '1px solid #059669', padding: '8px 20px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', transition: '0.2s' }}>Đăng nhập</button></Link>
+              <Link to="/register" style={{ textDecoration: 'none' }}><button style={{ backgroundColor: '#059669', color: '#ffffff', border: 'none', padding: '9px 20px', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', transition: '0.2s', boxShadow: '0 4px 6px -1px rgba(5, 150, 105, 0.2)' }}>Đăng ký</button></Link>
             </div>
           )}
         </div>

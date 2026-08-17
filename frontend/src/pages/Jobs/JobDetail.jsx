@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, DollarSign, Briefcase, Clock, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle, Sparkles, ThumbsUp, AlertTriangle, ArrowRight, History } from 'lucide-react';
+import { MapPin, DollarSign, Briefcase, Clock, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle, Sparkles, ThumbsUp, AlertTriangle, ArrowRight, History, Users, Tag } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
 
@@ -114,18 +114,23 @@ const JobDetail = () => {
   const isClosed = job?.status === 'Closed' || isExpired;
 
   const handleOpenWizard = async (mode) => {
-    if (!currentUser) return toast.info('Vui lòng đăng nhập bằng tài khoản Ứng viên.');
-    if (currentUser.role !== 'candidate') return toast.info('Chỉ tài khoản Ứng viên mới có thể ứng tuyển.');
+    // FIX: Redirect tới Login
+    const token = localStorage.getItem('token');
+    if (!token || !currentUser) {
+        toast.info('Vui lòng đăng nhập để thực hiện ứng tuyển & đánh giá CV!');
+        navigate('/login');
+        return;
+    }
+    if (currentUser.role !== 'candidate') return toast.info('Chỉ tài khoản Ứng viên mới có thể thực hiện chức năng này.');
     if (mode === 'apply' && isClosed) return toast.error('Công việc này đã hết hạn hoặc đã đóng.');
     
     setWizardMode(mode);
     setModalStage('select_cv');
     setReviewData(null);
-    setUseAI(mode === 'review' ? true : true); // Nếu đang ở luồng review thì bắt buộc dùng AI
+    setUseAI(mode === 'review' ? true : true); 
     setModalOpen(true);
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/api/cv/my-cvs`, { headers: { Authorization: `Bearer ${token}` } });
       if (response.ok) setMyCVs(await response.json());
     } catch (error) { console.error('Lỗi tải CV:', error); }
@@ -197,8 +202,6 @@ const JobDetail = () => {
       if (selectedFile) formData.append('cv', selectedFile);
       else if (selectedCvId) formData.append('appliedCvId', selectedCvId);
       
-      // Khong gui preEvaluatedAI len nua de Backend tu test bang token cua Business
-
       const response = await fetch(`${API_BASE}/api/applications`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
       });
@@ -269,6 +272,10 @@ const JobDetail = () => {
                 <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"><MapPin className="w-4 h-4 text-blue-500" /> {job.location || 'Chưa cập nhật'}</div>
                 <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-emerald-700"><DollarSign className="w-4 h-4" /> {job.salary || 'Thỏa thuận'}</div>
                 <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"><Briefcase className="w-4 h-4 text-amber-500" /> {job.experience}</div>
+                
+                {/* ĐÃ THÊM: Loại hình và Số lượng tuyển dụng */}
+                <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 text-purple-700"><Tag className="w-4 h-4" /> {job.type || 'Chưa cập nhật'}</div>
+                <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 text-orange-700"><Users className="w-4 h-4" /> {job.vacancies ? `${job.vacancies} người` : 'Chưa cập nhật'}</div>
               </div>
 
               {myLatestStatus && (
@@ -287,7 +294,7 @@ const JobDetail = () => {
                              myLatestStatus === 'Testing' ? 'Làm bài kiểm tra' :
                              myLatestStatus === 'Interviewing' ? 'Đang phỏng vấn' :
                              myLatestStatus === 'Offered' ? 'Đề nghị (Offer)' :
-                             myLatestStatus === 'Rejected' ? 'Đã từ chối' : myLatestStatus
+                             myLatestStatus === 'Rejected' ? 'Đã từ từ chối' : myLatestStatus
                          }
                      </span>
                  </div>
@@ -370,6 +377,13 @@ const JobDetail = () => {
              
              <button 
                 onClick={() => {
+                   // FIX: Redirect tới Login
+                   const token = localStorage.getItem('token');
+                   if (!token) {
+                       toast.info('Vui lòng đăng nhập để phân tích CV bằng AI!');
+                       navigate('/login');
+                       return;
+                   }
                    if (remainCvReview <= 0) setShowUpgradeModal(true);
                    else handleOpenWizard('review'); 
                 }}

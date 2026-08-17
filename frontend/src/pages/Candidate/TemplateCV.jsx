@@ -4,7 +4,6 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { Sparkles, FileText, UploadCloud, Edit3, X } from 'lucide-react';
 
-// Component hiển thị bản thu nhỏ của Template (Skeleton CV)
 const MiniTemplatePreview = ({ layout, color }) => {
   return (
     <div className="w-full h-full bg-white p-3 sm:p-4 flex flex-col gap-3 pointer-events-none select-none overflow-hidden scale-100 transform origin-top">
@@ -95,7 +94,6 @@ const TemplateCV = () => {
   const location = useLocation();
   const aiReviewData = location.state?.aiReviewData; 
   
-  // ĐÓN LẤY FILE PDF TỪ JOB DETAIL (NẾU CÓ)
   const pendingFile = location.state?.pendingFile; 
 
   const recommendedTemplates = [
@@ -114,16 +112,21 @@ const TemplateCV = () => {
   const filters = ['Tất cả', 'Đơn giản', 'Chuyên nghiệp', 'Hiện đại', 'Ấn tượng', 'Harvard', 'ATS'];
 
   const openModal = async (template) => {
+    // FIX: Bắt login tại đây để không chặn khách xem giao diện bên ngoài
+    if (!localStorage.getItem('token')) {
+        toast.info('Vui lòng đăng nhập để bắt đầu tạo CV!');
+        navigate('/login');
+        return;
+    }
+
     setSelectedTemplate(template);
     
-    // Quy chuẩn hóa Config của Template (Gợi ý vs Tiêu chuẩn)
     const templateConfig = template.designConfig || { 
         primaryColor: template.color, 
         fontFamily: "Roboto", 
         layout: template.layout 
     };
 
-    // NẾU TRUYỀN FILE TỪ JOB DETAIL QUA THÌ AUTO-PARSE, KHÔNG CẦN HIỆN MODAL NỮA
     if (pendingFile) {
         setIsUploading(true);
         const toastId = toast.loading('Đang chuyển dữ liệu từ file PDF của bạn vào mẫu mới...');
@@ -154,12 +157,11 @@ const TemplateCV = () => {
           }
         } catch (error) {
           toast.update(toastId, { render: "Lỗi trích xuất: " + error.message, type: "error", isLoading: false, autoClose: 3000 });
-          setIsModalOpen(true); // Gặp lỗi thì bật lại Modal để người dùng tự chọn
+          setIsModalOpen(true); 
         } finally {
           setIsUploading(false);
         }
     } else {
-        // Hành vi cũ: nếu tự nhiên bấm vô trang này thì cứ hiện Modal bình thường
         setIsModalOpen(true);
     }
   };
@@ -237,7 +239,6 @@ const TemplateCV = () => {
       
       <div className="max-w-6xl mx-auto">
         
-        {/* HIỂN THỊ ALERT NẾU ĐANG CHUYỂN TỪ MÀN AI REVIEW SANG (Điểm thấp) */}
         {aiReviewData && aiReviewData.score < 60 && (
             <div className="mb-8 p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-4 animate-scale-in">
                 <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
@@ -257,7 +258,6 @@ const TemplateCV = () => {
           </p>
         </div>
 
-        {/* SECTION 1: RECOMMENDED TEMPLATES */}
         <div className="mb-12">
           <div className="flex items-center gap-4 mb-6">
             <div className="flex-1 h-px bg-slate-200"></div>
@@ -278,7 +278,7 @@ const TemplateCV = () => {
                   <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <button 
                       onClick={() => openModal(tpl)}
-                      className="text-white font-bold px-6 py-2.5 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:scale-105"
+                      className="text-white font-bold px-6 py-2.5 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:scale-105 cursor-pointer"
                       style={{ backgroundColor: tpl.designConfig.primaryColor }}
                     >
                       Dùng mẫu này
@@ -298,7 +298,6 @@ const TemplateCV = () => {
           </div>
         </div>
 
-        {/* SECTION 2: STANDARD TEMPLATES */}
         <div>
           <div className="flex items-center gap-4 mb-8">
             <div className="flex-1 h-px bg-slate-200"></div>
@@ -331,7 +330,7 @@ const TemplateCV = () => {
                   <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <button 
                       onClick={() => openModal(tpl)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:scale-105 text-sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 hover:scale-105 text-sm cursor-pointer"
                     >
                       Dùng mẫu này
                     </button>
@@ -351,9 +350,8 @@ const TemplateCV = () => {
 
       </div>
 
-      {/* MODAL CŨ CHỈ DÙNG CHO CÁC TRƯỜNG HỢP VÔ THẲNG TRANG NÀY MÀ KHÔNG QUA PDF TỪ TRƯỚC */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4" onClick={closeModal}>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-[100] animate-fade-in p-4" onClick={closeModal}>
           <div className="bg-white w-full max-w-lg rounded-3xl p-6 md:p-8 shadow-2xl relative animate-scale-in" onClick={e => e.stopPropagation()}>
             <button className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 transition-colors" onClick={closeModal}>
               <X className="w-5 h-5" />

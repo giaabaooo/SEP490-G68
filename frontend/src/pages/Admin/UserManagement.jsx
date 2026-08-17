@@ -166,21 +166,21 @@ const UserManagement = () => {
         <>
             <ToastContainer position="top-right" autoClose={3000} />
             <style>{`
-                .admin-user-page { min-height: calc(100vh - 120px); background: #f8fafc; padding: 36px 48px; font-family: 'Inter', sans-serif; }
+                .admin-user-page { min-height: calc(100vh - 120px); background: #f8fafc; padding: 36px 48px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
                 .admin-user-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 28px; }
-                .admin-user-title { font-size: 32px; font-weight: 800; color: #0f172a; margin: 0 0 8px; }
-                .admin-user-subtitle { color: #64748b; font-size: 15px; margin: 0; }
+                .admin-user-title { font-size: 32px; font-weight: 700; color: #000000; margin: 0 0 8px; }
+                .admin-user-subtitle { color: #000000; font-size: 15px; margin: 0; }
                 .admin-stat-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px 22px; min-width: 180px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); }
-                .admin-stat-label { color: #64748b; font-size: 13px; margin-bottom: 6px; }
-                .admin-stat-value { color: #0f172a; font-size: 28px; font-weight: 800; }
+                .admin-stat-label { color: #000000; font-size: 13px; margin-bottom: 6px; }
+                .admin-stat-value { color: #000000; font-size: 28px; font-weight: 700; }
                 .admin-filter-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; padding: 20px; margin-bottom: 22px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05); }
                 .admin-filter-form { display: grid; grid-template-columns: 1.8fr 1fr 1fr auto; gap: 12px; align-items: center; }
-                .admin-input, .admin-select { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; font-size: 14px; color: #0f172a; outline: none; background: #f8fafc; transition: all 0.2s; }
+                .admin-input, .admin-select { width: 100%; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; font-size: 14px; color: #000000; outline: none; background: #f8fafc; transition: all 0.2s; }
                 .admin-input:focus, .admin-select:focus { border-color: #3b82f6; background: #ffffff; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
-                .admin-btn { border: none; border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+                .admin-btn { border: none; border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
                 .admin-btn-primary { background: #2563eb; color: #ffffff; }
                 .admin-btn-primary:hover { background: #1d4ed8; }
-                .admin-btn-secondary { background: #e2e8f0; color: #334155; }
+                .admin-btn-secondary { background: #e2e8f0; color: #000000; }
                 .admin-btn-secondary:hover { background: #cbd5e1; }
                 .admin-btn-danger { background: #ef4444; color: #ffffff; }
                 .admin-btn-danger:hover { background: #dc2626; }
@@ -192,30 +192,30 @@ const UserManagement = () => {
                 .admin-table-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 18px; overflow: hidden; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05); }
                 .admin-table { width: 100%; border-collapse: collapse; }
                 .admin-table thead { background: #f1f5f9; }
-                .admin-table th { text-align: left; padding: 15px 18px; font-size: 13px; color: #475569; font-weight: 800; border-bottom: 1px solid #e2e8f0; }
-                .admin-table td { padding: 16px 18px; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 14px; vertical-align: middle; }
+                .admin-table th { text-align: left; padding: 15px 18px; font-size: 13px; color: #000000; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+                .admin-table td { padding: 16px 18px; border-bottom: 1px solid #f1f5f9; color: #000000; font-size: 14px; vertical-align: middle; }
                 .admin-table tr:last-child td { border-bottom: none; }
                 .admin-user-cell { display: flex; align-items: center; gap: 12px; }
-                .admin-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #38bdf8); color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; }
-                .admin-user-name { font-weight: 800; color: #0f172a; margin-bottom: 3px; }
-                .admin-user-email { color: #64748b; font-size: 13px; }
-                .admin-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 800; }
+                .admin-avatar { width: 42px; height: 42px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #38bdf8); color: #ffffff; display: flex; align-items: center; justify-content: center; font-weight: 600; flex-shrink: 0; }
+                .admin-user-name { font-weight: 600; color: #000000; margin-bottom: 3px; }
+                .admin-user-email { color: #000000; font-size: 13px; }
+                .admin-badge { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 6px 10px; font-size: 12px; font-weight: 600; }
                 .admin-role-badge { background: #dbeafe; color: #1d4ed8; }
                 .admin-plan-badge { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
                 .admin-action-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-                .admin-action-select { border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 10px; outline: none; background: #ffffff; color: #0f172a; font-weight: 600; }
-                .admin-empty { text-align: center; padding: 40px 20px; color: #64748b; font-size: 15px; }
-                .admin-loading { text-align: center; padding: 40px 20px; color: #2563eb; font-size: 15px; font-weight: 700; }
+                .admin-action-select { border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 10px; outline: none; background: #ffffff; color: #000000; font-weight: 500; }
+                .admin-empty { text-align: center; padding: 40px 20px; color: #000000; font-size: 15px; }
+                .admin-loading { text-align: center; padding: 40px 20px; color: #2563eb; font-size: 15px; font-weight: 600; }
                 .admin-pagination { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-top: 1px solid #e2e8f0; background: #ffffff; }
-                .admin-pagination-info { color: #64748b; font-size: 14px; }
+                .admin-pagination-info { color: #000000; font-size: 14px; }
                 .admin-pagination-actions { display: flex; gap: 8px; }
 
                 /* CSS MODAL */
                 .admin-modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 9999; animation: fadeIn 0.2s ease; }
                 .admin-modal { background: #ffffff; border-radius: 24px; width: 100%; max-width: 480px; padding: 32px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); animation: scaleUp 0.2s ease; }
-                .admin-modal-title { font-size: 20px; font-weight: 900; color: #0f172a; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
+                .admin-modal-title { font-size: 20px; font-weight: 700; color: #000000; margin-bottom: 24px; border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; }
                 .form-group { margin-bottom: 20px; }
-                .form-label { display: block; font-size: 13px; font-weight: 800; color: #475569; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+                .form-label { display: block; font-size: 13px; font-weight: 600; color: #000000; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
                 .admin-modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px; }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes scaleUp { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -261,7 +261,7 @@ const UserManagement = () => {
                             <option value="pending">Chờ xác nhận</option>
                         </select>
 
-                        <button type="button" className="admin-btn admin-btn-secondary" onClick={handleResetFilter}>Làm mới</button>
+                        
                     </div>
                 </div>
 
@@ -320,7 +320,7 @@ const UserManagement = () => {
                                                         {statusLabels[user.status] || user.status}
                                                     </span>
                                                     {user.role === "candidate" && (
-                                                        <span className={`admin-badge uppercase border ${currentPlan === 'pro' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                                                        <span className={`admin-badge uppercase border ${currentPlan === 'pro' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-slate-50 text-slate-900 border-slate-200'}`}>
                                                             {planLabels[currentPlan]}
                                                         </span>
                                                     )}
@@ -330,11 +330,11 @@ const UserManagement = () => {
                                             <td>
                                                 {user.role === "business" ? (
                                                     <div>
-                                                        <strong className="text-blue-600 font-black text-lg">{currentTokens}</strong> 
-                                                        <span className="text-xs font-bold text-slate-400 ml-1">TK</span>
+                                                        <strong className="text-blue-800 font-bold text-lg">{currentTokens}</strong> 
+                                                        <span className="text-xs font-semibold text-slate-900 ml-1">TK</span>
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs text-slate-400 italic">Không áp dụng</span>
+                                                    <span className="text-xs text-slate-900 italic">Không áp dụng</span>
                                                 )}
                                             </td>
 
@@ -400,14 +400,14 @@ const UserManagement = () => {
                         </h3>
                         
                         <div className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                            <p className="text-sm text-slate-500 mb-1">Người dùng: <strong className="text-slate-800">{selectedUser.fullName || selectedUser.email}</strong></p>
-                            <p className="text-sm text-slate-500 mb-1">Vai trò: <strong className="text-slate-800 uppercase">{selectedUser.role}</strong></p>
+                            <p className="text-sm text-slate-900 mb-1">Người dùng: <strong className="text-slate-900">{selectedUser.fullName || selectedUser.email}</strong></p>
+                            <p className="text-sm text-slate-900 mb-1">Vai trò: <strong className="text-slate-900 uppercase">{selectedUser.role}</strong></p>
                             
                             {selectedUser.role === 'business' && (
-                                <p className="text-sm text-slate-500 mt-2 pt-2 border-t border-slate-200">Số dư Token hiện tại: <strong className="text-blue-600 text-lg">{selectedUser.businessCredits?.balance || 0}</strong></p>
+                                <p className="text-sm text-slate-900 mt-2 pt-2 border-t border-slate-200">Số dư Token hiện tại: <strong className="text-blue-600 text-lg">{selectedUser.businessCredits?.balance || 0}</strong></p>
                             )}
                             {selectedUser.role === 'candidate' && (
-                                <p className="text-sm text-slate-500 mt-2 pt-2 border-t border-slate-200">Gói hiện tại: <strong className="text-indigo-600 uppercase">{selectedUser.subscription?.plan || "free"}</strong></p>
+                                <p className="text-sm text-slate-900 mt-2 pt-2 border-t border-slate-200">Gói hiện tại: <strong className="text-indigo-600 uppercase">{selectedUser.subscription?.plan || "free"}</strong></p>
                             )}
                         </div>
 
@@ -444,7 +444,7 @@ const UserManagement = () => {
                                         onChange={(e) => setAddTokens(e.target.value)}
                                         required
                                     />
-                                    <p className="text-xs text-slate-500 mt-2 italic">
+                                    <p className="text-xs text-slate-900 mt-2 italic">
                                         * Nhập số dương để cộng thêm token, nhập số âm để trừ bớt token của doanh nghiệp.
                                     </p>
                                 </div>
