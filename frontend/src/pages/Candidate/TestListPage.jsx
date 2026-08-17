@@ -169,6 +169,12 @@ export default function TestListPage() {
                                         <div className="pt-5 mt-5 border-t border-slate-100">
                                             <button
                                                 onClick={() => {
+                                                    // FIX: Bắt Login tại đây
+                                                    if (!localStorage.getItem('token')) {
+                                                        toast.info('Vui lòng đăng nhập để bắt đầu làm bài!');
+                                                        navigate('/login');
+                                                        return;
+                                                    }
                                                     if(isPaid) {
                                                         alert('Chức năng thanh toán sẽ được tích hợp sau!');
                                                     } else {

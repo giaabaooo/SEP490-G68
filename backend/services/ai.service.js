@@ -178,16 +178,22 @@ exports.evaluateInterview = async (history, jobPosition) => {
         `${msg.role === 'user' ? 'Ứng viên' : 'Nhà tuyển dụng'}: ${msg.content}`
     ).join('\n');
 
+    // FIX: Thêm prompt nhắc nhở AI chấm điểm gắt gao với các câu trả lời sáo rỗng
     const prompt = `
-    Đóng vai là một chuyên gia tuyển dụng cao cấp. Hãy đánh giá cuộc phỏng vấn thử cho vị trí "${jobPosition}" dựa trên nội dung sau:
+    Đóng vai là một chuyên gia tuyển dụng cao cấp cực kỳ khắt khe. Hãy đánh giá cuộc phỏng vấn thử cho vị trí "${jobPosition}" dựa trên nội dung sau:
     
     --- BẮT ĐẦU HỘI THOẠI ---
     ${transcript}
     --- KẾT THÚC HỘI THOẠI ---
 
+    LUẬT CHẤM ĐIỂM NGHIÊM NGẶT:
+    1. Trọng tâm là phần trả lời của Ứng viên. KHÔNG LẤY CÂU HỎI CỦA NHÀ TUYỂN DỤNG ĐỂ CHẤM ĐIỂM.
+    2. Nếu ứng viên chỉ chào hỏi sơ sài, trả lời một vài từ không có ý nghĩa chuyên môn (VD: "dạ", "em không biết", "chào anh"), ĐIỂM TỐI ĐA CHỈ LÀ 15 ĐIỂM.
+    3. Chỉ cho trên 70 điểm nếu ứng viên đưa ra được ví dụ cụ thể, kiến thức thực tế hoặc giải quyết được vấn đề.
+
     Hãy trả về kết quả dưới dạng JSON chuẩn với cấu trúc sau:
     {
-        "score": 85,
+        "score": <Số điểm nguyên từ 0 đến 100>,
         "overview": "Nhận xét tổng quan ngắn gọn...",
         "strengths": ["Điểm mạnh 1", "Điểm mạnh 2"],
         "weaknesses": ["Điểm yếu 1", "Điểm yếu 2"],
@@ -196,14 +202,14 @@ exports.evaluateInterview = async (history, jobPosition) => {
     `;
 
     try {
-        return await generateWithFallback(prompt, true);
+        return await generateWithFallback(prompt, true, 0.2); // Hạ Temperature xuống 0.2 để AI tập trung logic hơn
     } catch (error) {
         console.error("Evaluation Error:", error);
         return {
             score: 0,
-            overview: "Hệ thống không thể đánh giá chi tiết lúc này do lỗi máy chủ.",
+            overview: "Hệ thống không thể đánh giá chi tiết lúc này do lỗi kết nối AI.",
             strengths: [],
-            weaknesses: [],
+            weaknesses: ["Chưa có dữ liệu do lỗi mạng"],
             improvements: ["Vui lòng thực hiện lại bài phỏng vấn"]
         };
     }

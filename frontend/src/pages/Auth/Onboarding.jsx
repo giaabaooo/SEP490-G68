@@ -1,309 +1,250 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-//  Import icon Users cho trường Quy mô công ty
-import { Check, Building, Mail, FileText, MapPin, Globe, ChevronRight, ArrowLeft, UploadCloud, Users } from 'lucide-react';
+import { 
+  Building2, User, MapPin, FileText, Phone, ChevronRight, ArrowLeft, CheckCircle2
+} from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 const Onboarding = () => {
   const navigate = useNavigate();
-  const [currentStep, setCurrentStep] = useState(1);
+  const [step, setStep] = useState(1);
+  const [role, setRole] = useState('candidate');
   const [loading, setLoading] = useState(false);
+  const [tempToken, setTempToken] = useState(null);
+  const [tempEmail, setTempEmail] = useState('');
 
-  //  Khai báo thêm city và companySize vào State
-  const [formData, setFormData] = useState({
-    otp: '',
-    taxCode: '',
-    licenseFile: null,
-    companyName: '',
-    website: '',
-    address: '',
-    city: '',
-    companySize: ''
-  });
+  const [otp, setOtp] = useState(Array(6).fill(''));
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  const [candidateData, setCandidateData] = useState({ phone: '', city: 'Hà Nội' });
+  const [businessData, setBusinessData] = useState({ companyName: '', taxCode: '', address: '', city: 'Hà Nội' });
 
-  const nextStep = () => {
-    if (currentStep === 1 && formData.otp.length < 6) {
-      toast.warning('Vui lòng nhập đủ 6 số OTP');
+  useEffect(() => {
+    // Chỉ cho phép vào trang này nếu có tempToken
+    const tkn = sessionStorage.getItem('tempToken');
+    const email = sessionStorage.getItem('tempEmail');
+    if (!tkn) {
+      navigate('/login', { replace: true });
       return;
     }
-    if (currentStep === 2 && !formData.taxCode) {
-      toast.warning('Vui lòng nhập Mã số thuế');
-      return;
-    }
-    setCurrentStep(prev => prev + 1);
+    setTempToken(tkn);
+    setTempEmail(email);
+  }, [navigate]);
+
+  const handleCandidateChange = (e) => setCandidateData({ ...candidateData, [e.target.name]: e.target.value });
+  const handleBusinessChange = (e) => setBusinessData({ ...businessData, [e.target.name]: e.target.value });
+
+  const handleOtpChange = (value, index) => {
+    if (value && !/^\d$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+    if (value && index < 5) setTimeout(() => document.getElementById(`otp-${index + 1}`)?.focus(), 0);
   };
 
-  const prevStep = () => {
-    setCurrentStep(prev => prev - 1);
+  const handleOtpKeyDown = (e, index) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) document.getElementById(`otp-${index - 1}`)?.focus();
+    if (e.key === 'ArrowLeft' && index > 0) document.getElementById(`otp-${index - 1}`)?.focus();
+    if (e.key === 'ArrowRight' && index < 5) document.getElementById(`otp-${index + 1}`)?.focus();
   };
 
-  const handleFinish = (e) => {
+  // Bước 2: Submit Form -> Gửi yêu cầu Backend phát OTP
+  const handleRequestOtp = async (e) => {
     e.preventDefault();
-    //  Validate yêu cầu nhập đủ Thành phố và Quy mô
-    if (!formData.companyName || !formData.address || !formData.city || !formData.companySize) {
-      toast.warning('Vui lòng điền đầy đủ các thông tin bắt buộc (*)');
-      return;
+
+    if (role === 'business') {
+      if (!businessData.companyName.trim() || !businessData.taxCode.trim() || !businessData.address.trim()) {
+        toast.warning('Vui lòng điền đầy đủ các trường thông tin doanh nghiệp bắt buộc');
+        return;
+      }
     }
-    
+
     setLoading(true);
-    setTimeout(() => {
+    try {
+      const payload = {
+        tempToken,
+        role,
+        ...(role === 'candidate' ? candidateData : businessData)
+      };
+
+      const res = await fetch('http://localhost:5000/api/auth/google-onboarding/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      setStep(3); // Sang bước nhập OTP
+      toast.success('Đã gửi OTP về email của bạn!');
+    } catch (err) {
+      toast.error(err.message || 'Lỗi gửi OTP');
+    } finally {
       setLoading(false);
-      toast.success('Xác minh doanh nghiệp thành công!');
-      
-      setTimeout(() => {
-        navigate('/bussiness/dashboard', { replace: true });
-      }, 1500);
-    }, 1500);
+    }
   };
 
-  const steps = [
-    { id: 1, title: 'Xác minh Email', icon: Mail },
-    { id: 2, title: 'Pháp lý', icon: FileText },
-    { id: 3, title: 'Hồ sơ Công ty', icon: Building }
-  ];
+  // Bước 3: Nhập OTP xong -> Submit để BE ghi vào DB
+  const handleVerifyComplete = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/google-onboarding/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: tempEmail, otp: otp.join('') })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      // Lưu Token thật, xóa temp
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      sessionStorage.removeItem('tempToken');
+      sessionStorage.removeItem('tempEmail');
+
+      toast.success('Hoàn tất thiết lập hồ sơ!');
+
+      setTimeout(() => {
+        if (role === 'business') {
+          navigate('/bussiness/dashboard', { replace: true });
+        } else {
+          navigate('/home', { replace: true });
+        }
+      }, 1500);
+
+    } catch (err) {
+      toast.error(err.message || 'OTP không hợp lệ');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} />
       <style>{`
-        .onboard-wrapper { min-height: 100vh; display: flex; justify-content: center; align-items: center; background: #f8fafc; padding: 20px; font-family: 'Inter', sans-serif; }
-        .onboard-card { background: #fff; width: 100%; max-width: 600px; padding: 40px; border-radius: 24px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.04); border: 1px solid #f1f5f9; }
+        /* CSS tương tự như mình đã cấp ở bản tối ưu trước, thêm style cho OTP Box */
+        .onboard-wrapper { min-height: 100vh; display: flex; justify-content: center; align-items: center; background: #f0f4f8; padding: 20px; font-family: 'Inter', sans-serif; }
+        .onboard-card { background: #ffffff; width: 100%; max-width: 680px; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .title-section { text-align: center; margin-bottom: 30px; }
+        .title-section h1 { font-size: 24px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
         
-        .stepper { display: flex; justify-content: space-between; position: relative; margin-bottom: 40px; }
-        .stepper::before { content: ''; position: absolute; top: 20px; left: 0; width: 100%; height: 2px; background: #e2e8f0; z-index: 1; }
-        .stepper-progress { position: absolute; top: 20px; left: 0; height: 2px; background: #3b82f6; z-index: 2; transition: width 0.4s ease; }
+        .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 30px; }
+        .role-card { border: 2px solid #e2e8f0; border-radius: 12px; padding: 20px; cursor: pointer; text-align: center; transition: all 0.2s; }
+        .role-card.selected { border-color: #3b82f6; background: #eff6ff; }
         
-        .step-item { position: relative; z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 8px; background: #fff; padding: 0 10px; }
-        .step-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; border: 2px solid #e2e8f0; background: #fff; color: #94a3b8; transition: all 0.3s; }
-        .step-item.active .step-circle { border-color: #3b82f6; background: #eff6ff; color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
-        .step-item.completed .step-circle { border-color: #3b82f6; background: #3b82f6; color: #fff; }
-        .step-title { font-size: 12px; font-weight: 600; color: #64748b; transition: color 0.3s; }
-        .step-item.active .step-title, .step-item.completed .step-title { color: #0f172a; }
-
-        .step-content { animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .input-group { margin-bottom: 16px; text-align: left; }
+        .input-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #334155;}
+        .input-wrapper input, .input-wrapper select { width: 100%; padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 10px; font-size: 14px; outline: none; }
         
-        .header-title { font-size: 24px; font-weight: 800; color: #0f172a; margin-bottom: 8px; text-align: center; }
-        .header-desc { font-size: 14px; color: #64748b; margin-bottom: 32px; text-align: center; line-height: 1.5; }
+        .btn-submit { width: 100%; padding: 14px; background: #3b82f6; color: #fff; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; transition: 0.2s; }
+        .btn-submit:hover { background: #2563eb; }
+        .btn-back { width: 100%; padding: 14px; background: #f1f5f9; color: #334155; font-weight: 600; border: none; border-radius: 10px; cursor: pointer; margin-top: 10px; }
         
-        .input-group { margin-bottom: 20px; }
-        .input-group label { display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px; }
-        .input-wrapper { position: relative; }
-        .input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; pointer-events: none; }
-        
-        /*  CSS cho cả input và select */
-        .input-wrapper input, .input-wrapper select { width: 100%; padding: 14px 16px 14px 44px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 14px; outline: none; background: #f8fafc; transition: all 0.2s; appearance: none; cursor: pointer; color: #0f172a; }
-        .input-wrapper input:focus, .input-wrapper select:focus { background: #ffffff; border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
-        .input-wrapper select:invalid { color: #94a3b8; }
-        
-        .otp-input input { padding-left: 16px; text-align: center; font-size: 24px; letter-spacing: 12px; font-weight: 700; cursor: text; }
-        
-        .upload-box { border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px; text-align: center; background: #f8fafc; cursor: pointer; transition: all 0.2s; }
-        .upload-box:hover { border-color: #3b82f6; background: #eff6ff; }
-        
-        .actions { display: flex; gap: 12px; margin-top: 32px; }
-        .btn-prev { flex: 1; padding: 14px; background: #f1f5f9; color: #475569; font-weight: 600; border-radius: 12px; border: none; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; }
-        .btn-prev:hover { background: #e2e8f0; color: #0f172a; }
-        .btn-next { flex: 2; padding: 14px; background: #3b82f6; color: #fff; font-weight: 600; border-radius: 12px; border: none; cursor: pointer; transition: all 0.2s; display: flex; justify-content: center; align-items: center; gap: 8px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25); }
-        .btn-next:hover { background: #2563eb; transform: translateY(-1px); }
-        .btn-next:disabled { opacity: 0.7; cursor: not-allowed; }
-        
-        /* Grid 2 cột cho Bước 3 */
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .otp-inputs { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        .otp-box { width: 50px; height: 60px; text-align: center; font-size: 24px; font-weight: bold; border: 2px solid #e2e8f0; border-radius: 10px; outline: none; }
+        .otp-box:focus { border-color: #3b82f6; }
       `}</style>
 
       <div className="onboard-wrapper">
         <div className="onboard-card">
           
-          {/* STEPPER HEADER */}
-          <div className="stepper">
-            <div className="stepper-progress" style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}></div>
-            {steps.map((step) => {
-              const Icon = step.icon;
-              return (
-                <div key={step.id} className={`step-item ${currentStep === step.id ? 'active' : ''} ${currentStep > step.id ? 'completed' : ''}`}>
-                  <div className="step-circle">
-                    {currentStep > step.id ? <Check size={18} /> : <Icon size={18} />}
-                  </div>
-                  <span className="step-title">{step.title}</span>
+          {step === 1 && (
+            <div style={{ animation: 'fadeIn 0.3s ease' }}>
+              <div className="title-section">
+                <h1>Chào mừng bạn đến với Careerio!</h1>
+                <p>Vui lòng chọn mục đích chính khi tham gia hệ thống.</p>
+              </div>
+              <div className="role-grid">
+                <div className={`role-card ${role === 'candidate' ? 'selected' : ''}`} onClick={() => setRole('candidate')}>
+                  <User size={30} style={{margin:'0 auto 10px', color: '#3b82f6'}} />
+                  <h3>Tôi là Ứng viên</h3>
                 </div>
-              );
-            })}
-          </div>
-
-          {/* STEP 1: XÁC MINH EMAIL */}
-          {currentStep === 1 && (
-            <div className="step-content">
-              <h2 className="header-title">Xác minh tài khoản</h2>
-              <p className="header-desc">Chúng tôi đã gửi mã OTP 6 số đến email của bạn. Vui lòng nhập mã để xác nhận đây là email công ty chính chủ.</p>
-              
-              <div className="input-group otp-input">
-                <label>Mã OTP</label>
-                <div className="input-wrapper">
-                  <input 
-                    type="text" 
-                    name="otp"
-                    maxLength="6"
-                    placeholder="••••••" 
-                    value={formData.otp}
-                    onChange={(e) => setFormData(prev => ({ ...prev, otp: e.target.value.replace(/[^0-9]/g, '') }))}
-                  />
+                <div className={`role-card ${role === 'business' ? 'selected' : ''}`} onClick={() => setRole('business')}>
+                  <Building2 size={30} style={{margin:'0 auto 10px', color: '#3b82f6'}} />
+                  <h3>Nhà tuyển dụng</h3>
                 </div>
               </div>
-              
-              <div className="actions" style={{ marginTop: '40px' }}>
-                <button className="btn-next" style={{ flex: 1 }} onClick={nextStep}>
-                  Xác nhận & Tiếp tục <ChevronRight size={18} />
-                </button>
-              </div>
+              <button className="btn-submit" onClick={() => setStep(2)}>Tiếp tục</button>
             </div>
           )}
 
-          {/* STEP 2: THÔNG TIN PHÁP LÝ */}
-          {currentStep === 2 && (
-            <div className="step-content">
-              <h2 className="header-title">Xác minh Pháp lý</h2>
-              <p className="header-desc">Để đảm bảo tính minh bạch trên Careerio, vui lòng cung cấp thông tin đăng ký kinh doanh của doanh nghiệp.</p>
-              
-              <div className="input-group">
-                <label>Mã số thuế (MST) <span style={{color: '#ef4444'}}>*</span></label>
-                <div className="input-wrapper">
-                  <FileText className="input-icon" size={18} />
-                  <input 
-                    type="text" 
-                    name="taxCode"
-                    placeholder="Nhập 10 hoặc 13 số..." 
-                    value={formData.taxCode}
-                    onChange={handleChange}
-                  />
-                </div>
+          {step === 2 && (
+            <form onSubmit={handleRequestOtp} style={{ animation: 'fadeIn 0.3s ease' }}>
+              <div className="title-section">
+                <h1>{role === 'candidate' ? 'Hồ sơ Ứng viên' : 'Thông tin Doanh nghiệp'}</h1>
               </div>
 
-              <div className="input-group">
-                <label>Giấy phép ĐKKD (Tùy chọn)</label>
-                <div className="upload-box">
-                  <UploadCloud size={32} color="#94a3b8" style={{ margin: '0 auto 12px' }} />
-                  <p style={{ fontSize: '14px', fontWeight: '600', color: '#475569', marginBottom: '4px' }}>Click để tải lên tài liệu</p>
-                  <p style={{ fontSize: '12px', color: '#94a3b8' }}>Hỗ trợ PDF, JPG, PNG (Tối đa 5MB)</p>
-                </div>
-              </div>
-              
-              <div className="actions">
-                <button className="btn-prev" onClick={prevStep}>
-                  <ArrowLeft size={18} /> Quay lại
-                </button>
-                <button className="btn-next" onClick={nextStep}>
-                  Tiếp tục <ChevronRight size={18} />
-                </button>
-              </div>
-            </div>
+              {role === 'candidate' ? (
+                <>
+                  <div className="input-group">
+                    <label>Số điện thoại liên hệ</label>
+                    <div className="input-wrapper"><input type="tel" name="phone" value={candidateData.phone} onChange={handleCandidateChange} placeholder="Nhập sđt..." required/></div>
+                  </div>
+                  <div className="input-group">
+                    <label>Khu vực làm việc</label>
+                    <div className="input-wrapper">
+                      <select name="city" value={candidateData.city} onChange={handleCandidateChange}>
+                        <option value="Hà Nội">Hà Nội</option>
+                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                        <option value="Đà Nẵng">Đà Nẵng</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="input-group">
+                    <label>Tên Công Ty *</label>
+                    <div className="input-wrapper"><input type="text" name="companyName" value={businessData.companyName} onChange={handleBusinessChange} required/></div>
+                  </div>
+                  <div className="input-group">
+                    <label>Mã Số Thuế *</label>
+                    <div className="input-wrapper"><input type="text" name="taxCode" value={businessData.taxCode} onChange={handleBusinessChange} required/></div>
+                  </div>
+                  <div className="input-group">
+                    <label>Khu Vực *</label>
+                    <div className="input-wrapper">
+                      <select name="city" value={businessData.city} onChange={handleBusinessChange}>
+                        <option value="Hà Nội">Hà Nội</option>
+                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="input-group">
+                    <label>Địa Chỉ Cụ Thể *</label>
+                    <div className="input-wrapper"><input type="text" name="address" value={businessData.address} onChange={handleBusinessChange} required/></div>
+                  </div>
+                </>
+              )}
+
+              <button type="submit" className="btn-submit" disabled={loading}>
+                {loading ? 'Đang gửi mã...' : 'Xác nhận & Nhận mã OTP'}
+              </button>
+              <button type="button" className="btn-back" onClick={() => setStep(1)} disabled={loading}>Quay lại</button>
+            </form>
           )}
 
-          {/* STEP 3: HỒ SƠ DOANH NGHIỆP */}
-          {currentStep === 3 && (
-            <div className="step-content">
-              <h2 className="header-title">Hồ sơ Công ty</h2>
-              <p className="header-desc">Thông tin này sẽ được hiển thị công khai cho các ứng viên trên nền tảng Careerio.</p>
-              
-              <div className="input-group">
-                <label>Tên Công ty hiển thị <span style={{color: '#ef4444'}}>*</span></label>
-                <div className="input-wrapper">
-                  <Building className="input-icon" size={18} />
-                  <input 
-                    type="text" 
-                    name="companyName"
-                    placeholder="VD: Công ty Cổ phần Công nghệ Careerio..." 
-                    value={formData.companyName}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              {/*  Grid 2 cột cho Thành phố và Quy mô */}
-              <div className="grid-2">
-                <div className="input-group">
-                  <label>Thành phố <span style={{color: '#ef4444'}}>*</span></label>
-                  <div className="input-wrapper">
-                    <MapPin className="input-icon" size={18} />
-                    <select 
-                      name="city" 
-                      value={formData.city} 
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="" disabled>Chọn thành phố</option>
-                      <option value="Hà Nội">Hà Nội</option>
-                      <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                      <option value="Đà Nẵng">Đà Nẵng</option>
-                      <option value="Cần Thơ">Cần Thơ</option>
-                      <option value="Khác">Khác...</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="input-group">
-                  <label>Quy mô <span style={{color: '#ef4444'}}>*</span></label>
-                  <div className="input-wrapper">
-                    <Users className="input-icon" size={18} />
-                    <select 
-                      name="companySize" 
-                      value={formData.companySize} 
-                      onChange={handleChange}
-                      required
-                    >
-                      <option value="" disabled>Chọn quy mô</option>
-                      <option value="1-9">1-9 nhân viên</option>
-                      <option value="10-49">10-49 nhân viên</option>
-                      <option value="50-199">50-199 nhân viên</option>
-                      <option value="200-499">200-499 nhân viên</option>
-                      <option value="500+">500+ nhân viên</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="input-group">
-                <label>Địa chỉ chi tiết <span style={{color: '#ef4444'}}>*</span></label>
-                <div className="input-wrapper">
-                  <MapPin className="input-icon" size={18} />
-                  <input 
-                    type="text" 
-                    name="address"
-                    placeholder="VD: Số 1, Tòa nhà ABC, Phường X..." 
-                    value={formData.address}
-                    onChange={handleChange}
-                  />
-                </div>
-              </div>
-
-              <div className="input-group">
-                <label>Website Công ty (Tùy chọn)</label>
-                <div className="input-wrapper">
-                  <Globe className="input-icon" size={18} />
-                  <input 
-                    type="url" 
-                    name="website"
-                    placeholder="https://www.example.com" 
-                    value={formData.website}
-                    onChange={handleChange}
-                  />
-                </div>
+          {step === 3 && (
+            <div style={{ animation: 'fadeIn 0.3s ease' }}>
+              <div className="title-section">
+                <h1>Xác thực Email</h1>
+                <p>Vui lòng nhập mã OTP vừa được gửi đến <b>{tempEmail}</b></p>
               </div>
               
-              <div className="actions">
-                <button className="btn-prev" onClick={prevStep} disabled={loading}>
-                  <ArrowLeft size={18} />
-                </button>
-                <button className="btn-next" onClick={handleFinish} disabled={loading}>
-                  {loading ? 'Đang thiết lập...' : 'Hoàn tất & Truy cập hệ thống'}
-                </button>
+              <div className="otp-inputs">
+                {[...Array(6)].map((_, index) => (
+                  <input key={index} id={`otp-${index}`} type="text" maxLength="1" className="otp-box" value={otp[index]}
+                    onChange={(e) => handleOtpChange(e.target.value, index)}
+                    onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                  />
+                ))}
               </div>
+
+              <button className="btn-submit" onClick={handleVerifyComplete} disabled={loading}>
+                {loading ? 'Đang xác thực...' : 'Hoàn tất'}
+              </button>
+              <button type="button" className="btn-back" onClick={() => setStep(2)} disabled={loading}>Quay lại</button>
             </div>
           )}
 
