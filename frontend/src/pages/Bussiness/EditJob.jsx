@@ -29,21 +29,21 @@ const TokenTopupModal = ({ isOpen, onClose }) => {
 };
 
 const EditJob = () => {
-  const { id } = useParams(); // Nếu là file Create.jsx thì bỏ dòng này đi
+  const { id } = useParams(); 
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(id ? true : false); // Nếu Create thì false
+  const [loading, setLoading] = useState(id ? true : false); 
   const [submitting, setSubmitting] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
 
+  // FIX: Thêm trường requirements vào formData
   const [formData, setFormData] = useState({
     title: '', salary: '', location: 'Hà Nội', type: 'Full-time', experience: 'Không yêu cầu kinh nghiệm',
-    deadline: '', tags: '', description: '', benefits: '', requireTest: false, moderatorEmail: '',
+    deadline: '', tags: '', description: '', requirements: '', benefits: '', requireTest: false, moderatorEmail: '',
     vacancies: 1, useAiReview: true, status: 'active'
   });
 
   const [categories, setCategories] = useState([{ name: '', weight: 100, isKey: false }]);
 
-  // CHỈ DÙNG TRONG EDIT JOB - NẾU CREATE THÌ BỎ QUA HOẶC ĐỂ TRỐNG
   useEffect(() => {
     if (!id) return;
     const fetchJob = async () => {
@@ -57,7 +57,10 @@ const EditJob = () => {
           title: data.title || '', location: data.location || '', type: data.type || '',
           experience: data.experience || '', salary: data.salary || '',
           deadline: data.deadline ? data.deadline.substring(0, 10) : data.recruitmentDeadline ? data.recruitmentDeadline.substring(0, 10) : '',
-          tags: data.tags ? data.tags.join(', ') : '', description: data.description || '',
+          tags: data.tags ? data.tags.join(', ') : '', 
+          description: data.description || '',
+          // FIX: Map dữ liệu requirements (Mảng -> Chuỗi nối bằng \n)
+          requirements: data.requirements ? data.requirements.join('\n') : '',
           benefits: data.benefits ? data.benefits.join('\n') : '',
           status: data.status ? data.status.toLowerCase() : 'active',
           requireTest: data.requireTest || false, moderatorEmail: data.moderatorEmail || '',
@@ -94,7 +97,7 @@ const EditJob = () => {
 
   const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault();
-    if (!formData.title || !formData.deadline || !formData.description) return toast.error('Vui lòng điền các trường bắt buộc (*)');
+    if (!formData.title || !formData.deadline || !formData.description || !formData.requirements) return toast.error('Vui lòng điền các trường bắt buộc (*)');
     
     const totalWeight = categories.reduce((sum, cat) => sum + Number(cat.weight), 0);
     if (totalWeight !== 100) return toast.error(`Tổng trọng số các tiêu chí phải bằng 100%. Hiện tại đang là ${totalWeight}%`);
@@ -105,11 +108,11 @@ const EditJob = () => {
     const token = localStorage.getItem('token');
     
     try {
-      const requirementsText = categories.map(c => `- ${c.name} (${c.weight}%${c.isKey ? ' - Trọng điểm' : ''})`).join('\n');
+      // FIX: Xóa việc override formData.requirements bằng chuỗi sinh ra từ Bands. Giữ nguyên formData.requirements người dùng nhập.
       const payload = { 
           ...formData, 
           tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''), 
-          requirements: requirementsText, requirementCategories: categories,
+          requirementCategories: categories,
           ...(isDraft !== undefined && !id ? { status: isDraft ? 'draft' : 'active' } : {}) 
       };
 
@@ -267,6 +270,12 @@ const EditJob = () => {
                 <div className="mb-5">
                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Mô tả công việc (JD) <span className="text-red-500">*</span></label>
                    <textarea required name="description" rows="5" value={formData.description} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Tham gia phát triển dự án..." />
+                </div>
+
+                {/* FIX: Thêm Input Yêu cầu ứng viên vào Giao diện */}
+                <div className="mb-5">
+                   <label className="block text-[13px] font-bold text-slate-700 mb-2">Yêu cầu ứng viên <span className="text-red-500">*</span></label>
+                   <textarea required name="requirements" rows="4" value={formData.requirements} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Kỹ năng chuyên môn, kinh nghiệm thực tế..." />
                 </div>
 
                 <div className="mb-5">

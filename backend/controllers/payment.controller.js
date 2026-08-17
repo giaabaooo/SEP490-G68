@@ -1,4 +1,3 @@
-// controllers/payment.controller.js
 const PayOS = require('@payos/node');
 const Transaction = require("../models/Transaction");
 const User = require("../models/User");
@@ -72,12 +71,16 @@ exports.handleWebhook = async (req, res) => {
 
     if (webhookData && webhookData.code === "00") {
       const orderCode = webhookData.orderCode;
-      const transaction = await Transaction.findOne({ orderCode });
+      
+      // FIX LỖI RACE CONDITION: Sử dụng Atomic Update
+      const transaction = await Transaction.findOneAndUpdate(
+        { orderCode: orderCode, status: "PENDING" }, // Điều kiện chặt chẽ: Chỉ lấy nếu đang PENDING
+        { $set: { status: "PAID" } },
+        { new: true }
+      );
 
-      if (transaction && transaction.status === "PENDING") {
-        transaction.status = "PAID";
-        await transaction.save();
-
+      // Nếu transaction là null, nghĩa là luồng kia (checkPaymentStatus) đã xử lý xong trước đó
+      if (transaction) {
         const user = await User.findById(transaction.userId);
         if (user) {
           if (transaction.planType === "CANDIDATE_PRO") {
@@ -99,6 +102,7 @@ exports.handleWebhook = async (req, res) => {
         }
       }
     }
+    // Dù thành công hay bị trùng lặp, vẫn phải phản hồi 200 OK cho PayOS để họ ngừng gửi lại Webhook
     return res.json({ success: true });
   } catch (error) {
     console.error("Lỗi Webhook PayOS:", error);
@@ -110,23 +114,35 @@ exports.handleWebhook = async (req, res) => {
 exports.checkPaymentStatus = async (req, res) => {
   try {
     const { orderCode } = req.query;
-    const transaction = await Transaction.findOne({ orderCode: Number(orderCode) });
+    
+    // Check trạng thái hiện tại (chưa update)
+    const currentTx = await Transaction.findOne({ orderCode: Number(orderCode) });
 
-    if (!transaction) {
+    if (!currentTx) {
       return res.status(404).json({ message: "Không tìm thấy giao dịch." });
     }
 
-    if (transaction.status === "PAID") {
+    if (currentTx.status === "PAID") {
       return res.json({ status: "PAID", message: "Giao dịch đã thanh toán thành công." });
     }
 
     // Double check với server PayOS nếu Webhook chưa kịp chạy
-    const paymentInfo = await payos.getPaymentLinkInformation(transaction.orderCode);
+    const paymentInfo = await payos.getPaymentLinkInformation(currentTx.orderCode);
 
     if (paymentInfo && paymentInfo.status === "PAID") {
-      transaction.status = "PAID";
-      await transaction.save();
+      // FIX LỖI RACE CONDITION: Tiếp tục sử dụng Atomic Update ở đây
+      const transaction = await Transaction.findOneAndUpdate(
+        { orderCode: Number(orderCode), status: "PENDING" },
+        { $set: { status: "PAID" } },
+        { new: true }
+      );
 
+      // Nếu transaction bị null ở đây, tức là hàm handleWebhook đã chạy xong và đổi trạng thái rồi
+      if (!transaction) {
+        return res.json({ status: "PAID", message: "Giao dịch đã được xử lý bởi Webhook." });
+      }
+
+      // Nếu chiếm quyền cập nhật thành công, tiến hành cộng Token/Kích hoạt gói
       const user = await User.findById(transaction.userId);
       if (user) {
         if (transaction.planType === "CANDIDATE_PRO") {
@@ -151,7 +167,7 @@ exports.checkPaymentStatus = async (req, res) => {
       return res.json({ status: "PAID", message: "Kích hoạt gói thành công!" });
     }
 
-    return res.json({ status: transaction.status });
+    return res.json({ status: currentTx.status });
   } catch (error) {
     console.error("Lỗi check status:", error);
     return res.status(500).json({ message: error.message });
@@ -180,6 +196,51 @@ exports.getUserUsageInfo = async (req, res) => {
       businessCredits: user.businessCredits,
     });
   } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+exports.getAllTransactions = async (req, res) => {
+  try {
+    // Chỉ Admin mới được xem
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ message: "Không có quyền truy cập" });
+    }
+
+    const { page = 1, limit = 10, search, status } = req.query;
+    const query = {};
+
+    // Tìm theo orderCode (Mã đơn hàng là số)
+    if (search && !isNaN(search)) {
+      query.orderCode = Number(search);
+    }
+
+    // Lọc theo trạng thái (PAID, PENDING, CANCELLED)
+    if (status) {
+      query.status = status;
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+
+    // Truy vấn Transaction, móc nối (populate) để lấy Tên và Email của User
+    const transactions = await Transaction.find(query)
+      .populate("userId", "fullName email")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Number(limit));
+
+    const total = await Transaction.countDocuments(query);
+
+    return res.json({
+      transactions,
+      pagination: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error("Lỗi lấy danh sách giao dịch:", error);
     return res.status(500).json({ message: error.message });
   }
 };

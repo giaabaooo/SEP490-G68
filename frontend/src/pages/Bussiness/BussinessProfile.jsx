@@ -145,7 +145,7 @@ const HRProfile = () => {
           border: 1px solid #e2e8f0;
           border-radius: 16px;
           box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
-          font-family: 'Inter', sans-serif;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
         .hr-profile-header {
           display: flex;
@@ -159,7 +159,7 @@ const HRProfile = () => {
           margin: 0;
           color: #0f172a;
           font-size: 24px;
-          font-weight: 800;
+          font-weight: 700;
         }
         .header-text p {
           margin: 6px 0 0;
@@ -188,7 +188,7 @@ const HRProfile = () => {
         .info-label {
           font-size: 12px;
           color: #64748b;
-          font-weight: 700;
+          font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.5px;
           margin-bottom: 6px;
@@ -273,7 +273,7 @@ const HRProfile = () => {
         <div className="info-grid">
           <div className="info-item full-width">
             <div className="info-label">Tên công ty</div>
-            <div className="info-value" style={{ fontSize: '18px', fontWeight: '700' }}>
+            <div className="info-value" style={{ fontSize: '18px', fontWeight: '600' }}>
               {profileData.companyName || <span style={{ color: '#94a3b8', fontStyle: 'italic', fontWeight: '400' }}>Chưa cập nhật</span>}
             </div>
           </div>
