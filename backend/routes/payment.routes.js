@@ -8,5 +8,5 @@ router.post("/create-payment-link", authMiddleware, paymentController.createPaym
 router.post("/webhook", paymentController.handleWebhook);
 router.get("/check-status", authMiddleware, paymentController.checkPaymentStatus);
 router.get("/my-usage", authMiddleware, paymentController.getUserUsageInfo);
-
+router.get("/transactions", authMiddleware, paymentController.getAllTransactions);
 module.exports = router;

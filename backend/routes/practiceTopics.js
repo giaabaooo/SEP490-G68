@@ -15,7 +15,7 @@ const isAdmin = (req, res, next) => {
 // ==========================================
 // --- API CHO CANDIDATE ---
 // ==========================================
-router.get('/', auth, practiceTopicController.list);
+router.get('/', practiceTopicController.list);
 router.get('/my-history', auth, practiceTopicController.getMyHistory); // Phải nằm trên /:id
 router.get('/:id', auth, practiceTopicController.getById);
 router.post('/:id/submit', auth, practiceTopicController.submitPractice); 

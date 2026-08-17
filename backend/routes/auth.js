@@ -15,7 +15,9 @@ router.post("/verify-reset-otp", authController.verifyResetOtp);
 router.post("/reset-password", authController.resetPassword);
 router.post("/login", authController.login);
 router.post("/google-login", authController.googleLogin);
-
+router.post('/google-onboarding/send-otp', authController.sendGoogleOnboardingOtp);
+router.post('/google-onboarding/complete', authController.completeGoogleOnboarding);
+router.post('/accept-invite', authController.acceptInvite);
 // User
 router.get("/me", auth, authController.getMe);
 router.post("/change-password", auth, authController.changePassword);

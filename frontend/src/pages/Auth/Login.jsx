@@ -82,55 +82,56 @@ const Login = () => {
 
   // FIX ĐIỀU HƯỚNG 3: Đăng nhập bằng Google
   const googleLogin = useGoogleLogin({
-    onSuccess: async (codeResponse) => {
-      try {
-        setLoading(true);
-        const response = await fetch('http://localhost:5000/api/auth/google-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token: codeResponse.access_token }),
-        });
+  onSuccess: async (codeResponse) => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:5000/api/auth/google-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: codeResponse.access_token }),
+      });
 
-        const data = await response.json();
+      const data = await response.json();
 
-        if (!response.ok) {
-          toast.error(data.message || 'Đăng nhập thất bại');
-          return;
-        }
-
-        if (data.isNewUser) {
-          sessionStorage.setItem('tempToken', data.token);
-          sessionStorage.setItem('isNewGoogleUser', 'true');
-          navigate('/onboarding', { replace: true });
-        } else {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-          toast.success('Đăng nhập thành công!');
-          
-          setTimeout(() => {
-            if (data.user.role === 'admin') {
-              navigate('/admin', { replace: true });
-            } else if (data.user.role === 'business') {
-              // KIỂM TRA SUBROLE Ở ĐÂY
-              if (data.user.subRole === 'moderator') {
-                navigate('/moderator/requests', { replace: true });
-              } else {
-                navigate('/bussiness/dashboard', { replace: true });
-              }
-            } else {
-              navigate('/home', { replace: true });
-            }
-          }, 800);
-        }
-      } catch (error) {
-        toast.error('Lỗi kết nối. Vui lòng thử lại');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        toast.error(data.message || 'Đăng nhập thất bại');
+        return;
       }
-    },
-    onError: () => toast.error('Lỗi Google Login. Vui lòng thử lại'),
-    flow: 'implicit'
-  });
+
+      // XỬ LÝ THEO API MỚI
+      if (data.isNewUser) {
+        // Lưu tempToken vào session để trang Onboarding dùng
+        sessionStorage.setItem('tempToken', data.tempToken);
+        sessionStorage.setItem('tempEmail', data.email); // Để hiển thị lúc gửi OTP
+        navigate('/onboarding', { replace: true });
+      } else {
+        // Tài khoản đã có sẵn (đăng ký từ trước hoặc đã gg login)
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        toast.success('Đăng nhập thành công!');
+        
+        setTimeout(() => {
+          if (data.user.role === 'admin') navigate('/admin', { replace: true });
+          else if (data.user.role === 'business') {
+            if (data.user.subRole === 'moderator') {
+              navigate('/moderator/requests', { replace: true });
+            } else {
+              navigate('/bussiness/dashboard', { replace: true });
+            }
+          } else {
+            navigate('/home', { replace: true });
+          }
+        }, 800);
+      }
+    } catch (error) {
+      toast.error('Lỗi kết nối. Vui lòng thử lại');
+    } finally {
+      setLoading(false);
+    }
+  },
+  onError: () => toast.error('Lỗi Google Login. Vui lòng thử lại'),
+  flow: 'implicit'
+});
 
   return (
     <>
@@ -234,11 +235,11 @@ const Login = () => {
                 {loading ? 'Đang xử lý...' : 'Đăng nhập vào hệ thống'}
               </button>
 
-              <div className="change-pass-wrapper">
+              {/* <div className="change-pass-wrapper">
                  <Link to="/change-password" className="action-link" style={{ color: '#64748b', fontSize: '12px' }}>
                    Bạn muốn đổi mật khẩu?
                  </Link>
-              </div>
+              </div> */}
             </form>
             
             <div className="divider-text">

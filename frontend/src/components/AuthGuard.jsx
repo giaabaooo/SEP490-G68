@@ -1,34 +1,19 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { toast } from 'react-toastify';
 
 const AuthGuard = () => {
-  // Đọc thông tin user từ localStorage
-  const userStr = localStorage.getItem('user');
   const token = localStorage.getItem('token');
+  const location = useLocation();
 
-  // Nếu chưa đăng nhập, đưa về trang Home (dành cho người qua đường)
-  if (!token || !userStr) {
-    return <Navigate to="/home" replace />;
+  if (!token) {
+    toast.info("Vui lòng đăng nhập để truy cập trang này!");
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  try {
-    const user = JSON.parse(userStr);
-    
-    // Điều hướng dựa trên role
-    if (user.role === 'admin') {
-      return <Navigate to="/admin" replace />;
-    } else if (user.role === 'business') {
-      // FIX LỖI TYPO: Đổi từ /business/dashboard thành /bussiness/dashboard (2 chữ s)
-      return <Navigate to="/bussiness/dashboard" replace />;
-    } else {
-      // Candidate hoặc mặc định
-      return <Navigate to="/home" replace />;
-    }
-  } catch (error) {
-    // Nếu lỗi parse JSON, ép đăng nhập lại
-    localStorage.clear();
-    return <Navigate to="/login" replace />;
-  }
+  // Bỏ qua các bước check phức tạp gây lỗi render, 
+  // nếu token hết hạn/lỗi thì các lệnh fetch API bên trong trang sẽ tự trả về 401.
+  return <Outlet />;
 };
 
 export default AuthGuard;

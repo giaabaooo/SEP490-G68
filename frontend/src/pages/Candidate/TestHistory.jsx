@@ -5,7 +5,7 @@ import { Clock, CheckCircle2, History, ChevronRight, FileText, Briefcase, Sparkl
 export default function TestHistory() {
     const [jobHistory, setJobHistory] = useState([]);
     const [practiceHistory, setPracticeHistory] = useState([]);
-    const [activeTab, setActiveTab] = useState('JOB'); // 'JOB' or 'PRACTICE'
+    const [activeTab, setActiveTab] = useState('JOB');
     const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
     
@@ -17,13 +17,11 @@ export default function TestHistory() {
             if (!token) return navigate('/login');
 
             try {
-                // Tải Lịch sử Job từ Backend
                 const resJob = await fetch(`${API_BASE}/api/applications/my-test-history`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (resJob.ok) setJobHistory(await resJob.json());
 
-                // TẢI LỊCH SỬ PRACTICE TỪ DATABASE API VỪA TẠO
                 const resPractice = await fetch(`${API_BASE}/api/practice-topics/my-history`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
@@ -44,7 +42,7 @@ export default function TestHistory() {
         return `${m}p ${s}s`;
     };
 
-    if (loading) return <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50"><span className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></span><p className="text-slate-500 font-bold">Đang tải dữ liệu...</p></div>;
+    if (loading) return <div className="min-h-screen flex flex-col justify-center items-center bg-slate-50"><span className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></span><p className="text-black font-bold">Đang tải dữ liệu...</p></div>;
 
     const displayData = activeTab === 'JOB' ? jobHistory : practiceHistory;
 
@@ -57,22 +55,21 @@ export default function TestHistory() {
                             <History className="w-7 h-7 text-indigo-600" />
                         </div>
                         <div>
-                            <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">Lịch sử Bài kiểm tra</h1>
-                            <p className="text-slate-500 font-medium text-sm">Quản lý điểm số các bài test chuyên môn và luyện tập.</p>
+                            <h1 className="text-2xl font-black text-black tracking-tight mb-1">Lịch sử Bài kiểm tra</h1>
+                            <p className="text-black font-medium text-sm">Quản lý điểm số các bài test chuyên môn và luyện tập.</p>
                         </div>
                     </div>
                     
-                    {/* TABS CONTROLLER */}
                     <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200">
                         <button 
                             onClick={() => setActiveTab('JOB')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'JOB' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'JOB' ? 'bg-white text-blue-600 shadow-sm' : 'text-black hover:text-black'}`}
                         >
                             <Briefcase className="w-4 h-4" /> Tuyển Dụng
                         </button>
                         <button 
                             onClick={() => setActiveTab('PRACTICE')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'PRACTICE' ? 'bg-white text-amber-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'PRACTICE' ? 'bg-white text-amber-600 shadow-sm' : 'text-black hover:text-black'}`}
                         >
                             <Sparkles className="w-4 h-4" /> AI Luyện Tập
                         </button>
@@ -83,9 +80,9 @@ export default function TestHistory() {
             <div className="max-w-4xl mx-auto px-4 mt-8 space-y-4">
                 {displayData.length === 0 ? (
                     <div className="bg-white rounded-3xl p-16 text-center border border-slate-200">
-                        <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                        <h3 className="text-xl font-bold text-slate-800 mb-2">Chưa có dữ liệu</h3>
-                        <p className="text-slate-500 text-sm">Bạn chưa hoàn thành bài {activeTab === 'JOB' ? 'kiểm tra ứng tuyển' : 'luyện tập'} nào.</p>
+                        <FileText className="w-16 h-16 text-black mx-auto mb-4" />
+                        <h3 className="text-xl font-bold text-black mb-2">Chưa có dữ liệu</h3>
+                        <p className="text-black text-sm">Bạn chưa hoàn thành bài {activeTab === 'JOB' ? 'kiểm tra ứng tuyển' : 'luyện tập'} nào.</p>
                     </div>
                 ) : (
                     displayData.map((app, idx) => {
@@ -102,23 +99,23 @@ export default function TestHistory() {
                                         ) : (
                                             <span className="bg-blue-50 text-blue-700 text-[10px] font-black uppercase px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"><Briefcase className="w-3 h-3" /> Ứng tuyển</span>
                                         )}
-                                        <span className="text-xs font-bold text-slate-400">{new Date(app.testSubmittedAt).toLocaleDateString('vi-VN')}</span>
+                                        <span className="text-xs font-bold text-black">{new Date(app.testSubmittedAt).toLocaleDateString('vi-VN')}</span>
                                     </div>
-                                    <h3 className={`text-lg font-black text-slate-800 group-hover:text-${themeColor}-600 transition-colors mb-1`}>{testName}</h3>
-                                    <p className="text-sm font-semibold text-slate-500 flex items-center gap-1.5"><CheckCircle2 className={`w-4 h-4 ${activeTab === 'PRACTICE' ? 'text-amber-500' : 'text-emerald-500'}`} /> {app.jobId?.title}</p>
+                                    <h3 className={`text-lg font-black text-black group-hover:text-${themeColor}-600 transition-colors mb-1`}>{testName}</h3>
+                                    <p className="text-sm font-semibold text-black flex items-center gap-1.5"><CheckCircle2 className={`w-4 h-4 ${activeTab === 'PRACTICE' ? 'text-amber-500' : 'text-emerald-500'}`} /> {app.jobId?.title}</p>
                                 </div>
 
                                 <div className="flex items-center gap-6 border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-100">
                                     <div className="text-center sm:text-right">
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">ĐIỂM SỐ</p>
-                                        <p className={`text-2xl font-black ${app.testScore >= 50 ? 'text-emerald-600' : 'text-rose-500'}`}>{app.testScore}<span className="text-sm text-slate-400">/100</span></p>
+                                        <p className="text-xs font-bold text-black uppercase tracking-widest mb-1">ĐIỂM SỐ</p>
+                                        <p className={`text-2xl font-black ${app.testScore >= 50 ? 'text-emerald-600' : 'text-rose-500'}`}>{app.testScore}<span className="text-sm text-black">/100</span></p>
                                     </div>
                                     <div className="hidden sm:block w-px h-10 bg-slate-200"></div>
                                     <div className="text-center sm:text-left">
-                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">THỜI GIAN</p>
-                                        <p className="text-sm font-black text-slate-700 flex items-center gap-1"><Clock className="w-4 h-4 text-slate-400" /> {formatDuration(app.testDuration)}</p>
+                                        <p className="text-xs font-bold text-black uppercase tracking-widest mb-1">THỜI GIAN</p>
+                                        <p className="text-sm font-black text-black flex items-center gap-1"><Clock className="w-4 h-4 text-black" /> {formatDuration(app.testDuration)}</p>
                                     </div>
-                                    <div className={`w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-${themeColor}-600 group-hover:text-white transition-colors ml-auto`}>
+                                    <div className={`w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-black group-hover:bg-${themeColor}-600 group-hover:text-white transition-colors ml-auto`}>
                                         <ChevronRight className="w-5 h-5" />
                                     </div>
                                 </div>
