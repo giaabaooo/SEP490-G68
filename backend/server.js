@@ -38,8 +38,8 @@ connectDB().then(async () => {
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
-  "https://sep-490-g68.vercel.app"
-  // Thêm domain Vercel của bạn vào đây sau khi deploy xong, ví dụ: "https://sep-490-g68.vercel.app"
+  "https://carreerio.vercel.app"
+  
 ];
 
 app.use(
