@@ -4,8 +4,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google'
 import './index.css'
 import App from './App.jsx'
 
-// TODO: Thay YOUR_GOOGLE_CLIENT_ID bằng Google Client ID của bạn
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '85545735397-mlfio0lptfqqpqqcfs50bnivc7cbk4su.apps.googleusercontent.com'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
