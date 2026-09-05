@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const HRProfile = () => {
   const token = localStorage.getItem('token');
 
@@ -30,7 +32,7 @@ const HRProfile = () => {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const response = await fetch('http://localhost:5000/api/profile', {
+        const response = await fetch(`${API_BASE}/api/profile`, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -93,7 +95,7 @@ const HRProfile = () => {
 
     try {
       // Lưu ý: Không gửi taxCode lên để update vì trường này cố định sau khi xác thực
-      const response = await fetch('http://localhost:5000/api/profile', {
+      const response = await fetch(`${API_BASE}/api/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

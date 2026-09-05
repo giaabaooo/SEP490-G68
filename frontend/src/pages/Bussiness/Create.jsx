@@ -7,6 +7,8 @@ import {
   CheckCircle2, AlertCircle, X, Sparkles, Plus, Trash2, Users, Info, Loader2
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const TokenTopupModal = ({ isOpen, onClose }) => {
     const navigate = useNavigate();
     if (!isOpen) return null;
@@ -69,7 +71,22 @@ const Create = () => {
 
   const handleSubmit = async (e, isDraft = false) => {
     e.preventDefault();
-    if (!formData.title || !formData.deadline || !formData.description) return toast.error('Vui lòng điền các trường bắt buộc (*)');
+    if (!formData.title?.trim()) return toast.error('Vui lòng nhập tiêu đề công việc (*)');
+    if (!formData.deadline) return toast.error('Vui lòng chọn hạn nộp hồ sơ (*)');
+    if (!formData.description?.trim()) return toast.error('Vui lòng nhập mô tả công việc (*)');
+
+    // Validate hạn nộp không được ở quá khứ
+    const deadlineDate = new Date(formData.deadline);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (deadlineDate < today) {
+      return toast.error('Hạn nộp hồ sơ không được là ngày trong quá khứ.');
+    }
+
+    // Validate số lượng tuyển
+    if (formData.vacancies !== undefined && Number(formData.vacancies) <= 0) {
+      return toast.error('Số lượng tuyển dụng phải lớn hơn 0.');
+    }
     
     // Validate tổng trọng số phải = 100%
     const totalWeight = categories.reduce((sum, cat) => sum + Number(cat.weight), 0);
@@ -78,7 +95,11 @@ const Create = () => {
     // Validate tên tiêu chí không được rỗng
     if (categories.some(c => !c.name.trim())) return toast.error('Tên tiêu chí không được để trống.');
 
-    if (formData.requireTest && !formData.moderatorEmail) return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test!');
+    if (formData.requireTest) {
+      if (!formData.moderatorEmail?.trim()) return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test!');
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.moderatorEmail.trim())) return toast.error('Email người kiểm duyệt không đúng định dạng.');
+    }
 
     setSubmitting(true);
     const token = localStorage.getItem('token');
@@ -95,7 +116,7 @@ const Create = () => {
           requirementCategories: categories 
       };
 
-      const res = await fetch('http://localhost:5000/api/jobs', {
+      const res = await fetch(`${API_BASE}/api/jobs`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify(payload)
       });
       const data = await res.json();

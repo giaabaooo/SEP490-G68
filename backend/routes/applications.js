@@ -58,4 +58,7 @@ router.put('/:id/status', auth, authorize(['business', 'admin']), applicationCon
 // Send notification to candidate
 router.post('/:id/notify', auth, authorize(['business', 'admin']), applicationController.sendNotification);
 
+// Re-evaluate application CV by AI according to Job bands
+router.post('/:id/re-evaluate', auth, authorize(['business', 'admin']), applicationController.reEvaluate);
+
 module.exports = router;

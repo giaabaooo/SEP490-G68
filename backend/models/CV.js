@@ -9,7 +9,12 @@ const cvSchema = new mongoose.Schema({
   design: {
     font: { type: String, default: 'Roboto' },
     color: { type: String, default: '#059669' },
-    lineSpacing: { type: Number, default: 1.5 }
+    lineSpacing: { type: Number, default: 1.5 },
+    layout: { type: String, default: 'classic' }
+  },
+  sectionOrder: {
+    type: [String],
+    default: ['objective', 'experience', 'education', 'activities', 'certificates', 'skills', 'hobbies']
   },
   data: {
     personal: {

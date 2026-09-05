@@ -1,27 +1,10 @@
 const Assessment = require('../models/Assessment');
 const Job = require('../models/Job');
+const User = require('../models/User');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Application = require('../models/Application');
-// Loại bỏ usageHelper ở đây vì ta sẽ xử lý manual cho an toàn
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
-async function generateWithFallback(prompt) {
-    const modelsToTry = ["gemini-2.5-pro", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]; 
-    let lastError;
-    for (const modelName of modelsToTry) {
-        try {
-            const model = genAI.getGenerativeModel({ model: modelName, generationConfig: { temperature: 0.7, responseMimeType: "application/json" } });
-            const result = await model.generateContent(prompt);
-            let text = await result.response.text();
-            text = text.replace(/```json/g, '').replace(/```/g, '').trim();
-            return JSON.parse(text);
-        } catch (error) {
-            console.warn(`⚠️ Model ${modelName} thất bại:`, error.message);
-            lastError = error;
-        }
-    }
-    throw new Error("API AI hiện không khả dụng, vui lòng thử lại sau.");
-}
+const { createNotification } = require('../utils/notificationHelper');
+const aiService = require('../services/ai.service');
 
 exports.generateAI = async (req, res) => {
     try {
@@ -41,7 +24,7 @@ exports.generateAI = async (req, res) => {
         const prompt = `Vai trò: Chuyên gia tuyển dụng IT. Chủ đề: "${topic}". Trình độ: ${difficulty}. Ngôn ngữ: Tiếng Việt. Số lượng: ${quantity} câu hỏi. Nhiệm vụ: Tạo bộ câu hỏi trắc nghiệm (MCQ) có 4 đáp án, 1 đáp án đúng. Trả về mảng JSON. Cấu trúc bắt buộc: [{"question": "Nội dung...", "options": ["A", "B", "C", "D"], "correctAnswer": 0}]`;
 
         // 2. GỌI AI XỬ LÝ
-        const aiData = await generateWithFallback(prompt);
+        const aiData = await aiService.generateWithFallback(prompt, true, 0.4);
         
         const questions = aiData.map(q => ({
             type: 'mcq', skill: topic, question: q.question,
@@ -71,7 +54,16 @@ exports.createAssessment = async (req, res) => {
         const savedTest = await newTest.save();
 
         if (status === 'PUBLISHED' && jobId) {
-            await Job.findByIdAndUpdate(jobId, { testStatus: 'approved', status: 'active' });
+            const updatedJob = await Job.findByIdAndUpdate(jobId, { testStatus: 'approved', status: 'active' }, { new: true });
+            if (updatedJob && updatedJob.recruiterId) {
+                await createNotification({
+                    userId: updatedJob.recruiterId,
+                    title: 'Bài test tuyển dụng đã được duyệt!',
+                    message: `Bài test cho vị trí "${updatedJob.title}" đã được duyệt và xuất bản. Tin tuyển dụng hiện đang hoạt động.`,
+                    type: 'job_approved',
+                    link: `/bussiness/dashboard`
+                });
+            }
         }
         res.json(savedTest);
     } catch (err) { res.status(500).json({ message: err.message }); }
@@ -88,7 +80,16 @@ exports.updateAssessment = async (req, res) => {
         const savedTest = await test.save();
 
         if (updates.status === 'PUBLISHED' && test.jobId) {
-            await Job.findByIdAndUpdate(test.jobId, { testStatus: 'approved', status: 'active' });
+            const updatedJob = await Job.findByIdAndUpdate(test.jobId, { testStatus: 'approved', status: 'active' }, { new: true });
+            if (updatedJob && updatedJob.recruiterId) {
+                await createNotification({
+                    userId: updatedJob.recruiterId,
+                    title: 'Bài test tuyển dụng đã được duyệt!',
+                    message: `Bài test cho vị trí "${updatedJob.title}" đã được duyệt và xuất bản. Tin tuyển dụng hiện đang hoạt động.`,
+                    type: 'job_approved',
+                    link: `/bussiness/dashboard`
+                });
+            }
         }
         res.json(savedTest);
     } catch (err) { res.status(500).json({ message: err.message }); }
@@ -148,7 +149,40 @@ exports.submitTest = async (req, res) => {
         application.testSubmittedAt = new Date();
         await application.save();
 
-        res.json({ message: "Nộp bài thành công!", score: score, correctCount, totalQuestions });
+        const populatedApp = await Application.findById(application._id)
+            .populate('jobId', 'title companyName recruitmentDeadline recruiterId')
+            .populate('assessmentId');
+
+        // Gửi thông báo cho ứng viên
+        await createNotification({
+            userId,
+            title: 'Hoàn thành bài kiểm tra năng lực',
+            message: `Bạn đã hoàn thành bài test cho vị trí "${populatedApp?.jobId?.title || 'công việc'}" với điểm số ${score}/100.`,
+            type: 'test_completed',
+            link: '/candidate/test-history',
+            relatedApplicationId: application._id
+        });
+
+        // Gửi thông báo cho nhà tuyển dụng
+        if (populatedApp?.jobId?.recruiterId) {
+            const candidateUser = await User.findById(userId).select('fullName');
+            await createNotification({
+                userId: populatedApp.jobId.recruiterId,
+                title: 'Ứng viên vừa hoàn thành bài test',
+                message: `Ứng viên ${candidateUser?.fullName || 'Một ứng viên'} vừa nộp bài test cho vị trí "${populatedApp.jobId.title}" với kết quả: ${score}/100.`,
+                type: 'test_completed',
+                link: `/bussiness/jobs/${populatedApp.jobId._id}/cvs`,
+                relatedApplicationId: application._id
+            });
+        }
+
+        res.json({ 
+            message: "Nộp bài thành công!", 
+            score: score, 
+            correctCount, 
+            totalQuestions, 
+            application: populatedApp || application 
+        });
     } catch (error) { res.status(500).json({ message: error.message }); }
 };
 

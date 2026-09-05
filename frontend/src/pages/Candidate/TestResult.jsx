@@ -270,6 +270,79 @@ export default function TestResult() {
                                 })}
                             </div>
                         </div>
+
+                        {/* GỢI Ý BƯỚC TIẾP THEO (NEXT ACTION RECOMMENDATIONS) */}
+                        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-8 text-white shadow-xl border border-indigo-900/50">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-6 border-b border-indigo-900/60">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center text-indigo-400 border border-indigo-500/30 shrink-0">
+                                        <Sparkles className="w-6 h-6 text-yellow-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-black text-white">Bước tiếp theo để bứt phá</h3>
+                                        <p className="text-xs sm:text-sm text-indigo-200">Hệ sinh thái AI Careerio giúp bạn sẵn sàng 100% trước nhà tuyển dụng.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setActiveTab('ROADMAP')}
+                                    className="px-4 py-2 bg-indigo-500/30 hover:bg-indigo-500/50 text-indigo-200 hover:text-white rounded-xl text-xs font-bold border border-indigo-500/40 transition-all flex items-center gap-1.5 self-start sm:self-center cursor-pointer"
+                                >
+                                    <Map className="w-4 h-4 text-indigo-400" /> Xem Lộ trình AI Roadmap
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* CARD 1: AI MOCK INTERVIEW */}
+                                <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all group">
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="px-3 py-1 bg-blue-500/20 text-blue-300 text-xs font-black uppercase rounded-lg border border-blue-500/30 flex items-center gap-1.5">
+                                                <Sparkles className="w-3.5 h-3.5" /> AI Interview
+                                            </span>
+                                            <span className="text-xs text-slate-400 font-medium">Giọng nói TTS 1:1</span>
+                                        </div>
+                                        <h4 className="text-lg font-black text-white mb-2 group-hover:text-blue-300 transition-colors">
+                                            Luyện Phỏng vấn thử với AI
+                                        </h4>
+                                        <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                                            Mô phỏng phỏng vấn thực chiến cho vị trí <strong>{app.jobId?.title || test?.topicName || 'công việc'}</strong>. AI đặt câu hỏi có giọng nói, chấm điểm và gợi ý cải thiện.
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => navigate('/candidate/ai-interview', { 
+                                            state: { jobPosition: app.jobId?.title || test?.topicName || '' } 
+                                        })}
+                                        className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        Bắt đầu phỏng vấn ngay <ArrowRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                {/* CARD 2: PRACTICE TESTS */}
+                                <div className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-500/50 rounded-2xl p-6 flex flex-col justify-between transition-all group">
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <span className="px-3 py-1 bg-amber-500/20 text-amber-300 text-xs font-black uppercase rounded-lg border border-amber-500/30 flex items-center gap-1.5">
+                                                <BookOpen className="w-3.5 h-3.5" /> Thư viện Test
+                                            </span>
+                                            <span className="text-xs text-slate-400 font-medium">Đa lĩnh vực</span>
+                                        </div>
+                                        <h4 className="text-lg font-black text-white mb-2 group-hover:text-amber-300 transition-colors">
+                                            Luyện tập thêm Đề chuyên môn
+                                        </h4>
+                                        <p className="text-sm text-slate-300 leading-relaxed mb-6">
+                                            Củng cố những câu hỏi vừa làm sai với hàng loạt bộ đề trắc nghiệm chuyên sâu (ReactJS, Node.js, JavaScript, HTML/CSS...).
+                                        </p>
+                                    </div>
+                                    <button
+                                        onClick={() => navigate('/candidate/tests')}
+                                        className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl shadow-lg shadow-amber-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                    >
+                                        Vào Ngân hàng luyện tập <ArrowRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
 
