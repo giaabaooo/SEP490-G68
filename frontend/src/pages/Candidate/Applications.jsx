@@ -14,7 +14,16 @@ const Applications = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const appsPerPage = 5;
 
-  const getPublicCvUrl = (cv) => cv ? (cv.startsWith('http') ? cv : `${API_BASE}${cv}`) : null;
+  const getPublicCvUrl = (cv, appliedCvId) => {
+    const target = cv || appliedCvId;
+    if (!target) return null;
+    if (/^[0-9a-fA-F]{24}$/.test(target)) {
+      return `${API_BASE}/api/cv/view/${target}`;
+    }
+    if (target.startsWith('http')) return target;
+    if (target.startsWith('/')) return `${API_BASE}${target}`;
+    return `${API_BASE}/${target}`;
+  };
 
   useEffect(() => {
     const fetchApplications = async () => {
@@ -99,7 +108,7 @@ const Applications = () => {
               const jobTitle = app.jobId?.title || 'Chưa cập nhật vị trí';
               const appliedDate = new Date(app.appliedAt || app.createdAt || Date.now());
               const updatedDate = new Date(app.updatedAt || app.createdAt || Date.now());
-              const cvUrl = getPublicCvUrl(app.appliedCvFileUrl || app.userId?.cvUrl);
+              const cvUrl = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl);
               const isExpanded = expandedCards[app._id || app.id];
               
               const statusData = getStatusData(app.status);

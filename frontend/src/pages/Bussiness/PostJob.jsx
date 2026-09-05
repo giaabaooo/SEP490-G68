@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Edit3, Loader2, AlertCircle, Users, ExternalLink, UserCheck, Clock } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const PostJob = () => {
   const navigate = useNavigate();
   const [jobs, setJobs] = useState([]);
@@ -16,14 +18,14 @@ const PostJob = () => {
       if (!token) return navigate('/login');
 
       try {
-        const res = await fetch('http://localhost:5000/api/jobs', {
+        const res = await fetch(`${API_BASE}/api/jobs`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Không thể tải danh sách công việc');
         setJobs(Array.isArray(data) ? data : []);
 
-        const appRes = await fetch('http://localhost:5000/api/applications?limit=1000', {
+        const appRes = await fetch(`${API_BASE}/api/applications?limit=1000`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (appRes.ok) {

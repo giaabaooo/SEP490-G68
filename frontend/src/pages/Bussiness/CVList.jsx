@@ -1,83 +1,120 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Eye, CheckCircle, XCircle, Download, Sparkles, Clock, ArrowLeft, DownloadCloud, X, ThumbsUp, AlertTriangle } from 'lucide-react';
+import { Search, Filter, Eye, CheckCircle, XCircle, Download, Sparkles, Clock, ArrowLeft, DownloadCloud, X, ThumbsUp, AlertTriangle, RefreshCw, Layers } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 
-const AiDetailModal = ({ isOpen, onClose, data, candidateName }) => {
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+const AiDetailModal = ({ isOpen, onClose, data, candidateName, onReEvaluate, isReEvaluating }) => {
     if (!isOpen || !data) return null;
     
     const details = data.aiMatchDetails || {};
     const categoryScores = details.categoryScores || [];
 
-    const sortedCategories = [...categoryScores].sort((a, b) => b.weightedScore - a.weightedScore);
+    const sortedCategories = [...categoryScores].sort((a, b) => (b.weight || 0) - (a.weight || 0));
 
     return (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in" onClick={e => e.stopPropagation()}>
-                <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl animate-scale-in border border-slate-200" onClick={e => e.stopPropagation()}>
+                <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center shrink-0 bg-slate-50/50 rounded-t-3xl">
                     <div>
-                        <h3 className="text-xl font-black text-black flex items-center gap-2">
-                            <Sparkles className="w-5 h-5 text-blue-600" /> Báo cáo phân tích AI
+                        <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                            <Sparkles className="w-5 h-5 text-blue-600" /> Báo cáo phân tích AI theo Bands
                         </h3>
-                        <p className="text-sm text-black font-medium">Ứng viên: <strong className="text-black">{candidateName}</strong></p>
+                        <p className="text-sm text-slate-600 font-medium">Ứng viên: <strong className="text-slate-900">{candidateName}</strong></p>
                     </div>
-                    <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"><X className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-3">
+                        {onReEvaluate && (
+                            <button
+                                type="button"
+                                onClick={() => onReEvaluate(data._id || data.id)}
+                                disabled={isReEvaluating}
+                                title="Yêu cầu AI chấm lại CV theo các Bands mới nhất của Job này"
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 font-bold text-xs border border-blue-200 transition-all cursor-pointer disabled:opacity-50 shadow-2xs"
+                            >
+                                <RefreshCw className={`w-3.5 h-3.5 text-blue-600 ${isReEvaluating ? 'animate-spin' : ''}`} />
+                                <span>{isReEvaluating ? 'Đang chấm lại...' : 'Chấm lại theo Bands mới'}</span>
+                            </button>
+                        )}
+                        <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors cursor-pointer"><X className="w-4 h-4 text-slate-600" /></button>
+                    </div>
                 </div>
 
-                <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                <div className="p-8 overflow-y-auto custom-scrollbar flex-1 space-y-6">
                     
-                    <div className="mb-8">
-                        <h4 className="text-sm font-black text-black uppercase tracking-widest mb-2 border-b border-slate-200 pb-3 flex justify-between items-end">
-                            <span>Chi tiết điểm theo từng hạng mục</span>
-                            <span className="text-xs text-black font-medium normal-case">Đã sắp xếp theo mức độ ưu tiên</span>
+                    <div>
+                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-wider mb-4 border-b border-slate-200 pb-2.5 flex justify-between items-end">
+                            <span className="flex items-center gap-2"><Layers className="w-4 h-4 text-indigo-600" /> Đánh giá chi tiết từng đầu mục (Bands)</span>
+                            <span className="text-xs text-slate-500 font-semibold normal-case">Thang điểm 100 cho mỗi tiêu chí</span>
                         </h4>
                         
-                        <div className="space-y-0">
-                            {sortedCategories.length > 0 ? sortedCategories.map((cat, idx) => (
-                                <div key={idx} className="flex flex-col sm:flex-row justify-between items-start sm:items-center py-5 border-b border-slate-100 hover:bg-slate-50 transition-colors px-3 rounded-xl">
-                                    <div className="flex-1 pr-4">
-                                        <div className="flex items-center gap-2 mb-1.5">
-                                            <span className="font-bold text-black">{cat.name}</span>
-                                            {cat.isKey && <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded uppercase border border-amber-200">Trọng điểm</span>}
+                        <div className="space-y-3.5">
+                            {sortedCategories.length > 0 ? sortedCategories.map((cat, idx) => {
+                                const rawScore = cat.rawScore !== undefined ? cat.rawScore : (cat.score ?? 0);
+                                const weight = cat.weight ?? 0;
+                                const weightedScore = cat.weightedScore !== undefined ? Number(cat.weightedScore).toFixed(1) : ((rawScore * weight) / 100).toFixed(1);
+                                return (
+                                <div key={idx} className="p-4 sm:p-5 border border-slate-200 rounded-2xl bg-white hover:border-blue-300 hover:shadow-xs transition-all">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <span className="font-bold text-slate-900 text-sm">{cat.name}</span>
+                                            {cat.isKey && (
+                                                <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-md uppercase border border-amber-200 shadow-2xs">
+                                                    Trọng điểm
+                                                </span>
+                                            )}
                                         </div>
-                                        <p className="text-sm text-black font-medium leading-relaxed">"{cat.feedback}"</p>
+                                        <div className="flex items-center gap-2.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200/80 text-xs font-semibold shrink-0">
+                                            <span>Điểm đạt: <strong className={`font-black text-sm ${rawScore >= 80 ? 'text-blue-600' : rawScore >= 50 ? 'text-emerald-600' : 'text-rose-600'}`}>{rawScore}/100</strong></span>
+                                            <span className="text-slate-300">|</span>
+                                            <span className="text-slate-600">Trọng số: <strong className="text-slate-800">{weight}%</strong></span>
+                                            <span className="text-slate-300">|</span>
+                                            <span className="text-indigo-700 font-bold">Quy đổi: +{weightedScore} đ</span>
+                                        </div>
                                     </div>
-                                    <div className="mt-3 sm:mt-0 text-right shrink-0 bg-white p-3 rounded-lg border border-slate-100 shadow-sm min-w-[140px]">
-                                        <div className="text-sm font-bold text-black mb-1">
-                                            Điểm gốc: <span className={`font-black ${cat.rawScore >= 80 ? 'text-blue-600' : cat.rawScore >= 50 ? 'text-emerald-600' : 'text-rose-600'}`}>{cat.rawScore}/100</span>
-                                        </div>
-                                        <div className="text-xs font-medium text-black">
-                                            Trọng số: {cat.weight}% <br/>
-                                            <span className="inline-block mt-1 pt-1 border-t border-slate-100 w-full text-black font-black">
-                                                Quy đổi: +{cat.weightedScore.toFixed(1)} đ
-                                            </span>
-                                        </div>
+
+                                    {/* Thanh tiến trình điểm của đầu mục */}
+                                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden mb-3">
+                                        <div 
+                                            className={`h-full rounded-full transition-all duration-500 ${rawScore >= 80 ? 'bg-blue-600' : rawScore >= 50 ? 'bg-emerald-500' : 'bg-rose-500'}`} 
+                                            style={{ width: `${Math.min(100, Math.max(0, rawScore))}%` }}
+                                        ></div>
                                     </div>
+
+                                    <p className="text-xs md:text-sm text-slate-700 font-medium leading-relaxed bg-slate-50/80 p-3 rounded-xl border border-slate-100">
+                                        "{cat.feedback || 'Chưa có nhận xét.'}"
+                                    </p>
                                 </div>
-                            )) : (
-                                <p className="py-4 text-sm text-black italic">Không có dữ liệu chi tiết hạng mục.</p>
+                                );
+                            }) : (
+                                <p className="py-4 text-sm text-slate-500 italic text-center">Chưa có dữ liệu phân tích từng đầu mục.</p>
                             )}
                         </div>
 
-                        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-2xl p-6 flex justify-between items-center shadow-sm">
+                        {/* Tổng điểm Matching / 100 ở ngay bên dưới */}
+                        <div className="mt-5 bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50/40 border border-blue-200 rounded-2xl p-6 flex justify-between items-center shadow-xs">
                             <div>
-                                <h4 className="text-xl font-black text-blue-900 mb-1">Tổng điểm Matching</h4>
-                                <p className="text-sm text-blue-700 font-medium">Tính dựa trên tổng điểm quy đổi của các hạng mục</p>
+                                <h4 className="text-xl font-black text-blue-950 mb-1 flex items-center gap-2">
+                                    <Sparkles className="w-5 h-5 text-blue-600" /> Tổng điểm Matching
+                                </h4>
+                                <p className="text-xs md:text-sm text-blue-800 font-medium">
+                                    Tính dựa trên tổng điểm quy đổi theo trọng số của các đầu mục Bands trên thang điểm 100
+                                </p>
                             </div>
-                            <div className="text-5xl font-black text-blue-700 tracking-tighter">
-                                {data.aiScore || 0}<span className="text-2xl text-blue-500 font-bold ml-1">/ 100</span>
+                            <div className="text-4xl md:text-5xl font-black text-blue-700 tracking-tighter shrink-0 pl-4">
+                                {data.aiScore || 0}<span className="text-xl md:text-2xl text-blue-500 font-bold ml-1">/ 100</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100">
-                            <h4 className="font-black text-emerald-800 text-base mb-3 flex items-center gap-2"><ThumbsUp className="w-5 h-5"/> Nên gọi phỏng vấn</h4>
-                            <p className="text-sm text-emerald-700 font-medium leading-relaxed">{details.reasonToHire || 'Chưa có nhận xét.'}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+                        <div className="bg-emerald-50/80 p-6 rounded-2xl border border-emerald-200/90 shadow-2xs">
+                            <h4 className="font-black text-emerald-800 text-base mb-2 flex items-center gap-2"><ThumbsUp className="w-5 h-5 text-emerald-600"/> Nên gọi phỏng vấn</h4>
+                            <p className="text-xs md:text-sm text-emerald-900 font-medium leading-relaxed">{details.reasonToHire || 'Chưa có nhận xét.'}</p>
                         </div>
-                        <div className="bg-rose-50 p-6 rounded-2xl border border-rose-100">
-                            <h4 className="font-black text-rose-800 text-base mb-3 flex items-center gap-2"><AlertTriangle className="w-5 h-5"/> Rủi ro / Điểm yếu</h4>
-                            <p className="text-sm text-rose-700 font-medium leading-relaxed">{details.reasonToReject || 'Chưa có nhận xét.'}</p>
+                        <div className="bg-rose-50/80 p-6 rounded-2xl border border-rose-200/90 shadow-2xs">
+                            <h4 className="font-black text-rose-800 text-base mb-2 flex items-center gap-2"><AlertTriangle className="w-5 h-5 text-rose-600"/> Rủi ro / Điểm yếu</h4>
+                            <p className="text-xs md:text-sm text-rose-900 font-medium leading-relaxed">{details.reasonToReject || 'Chưa có nhận xét.'}</p>
                         </div>
                     </div>
 
@@ -91,7 +128,8 @@ const CVList = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const currentJobId = searchParams.get('jobId');
+  const { jobId: paramJobId } = useParams();
+  const currentJobId = searchParams.get('jobId') || paramJobId;
 
   const [applications, setApplications] = useState([]);
   const [deduplicatedApps, setDeduplicatedApps] = useState([]); 
@@ -165,11 +203,13 @@ const CVList = () => {
     return () => clearTimeout(t);
   }, [search]);
 
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
-
-  const getPublicCvUrl = (cv) => {
-    if (!cv) return null;
-    return cv.startsWith('http') ? cv : `${API_BASE}${cv}`;
+  const getPublicCvUrl = (cv, appliedCvId) => {
+    const target = cv || appliedCvId;
+    if (!target) return null;
+    if (/^[0-9a-fA-F]{24}$/.test(target)) return `${API_BASE}/api/cv/view/${target}`;
+    if (target.startsWith('http')) return target;
+    if (target.startsWith('/')) return `${API_BASE}${target}`;
+    return `${API_BASE}/${target}`;
   };
 
   const fetchApplications = useCallback(async (signal) => {
@@ -329,9 +369,45 @@ const CVList = () => {
     }
   };
 
+  const [isReEvaluating, setIsReEvaluating] = useState(false);
+
+  const handleReEvaluate = async (appId) => {
+    if (!appId) return;
+    try {
+      setIsReEvaluating(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/applications/${appId}/re-evaluate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || 'Lỗi khi chấm lại');
+      toast.success(json.message || 'Đã chấm lại theo Bands thành công!');
+      if (json.data) {
+        setSelectedAiData(json.data);
+        setApplications(prev => prev.map(a => (a._id || a.id) === appId ? { ...a, ...json.data } : a));
+        setDeduplicatedApps(prev => prev.map(a => (a._id || a.id) === appId ? { ...a, ...json.data } : a));
+      }
+    } catch (err) {
+      toast.error(err.message || 'Không thể chấm lại');
+    } finally {
+      setIsReEvaluating(false);
+    }
+  };
+
   return (
     <div className="animate-fade-in pb-12">
-      <AiDetailModal isOpen={aiModalOpen} onClose={() => setAiModalOpen(false)} data={selectedAiData} candidateName={selectedAiData?.userId?.fullName} />
+      <AiDetailModal 
+        isOpen={aiModalOpen} 
+        onClose={() => setAiModalOpen(false)} 
+        data={selectedAiData} 
+        candidateName={selectedAiData?.userId?.fullName} 
+        onReEvaluate={handleReEvaluate}
+        isReEvaluating={isReEvaluating}
+      />
 
       <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-200 mb-8">
         <div className="flex items-center gap-4 mb-6">
@@ -412,7 +488,7 @@ const CVList = () => {
 
                         <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
                             <div className="flex gap-1">
-                              <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-1.5 bg-slate-50 text-black rounded-lg hover:bg-slate-100" title="Xem CV"><Eye className="w-3.5 h-3.5" /></button>
+                              <button onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-1.5 bg-slate-50 text-black rounded-lg hover:bg-slate-100" title="Xem CV"><Eye className="w-3.5 h-3.5" /></button>
                               <button onClick={() => handleOpenNotifyModal(app)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white" title="Gửi thông báo"><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
                             </div>
                             <div className="flex gap-1">
@@ -498,7 +574,7 @@ const CVList = () => {
 
                     <td className="p-5 pr-6 text-center">
                       <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { const url = getPublicCvUrl(app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors"><Eye className="w-4 h-4" /></button>
+                        <button onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors" title="Xem CV"><Eye className="w-4 h-4" /></button>
                         <button onClick={() => handleOpenNotifyModal(app)} className="p-2.5 bg-slate-50 text-black rounded-xl hover:bg-slate-200 transition-colors"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
                         <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors"><CheckCircle className="w-4 h-4" /></button>
                         <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors"><XCircle className="w-4 h-4" /></button>

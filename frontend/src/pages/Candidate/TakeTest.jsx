@@ -52,7 +52,7 @@ export default function TakeTest() {
         if (timeLeft > 0 && !isSubmitting) {
             timerRef.current = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
         } else if (timeLeft === 0 && test && !isSubmitting) {
-            handleSubmitTest();
+            handleSubmitTest(true);
         }
         return () => clearInterval(timerRef.current);
     }, [timeLeft, isSubmitting, test]);
@@ -67,7 +67,18 @@ export default function TakeTest() {
         setAnswers(prev => ({ ...prev, [qIndex]: optionIndex }));
     };
 
-    const handleSubmitTest = async () => {
+    const handleSubmitTest = async (isAuto = false) => {
+        if (!isAuto && test?.questions) {
+            const answeredCount = Object.keys(answers).length;
+            const totalQ = test.questions.length;
+            if (answeredCount < totalQ) {
+                const unAnswered = totalQ - answeredCount;
+                if (!window.confirm(`Bạn còn ${unAnswered} câu chưa trả lời. Bạn có chắc chắn muốn nộp bài ngay không?`)) {
+                    return;
+                }
+            }
+        }
+
         setIsSubmitting(true);
         clearInterval(timerRef.current);
         const durationTaken = (test.timeLimit * 60) - timeLeft;
@@ -102,7 +113,11 @@ export default function TakeTest() {
                 if (!res.ok) throw new Error(data.message);
 
                 toast.success('Nộp bài ứng tuyển thành công!');
-                navigate('/candidate/test-history');
+                if (data.application) {
+                    navigate('/candidate/test-result', { state: { app: data.application } });
+                } else {
+                    navigate('/candidate/test-history');
+                }
             }
         } catch (error) {
             toast.error(error.message || 'Lỗi khi nộp bài');
