@@ -3,7 +3,7 @@ import { toast, ToastContainer } from "react-toastify";
 import { Receipt, Search, RefreshCw, ChevronLeft, ChevronRight, CheckCircle2, Clock, XCircle, CreditCard, Sparkles } from "lucide-react";
 import "react-toastify/dist/ReactToastify.css";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
 const planLabels = {
     CANDIDATE_PRO: "Gói Pro Candidate (30 Ngày)",
@@ -35,7 +35,7 @@ const PaymentManagement = () => {
     const fetchTransactions = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${API_BASE_URL}/payment/transactions?${buildQueryString()}`, {
+            const response = await fetch(`${API_BASE}/api/payment/transactions?${buildQueryString()}`, {
                 method: "GET",
                 headers: { Authorization: `Bearer ${token}` },
             });

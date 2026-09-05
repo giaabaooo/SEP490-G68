@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, DollarSign, Briefcase, Clock, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle, Sparkles, ThumbsUp, AlertTriangle, ArrowRight, History, Users, Tag } from 'lucide-react';
+import { MapPin, DollarSign, Briefcase, Clock, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle, Sparkles, ThumbsUp, AlertTriangle, ArrowRight, History, Users, Tag, Mic, Bot } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
 
@@ -42,6 +42,10 @@ const JobDetail = () => {
   
   const [modalOpen, setModalOpen] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false); 
+  const [upgradeModalContent, setUpgradeModalContent] = useState({
+    title: 'Hết lượt phân tích CV',
+    message: 'Mỗi tài khoản miễn phí chỉ có 2 lượt phân tích CV bằng AI mỗi tháng. Vui lòng nâng cấp gói Pro để sử dụng 50 lượt phân tích chuyên sâu!'
+  });
   const [modalStage, setModalStage] = useState('select_cv'); 
   const [wizardMode, setWizardMode] = useState('apply'); // 'apply' hoặc 'review'
   
@@ -110,6 +114,33 @@ const JobDetail = () => {
   const usedCvReview = usageInfo?.subscription?.usage?.cvReviewCount || 0;
   const remainCvReview = Math.max(0, limitCvReview - usedCvReview);
 
+  const limitInterview = isPro ? 180 : 15;
+  const usedInterview = usageInfo?.subscription?.usage?.mockInterviewMinutes || 0;
+  const remainInterview = Math.max(0, limitInterview - usedInterview);
+
+  const handleGoToAIInterview = () => {
+    const token = localStorage.getItem('token');
+    if (!token || !currentUser) {
+        toast.info('Vui lòng đăng nhập để sử dụng tính năng Phỏng vấn AI!');
+        navigate('/login');
+        return;
+    }
+    if (currentUser.role !== 'candidate') {
+        toast.info('Chỉ tài khoản Ứng viên mới có thể sử dụng phòng phỏng vấn AI.');
+        return;
+    }
+    if (remainInterview <= 0) {
+        setUpgradeModalContent({
+            title: "Đã hết số phút Phỏng vấn AI",
+            message: `Tài khoản ${isPro ? 'Pro' : 'miễn phí'} của bạn đã sử dụng hết ${limitInterview} phút phỏng vấn AI trong tháng. Vui lòng nâng cấp gói Pro để có 180 phút luyện tập không giới hạn!`
+        });
+        setModalOpen(false);
+        setShowUpgradeModal(true);
+        return;
+    }
+    navigate('/candidate/ai-interview', { state: { jobPosition: job.title } });
+  };
+
   const isExpired = job?.deadline ? new Date(job.deadline).getTime() < new Date().getTime() : false;
   const isClosed = job?.status === 'Closed' || isExpired;
 
@@ -146,6 +177,10 @@ const JobDetail = () => {
     }
 
     if (useAI && remainCvReview <= 0) {
+        setUpgradeModalContent({
+            title: "Hết lượt phân tích CV",
+            message: `Tài khoản ${isPro ? 'Pro' : 'miễn phí'} của bạn đã dùng hết ${limitCvReview} lượt phân tích CV tháng này. Vui lòng nâng cấp gói Pro để sử dụng 50 lượt phân tích chuyên sâu!`
+        });
         setModalOpen(false);
         setShowUpgradeModal(true);
         return;
@@ -165,6 +200,10 @@ const JobDetail = () => {
 
       if (!response.ok) {
           if (response.status === 403) {
+             setUpgradeModalContent({
+                 title: "Hết lượt phân tích CV",
+                 message: `Tài khoản ${isPro ? 'Pro' : 'miễn phí'} của bạn đã dùng hết ${limitCvReview} lượt phân tích CV tháng này. Vui lòng nâng cấp gói Pro để sử dụng 50 lượt phân tích chuyên sâu!`
+             });
              setModalOpen(false);
              setShowUpgradeModal(true);
              return;
@@ -249,8 +288,8 @@ const JobDetail = () => {
       <UpgradeModal 
         isOpen={showUpgradeModal} 
         onClose={() => setShowUpgradeModal(false)} 
-        title="Hết lượt phân tích CV" 
-        message="Mỗi tài khoản miễn phí chỉ có 2 lượt phân tích CV bằng AI mỗi tháng. Vui lòng nâng cấp gói Pro để sử dụng 50 lượt phân tích chuyên sâu!" 
+        title={upgradeModalContent.title} 
+        message={upgradeModalContent.message} 
       />
 
       <div className="bg-white border-b border-slate-200 pt-8 pb-12 px-4 shadow-sm">
@@ -305,12 +344,27 @@ const JobDetail = () => {
               <button 
                 onClick={() => handleOpenWizard('apply')} 
                 disabled={applyCount >= 3 || isClosed}
-                className={`w-full md:w-56 font-bold py-3.5 px-6 rounded-xl transition-all text-sm tracking-wide ${isClosed ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : applyCount >= 3 ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'}`}
+                className={`w-full md:w-56 font-bold py-3.5 px-6 rounded-xl transition-all text-sm tracking-wide cursor-pointer ${isClosed ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : applyCount >= 3 ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'}`}
               >
                 {isClosed ? 'ĐÃ ĐÓNG / HẾT HẠN' : applyCount >= 3 ? 'ĐÃ ĐẠT GIỚI HẠN NỘP (3/3)' : applyCount > 0 ? `NỘP LẠI CV (${applyCount}/3)` : 'ỨNG TUYỂN NGAY'}
               </button>
+
+              <button 
+                type="button" 
+                onClick={handleGoToAIInterview}
+                className="w-full md:w-56 flex justify-center items-center py-3 px-6 rounded-xl font-bold transition-all border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm gap-2 shadow-xs cursor-pointer"
+                title={`Còn ${remainInterview}/${limitInterview} phút phỏng vấn AI`}
+              >
+                <Mic className="w-4 h-4 text-indigo-600 shrink-0" />
+                <span>Phỏng vấn thử AI</span>
+                {usageInfo && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-200/60 font-black">
+                    {remainInterview}p
+                  </span>
+                )}
+              </button>
               
-              <button type="button" onClick={handleToggleSaved} className={`w-full md:w-56 flex justify-center items-center py-3.5 px-6 rounded-xl font-bold transition-colors border text-sm gap-2 ${isSaved ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+              <button type="button" onClick={handleToggleSaved} className={`w-full md:w-56 flex justify-center items-center py-3.5 px-6 rounded-xl font-bold transition-colors border text-sm gap-2 cursor-pointer ${isSaved ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
                 <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} /> {isSaved ? 'Đã lưu job' : 'Lưu tin này'}
               </button>
             </div>
@@ -377,15 +431,21 @@ const JobDetail = () => {
              
              <button 
                 onClick={() => {
-                   // FIX: Redirect tới Login
                    const token = localStorage.getItem('token');
                    if (!token) {
                        toast.info('Vui lòng đăng nhập để phân tích CV bằng AI!');
                        navigate('/login');
                        return;
                    }
-                   if (remainCvReview <= 0) setShowUpgradeModal(true);
-                   else handleOpenWizard('review'); 
+                   if (remainCvReview <= 0) {
+                       setUpgradeModalContent({
+                           title: "Hết lượt phân tích CV",
+                           message: `Tài khoản ${isPro ? 'Pro' : 'miễn phí'} của bạn đã dùng hết ${limitCvReview} lượt phân tích CV tháng này. Vui lòng nâng cấp gói Pro để sử dụng 50 lượt phân tích chuyên sâu!`
+                       });
+                       setShowUpgradeModal(true);
+                   } else {
+                       handleOpenWizard('review'); 
+                   }
                 }}
                 className="w-full bg-slate-900 hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
              >
@@ -408,6 +468,37 @@ const JobDetail = () => {
                     </div>
                 </div>
              )}
+          </div>
+
+          {/* CARD AI MOCK INTERVIEW */}
+          <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 relative overflow-hidden shadow-sm border border-slate-800">
+             <div className="flex items-center justify-between mb-4">
+                 <div className="flex items-center gap-3.5">
+                    <div className="w-12 h-12 bg-indigo-500/20 rounded-xl flex items-center justify-center shrink-0 border border-indigo-400/30">
+                        <Bot className="w-6 h-6 text-indigo-300" />
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-black text-white">AI Mock Interview</h3>
+                        <p className="text-indigo-200 text-xs font-semibold">Phỏng vấn thử theo JD</p>
+                    </div>
+                 </div>
+                 {usageInfo && (
+                     <div className={`text-[10px] px-2.5 py-1 rounded-md font-black whitespace-nowrap ${remainInterview > 0 ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/30' : 'bg-rose-500/30 text-rose-200 border border-rose-400/30'}`}>
+                         Còn {remainInterview}/{limitInterview}p
+                     </div>
+                 )}
+             </div>
+
+             <p className="text-xs text-slate-300 mb-5 leading-relaxed">
+                 Luyện tập trả lời bằng giọng nói các câu hỏi tình huống thực tế cho vị trí <strong className="text-white font-bold">{job.title}</strong> để nhận chấm điểm & nhận xét tức thì.
+             </p>
+
+             <button 
+                onClick={handleGoToAIInterview}
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/30 text-sm"
+             >
+                <Mic className="w-4 h-4" /> Bắt đầu phỏng vấn thử <ArrowRight className="w-4 h-4" />
+             </button>
           </div>
 
           <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200">
@@ -497,7 +588,28 @@ const JobDetail = () => {
                             ) : (
                                 <><UploadCloud className="w-8 h-8 text-slate-300 mb-1" /><span className="text-sm font-bold text-slate-600">Nhấn để tải file PDF/Word</span></>
                             )}
-                            <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setSelectedCvId(null); }} />
+                            <input 
+                              type="file" 
+                              accept=".pdf,.doc,.docx" 
+                              className="hidden" 
+                              onChange={(e) => { 
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  if (file.size > 10 * 1024 * 1024) {
+                                    toast.error('Kích thước file CV không được vượt quá 10MB.');
+                                    return;
+                                  }
+                                  const validExts = ['.pdf', '.doc', '.docx'];
+                                  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+                                  if (!validExts.includes(ext)) {
+                                    toast.error('Vui lòng chỉ tải lên file định dạng PDF, DOC hoặc DOCX.');
+                                    return;
+                                  }
+                                  setSelectedFile(file); 
+                                  setSelectedCvId(null); 
+                                }
+                              }} 
+                            />
                         </label>
                     </div>
                     
@@ -586,18 +698,71 @@ const JobDetail = () => {
                )}
 
                {modalStage === 'success' && (
-                  <div className="py-12 flex flex-col items-center justify-center text-center animate-scale-in">
-                      <CheckCircle className="w-16 h-16 text-emerald-500 mb-4" />
-                      <h3 className="text-2xl font-black text-slate-900 mb-2">Nộp hồ sơ thành công!</h3>
-                      <p className="text-slate-500 text-sm font-medium mb-8 max-w-sm">Hồ sơ và điểm đánh giá của bạn đã được gửi đến Nhà tuyển dụng.</p>
+                  <div className="py-8 flex flex-col items-center justify-center text-center animate-scale-in max-w-md mx-auto">
+                      <CheckCircle className="w-16 h-16 text-emerald-500 mb-3" />
+                      <h3 className="text-2xl font-black text-slate-900 mb-1">Nộp hồ sơ thành công!</h3>
+                      <p className="text-slate-500 text-sm font-medium mb-6">
+                          Hồ sơ của bạn đã được chuyển đến Nhà tuyển dụng <span className="font-bold text-slate-700">{job.companyName}</span>.
+                      </p>
                       
-                      <div className="flex gap-3 w-full max-w-xs">
-                         <button onClick={() => setModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200">Đóng</button>
-                         {assessmentData.hasTest && assessmentData.assessmentId && (
-                            <button onClick={() => navigate(`/assessments/${assessmentData.assessmentId}/take`)} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2">
-                                <FileText className="w-4 h-4" /> Làm Test
-                            </button>
-                         )}
+                      {assessmentData.hasTest && assessmentData.assessmentId ? (
+                          <div className="w-full bg-indigo-50 border border-indigo-100 rounded-2xl p-5 mb-6 text-left shadow-xs">
+                              <div className="flex items-center gap-2.5 mb-2">
+                                  <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                                      <FileText className="w-4 h-4" />
+                                  </div>
+                                  <div>
+                                      <h4 className="text-sm font-black text-indigo-950">Yêu cầu bài kiểm tra năng lực</h4>
+                                      <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Bắt buộc</span>
+                                  </div>
+                              </div>
+                              <p className="text-xs text-indigo-800 leading-relaxed mb-4">
+                                  Vị trí này yêu cầu hoàn thành bài kiểm tra chuyên môn trực tuyến để hoàn tất quy trình ứng tuyển.
+                              </p>
+                              <button 
+                                  onClick={() => navigate(`/assessments/${assessmentData.assessmentId}/take`)} 
+                                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm shadow-md transition-colors cursor-pointer"
+                              >
+                                  <FileText className="w-4 h-4" /> Bắt đầu làm Test ngay <ArrowRight className="w-4 h-4" />
+                              </button>
+                          </div>
+                      ) : (
+                          <div className="w-full bg-gradient-to-br from-indigo-50/90 to-blue-50/90 border border-indigo-100 rounded-2xl p-5 mb-6 text-left shadow-xs">
+                              <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center shrink-0">
+                                          <Mic className="w-4 h-4" />
+                                      </div>
+                                      <div>
+                                          <h4 className="text-sm font-black text-slate-900">Chuẩn bị phỏng vấn cùng AI</h4>
+                                          <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">Khuyên dùng</span>
+                                      </div>
+                                  </div>
+                                  {usageInfo && (
+                                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded">
+                                          Còn {remainInterview}/{limitInterview}p
+                                      </span>
+                                  )}
+                              </div>
+                              <p className="text-xs text-slate-600 leading-relaxed mb-4">
+                                  Trong lúc chờ HR xét duyệt CV, hãy thử sức với phòng phỏng vấn ảo AI để luyện tập trả lời các câu hỏi cho vị trí <strong className="text-slate-800">{job.title}</strong>!
+                              </p>
+                              <button 
+                                  onClick={handleGoToAIInterview} 
+                                  className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 text-sm shadow-md transition-colors cursor-pointer"
+                              >
+                                  <Mic className="w-4 h-4" /> Luyện phỏng vấn AI cho vị trí này <ArrowRight className="w-4 h-4" />
+                              </button>
+                          </div>
+                      )}
+                      
+                      <div className="flex gap-3 w-full">
+                         <button onClick={() => setModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 text-sm transition-colors cursor-pointer">
+                             Ở lại trang này
+                         </button>
+                         <button onClick={() => navigate('/candidate/applications')} className="flex-1 py-3 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 text-sm transition-colors cursor-pointer">
+                             Xem hồ sơ đã nộp
+                         </button>
                       </div>
                   </div>
                )}

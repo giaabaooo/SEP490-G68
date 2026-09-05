@@ -52,11 +52,15 @@ import PracticeTopicBuilder from './pages/Moderator/PracticeTopicBuilder';
 import UpgradePage from './pages/Upgrade/UpgradePage';
 import PaymentSuccess from './pages/Upgrade/PaymentSuccess';
 import InviteAccept from './pages/Auth/InviteAccept';
+import FloatingNotificationToast from './components/common/FloatingNotificationToast';
+import ScrollToTop from './components/common/ScrollToTop';
 
 function App() {
   return (
     <Router>
-      <ToastContainer position="top-right" autoClose={3000} />
+      <ScrollToTop />
+      <ToastContainer position="bottom-left" autoClose={3000} />
+      <FloatingNotificationToast />
       <Routes>
         <Route path="/" element={<Navigate to="/home" replace />} />
 
@@ -118,6 +122,7 @@ function App() {
             <Route path="/bussiness/create" element={<Create />} />
             <Route path="/bussiness/profile" element={<BussinessProfile />} />
             <Route path="/bussiness/cvlist" element={<CVList />} />
+            <Route path="/bussiness/jobs/:jobId/cvs" element={<CVList />} />
             <Route path="/bussiness/edit-job/:id" element={<EditJob />} />
             <Route path="/bussiness/candidate/:id" element={<CandidateDetail />} />
           </Route>

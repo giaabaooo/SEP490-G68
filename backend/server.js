@@ -1,5 +1,5 @@
-// const dns = require("dns");
-// dns.setServers(["8.8.8.8", "1.1.1.1"]);
+const dns = require("dns");
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 
 require("dotenv").config();
 const express = require("express");
@@ -10,6 +10,7 @@ const connectDB = require("./config/db");
 const seedAdmin = require("./scripts/seedAdmin");
 const seedCandidate = require("./scripts/seedCandidate");
 const seedHRData = require("./scripts/seedHRData");
+const seedModerator = require("./scripts/seedModerator");
 
 const authRoutes = require("./routes/auth");
 const profileRoutes = require("./routes/profile");
@@ -19,11 +20,11 @@ const adminUserRoutes = require("./routes/adminUsers");
 const cvRoutes = require("./routes/cv");
 const interviewRoutes = require("./routes/interview.routes");
 const notificationRoutes = require("./routes/notifications");
-const seedModerator = require("./scripts/seedModerator");
 const assessmentRoutes = require("./routes/assessments");
 const practiceTopicRoutes = require("./routes/practiceTopics");
 const roadmapRoutes = require("./routes/roadmap.route");
 const paymentRoutes = require("./routes/payment.routes");
+
 const app = express();
 
 // Kết nối DB, sau đó chạy Seed Admin, Candidate và HR Data
@@ -38,8 +39,9 @@ connectDB().then(async () => {
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
   "https://carreerio.vercel.app"
-  
 ];
 
 app.use(

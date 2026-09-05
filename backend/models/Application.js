@@ -9,11 +9,7 @@ const applicationSchema = new mongoose.Schema({
   
   // Các trường do AI đánh giá (Chấm CV)
   aiScore: { type: Number, default: 0 },
-  aiMatchDetails: {
-    matched: { type: [String], default: [] },
-    missing: { type: [String], default: [] },
-    advice: { type: String, default: '' }
-  },
+  aiMatchDetails: { type: mongoose.Schema.Types.Mixed, default: {} },
   
   // Đánh dấu job này có bài test để lưu trạng thái
   hasTest: { type: Boolean, default: false },
