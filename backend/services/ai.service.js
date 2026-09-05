@@ -38,11 +38,17 @@ async function generateWithFallback(prompt, isJson = true, temp = null) {
             let text = await result.response.text();
 
             if (isJson) {
-                // TÌM CHÍNH XÁC ĐOẠN JSON ĐỂ BÓC TÁCH (Bảo vệ tuyệt đối khỏi Markdown)
+                // TÌM CHÍNH XÁC ĐOẠN JSON ĐỂ BÓC TÁCH (Hỗ trợ cả Object {} và Mảng [])
                 const firstBrace = text.indexOf('{');
                 const lastBrace = text.lastIndexOf('}');
-                
-                if (firstBrace !== -1 && lastBrace !== -1) {
+                const firstBracket = text.indexOf('[');
+                const lastBracket = text.lastIndexOf(']');
+
+                // Nếu là Mảng JSON []
+                if (firstBracket !== -1 && lastBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
+                    text = text.substring(firstBracket, lastBracket + 1);
+                } else if (firstBrace !== -1 && lastBrace !== -1) {
+                    // Nếu là Object JSON {}
                     text = text.substring(firstBrace, lastBrace + 1);
                 } else {
                     text = text.replace(/```json/gi, '').replace(/```/gi, '').trim();
@@ -129,75 +135,177 @@ exports.generateQuestionsList = async (jobPosition) => {
     }
 };
 
-// 1. Logic xử lý hội thoại phỏng vấn
-exports.conductMockInterview = async (conversationHistory, jobPosition) => {
-    // Logic trong phần này giờ sẽ được Controller điều hướng. 
-    // Nếu Controller thấy hết câu hỏi cứng, nó có thể gọi hàm này để AI sinh câu tuỳ biến 
-    // (nhưng theo luồng mới của chúng ta, Controller đã dùng danh sách cố định)
+// 1. Logic xử lý hội thoại phỏng vấn bám sát JD, hỏi đáp tự nhiên 2 chiều & cá nhân hóa
+exports.conductMockInterview = async (conversationHistory, jobContext, candidateContext) => {
+    const jobTitle = typeof jobContext === 'object' ? (jobContext.title || jobContext.jobPosition || 'Chuyên viên kỹ thuật') : (jobContext || 'Chuyên viên kỹ thuật');
+    const jobCompany = typeof jobContext === 'object' ? (jobContext.company || jobContext.companyName || 'Doanh nghiệp tuyển dụng') : 'Doanh nghiệp tuyển dụng';
+    const jobDescription = typeof jobContext === 'object' ? (jobContext.description || '') : '';
+    const jobRequirements = typeof jobContext === 'object' ? (Array.isArray(jobContext.requirements) ? jobContext.requirements.join('\n- ') : (jobContext.requirements || '')) : '';
+    const jobTags = typeof jobContext === 'object' ? (Array.isArray(jobContext.tags) ? jobContext.tags.join(', ') : (jobContext.tags || '')) : '';
     
+    const candidateName = candidateContext?.fullName || 'Ứng viên';
+    const candidateSkills = Array.isArray(candidateContext?.skills) ? candidateContext.skills.join(', ') : (candidateContext?.skills || 'Chưa cập nhật');
+    const candidateExperience = candidateContext?.experience || '';
+    const candidateEducation = candidateContext?.education || '';
+
+    const userAnswersCount = (conversationHistory || []).filter(msg => msg.role === 'user').length;
+    // Cho phép phỏng vấn tự nhiên theo nhu cầu luyện tập của ứng viên, không gò bó cố định 5 câu
+    const isClosingTurn = userAnswersCount >= 10;
+
     const systemPrompt = `
-    Bạn là một chuyên gia phỏng vấn cấp cao đang tuyển dụng vị trí: ${jobPosition}.
-    
-    QUY TẮC HỘI THOẠI:
-    1. Trình tự phản hồi: 
-       - Đưa ra nhận xét ngắn gọn về câu trả lời vừa rồi của ứng viên.
-       - Dựa trực tiếp vào ngữ cảnh đó để đặt DUY NHẤT 1 câu hỏi chuyên sâu tiếp theo.
-    2. Giọng văn: Chuyên nghiệp, khách quan nhưng cởi mở.
-    3. Định dạng trả về JSON: {"feedback": "Nhận xét của bạn", "nextQuestion": "Câu hỏi tiếp theo"}.
+    Đóng vai trò là Trưởng bộ phận tuyển dụng kiêm Chuyên gia kỹ thuật cấp cao (Senior Technical Interviewer & Hiring Lead) của công ty "${jobCompany}".
+    Bạn đang trực tiếp phỏng vấn 1:1 với ứng viên "${candidateName}" cho vị trí: "${jobTitle}".
+
+    THÔNG TIN MÔ TẢ CÔNG VIỆC (JD):
+    - Vị trí: ${jobTitle}
+    - Công ty: ${jobCompany}
+    - Mô tả công việc: ${jobDescription || 'Theo tiêu chuẩn chuyên môn vị trí ' + jobTitle}
+    - Yêu cầu ứng viên (Requirements): 
+    ${jobRequirements ? (jobRequirements.startsWith('-') ? jobRequirements : '- ' + jobRequirements) : '- Thành thạo kỹ năng chuyên môn liên quan đến ' + jobTitle}
+    - Kỹ năng trọng điểm: ${jobTags || jobTitle}
+
+    HỒ SƠ ỨNG VIÊN (CÁ NHÂN HOÁ DỰA TRÊN CV):
+    - Họ tên: ${candidateName}
+    - Kỹ năng của ứng viên: ${candidateSkills}
+    ${candidateExperience ? `- Kinh nghiệm đã có: ${candidateExperience}` : ''}
+    ${candidateEducation ? `- Học vấn: ${candidateEducation}` : ''}
+
+    NGUYÊN TẮC HỎI - ĐÁP TỰ NHIÊN & ĐỒNG HÀNH (CONVERSATIONAL & SUPPORTIVE MENTOR):
+    1. BẮT ĐẦU BUỔI PHỎNG VẤN (Nếu lịch sử hội thoại chưa có câu hỏi nào):
+       - Chào đón ứng viên bằng tên thân mật nhưng lịch sự ("Chào ${candidateName}, ..."), giới thiệu ngắn gọn công ty và vị trí.
+       - Đặt câu hỏi mở đầu khơi gợi ứng viên giới thiệu bản thân và kinh nghiệm nổi bật nhất gắn liền với yêu cầu của JD.
+       - Trường "feedback" để trống ("").
+       - Trường "hint": Đưa ra 1 gợi ý ngắn gọn giúp ứng viên tự tin trả lời (ví dụ: mẹo tóm tắt trong 1-2 phút, tập trung vào kỹ năng khớp với JD).
+       - Trường "isFinished": false.
+
+    2. CÁC LƯỢT ĐỐI THOẠI TIẾP THEO (Ứng viên vừa trả lời câu hỏi trước):
+       - QUY TRÌNH HỎI ĐÁP TỰ NHIÊN:
+       - BƯỚC 1: "feedback" (Phản hồi & Nhận xét):
+         * Đọc kỹ câu trả lời vừa rồi của ứng viên.
+         * Đưa ra nhận xét ngắn gọn (1 - 3 câu): Khen ngợi điểm đúng, chỉ ra tính khả thi/chiều sâu kỹ thuật, hoặc chỉ ra góc nhìn thực tế còn thiếu.
+         * Nếu ứng viên trả lời quá ngắn, chưa biết hoặc ấp úng: Hãy khích lệ, động viên nhẹ nhàng và khéo léo chuyển sang khía cạnh liên quan ("Không sao cả, trong thực tế vấn đề này thường được tiếp cận...").
+       - BƯỚC 2: "nextQuestion" (Câu hỏi tiếp nối):
+         * Đào sâu (follow-up) vào công nghệ/dự án/tình huống cụ thể mà ứng viên VỪA NÊU trong câu trả lời, đối chiếu với yêu cầu trong JD.
+         * HOẶC chuyển tiếp tự nhiên sang một tiêu chí kỹ thuật/tình huống quan trọng tiếp theo trong JD (ví dụ: tối ưu hiệu năng, bảo mật, xử lý lỗi, phối hợp nhóm, giải quyết sự cố).
+       - BƯỚC 3: "hint" (Gợi ý trả lời hỗ trợ ứng viên):
+         * Cung cấp 1 gợi ý định hướng súc tích (1-2 câu) để giúp ứng viên biết cách cấu trúc câu trả lời (như áp dụng mô hình STAR: Situation - Task - Action - Result, hoặc các từ khóa công nghệ then chốt cần nhắc tới).
+       - Trường "isFinished": false.
+
+    3. NẾU CUỘC PHỎNG VẤN ĐÃ ĐI VÀO CHIỀU SÂU VÀ HOÀN TẤT (isClosingTurn = ${isClosingTurn}):
+       - Đưa ra lời nhận xét tổng kết ngắn gọn, ấm áp và chuyên nghiệp về toàn bộ buổi phỏng vấn.
+       - Mời ứng viên bấm nút "Kết thúc phỏng vấn" để xem báo cáo đánh giá chi tiết và điểm số.
+       - "feedback": Lời nhận xét tổng kết.
+       - "nextQuestion": "Buổi phỏng vấn đã bao quát đầy đủ các yêu cầu cốt lõi. Bạn có thể tiếp tục chia sẻ hoặc bấm nút 'Kết thúc phỏng vấn' bất cứ lúc nào để nhận báo cáo phân tích chi tiết nhé!"
+       - "hint": "Nhấn nút Kết thúc để nhận báo cáo phân tích.",
+       - "isFinished": true.
+
+    ĐỊNH DẠNG TRẢ VỀ JSON BẮT BUỘC:
+    {
+        "feedback": "Phản hồi/nhận xét ngắn gọn về câu trả lời vừa rồi (để trống ở câu đầu tiên)",
+        "nextQuestion": "Câu hỏi tiếp theo hoặc thông báo kết thúc",
+        "hint": "Gợi ý trả lời cho câu hỏi này giúp ứng viên học hỏi và trả lời tự tin hơn",
+        "isFinished": false
+    }
     `;
 
-    const historyString = conversationHistory.map(msg => 
+    const historyString = (conversationHistory || []).map(msg => 
         `${msg.role === 'user' ? 'Ứng viên' : 'Người phỏng vấn'}: ${msg.content}`
     ).join('\n');
 
-    const finalPrompt = `${systemPrompt}\n\nLỊCH SỬ PHỎNG VẤN:\n${conversationHistory.length === 0 ? "Bắt đầu phỏng vấn." : historyString}\n\nPhản hồi tiếp theo:`;
+    const finalPrompt = `${systemPrompt}\n\nLỊCH SỬ HỘI THOẠI HIỆN TẠI:\n${(!conversationHistory || conversationHistory.length === 0) ? "[Chưa có hội thoại, hãy bắt đầu câu hỏi chào đón mở đầu]" : historyString}\n\nHãy phản hồi bằng JSON:`;
 
     try {
-        const aiResponse = await generateWithFallback(finalPrompt, true); 
-        const fullResponse = `${aiResponse.feedback} ${aiResponse.nextQuestion}`;
-        const audioBase64 = await generateSpeech(fullResponse);
+        const aiResponse = await generateWithFallback(finalPrompt, true, 0.4); 
+        const feedback = aiResponse.feedback ? aiResponse.feedback.trim() : "";
+        const nextQuestion = aiResponse.nextQuestion ? aiResponse.nextQuestion.trim() : "";
+        const hint = aiResponse.hint ? aiResponse.hint.trim() : "";
+        const isFinished = Boolean(aiResponse.isFinished || isClosingTurn);
+
+        // Nối feedback và nextQuestion để hiển thị và phát âm thanh tự nhiên
+        const fullText = feedback ? `${feedback}\n\n${nextQuestion}` : nextQuestion;
+        
+        let audioBase64 = null;
+        try {
+            audioBase64 = await generateSpeech(fullText);
+        } catch (audioErr) {
+            console.warn("Speech generation warning:", audioErr.message);
+        }
         
         return {
-            ...aiResponse,
-            fullText: fullResponse, 
-            audioData: audioBase64 || ""
+            feedback,
+            nextQuestion,
+            hint,
+            fullText, 
+            audioData: audioBase64 || "",
+            isFinished
         };
     } catch (error) {
         console.error("AI Interview Error:", error);
         return { 
             feedback: "Cảm ơn chia sẻ của bạn.", 
-            nextQuestion: "Bạn có thể nói rõ hơn về kinh nghiệm thực tế của mình không?", 
-            audioData: "" 
+            nextQuestion: `Dựa trên yêu cầu của vị trí ${jobTitle}, bạn có thể chia sẻ sâu hơn về một dự án thực tế bạn từng gặp khó khăn và cách giải quyết không?`, 
+            hint: "Hãy dùng phương pháp STAR: Nêu bối cảnh dự án, khó khăn cụ thể, giải pháp kỹ thuật bạn áp dụng và kết quả cuối cùng.",
+            fullText: `Cảm ơn chia sẻ của bạn.\n\nDựa trên yêu cầu của vị trí ${jobTitle}, bạn có thể chia sẻ sâu hơn về một dự án thực tế bạn từng gặp khó khăn và cách giải quyết không?`,
+            audioData: "",
+            isFinished: false
         };
     }
 };
 
-// 2. Logic đánh giá sau khi kết thúc phỏng vấn
-exports.evaluateInterview = async (history, jobPosition) => {
-    const transcript = history.map(msg => 
-        `${msg.role === 'user' ? 'Ứng viên' : 'Nhà tuyển dụng'}: ${msg.content}`
+// 2. Logic đánh giá sau khi kết thúc phỏng vấn bám sát JD & cá nhân hóa
+exports.evaluateInterview = async (history, jobContext, candidateContext) => {
+    const jobTitle = typeof jobContext === 'object' ? (jobContext.title || jobContext.jobPosition || 'Chuyên viên kỹ thuật') : (jobContext || 'Chuyên viên kỹ thuật');
+    const jobCompany = typeof jobContext === 'object' ? (jobContext.company || jobContext.companyName || 'Doanh nghiệp') : 'Doanh nghiệp';
+    const jobDescription = typeof jobContext === 'object' ? (jobContext.description || '') : '';
+    const jobRequirements = typeof jobContext === 'object' ? (Array.isArray(jobContext.requirements) ? jobContext.requirements.join('\n- ') : (jobContext.requirements || '')) : '';
+    
+    const candidateName = candidateContext?.fullName || 'Ứng viên';
+    const candidateSkills = Array.isArray(candidateContext?.skills) ? candidateContext.skills.join(', ') : (candidateContext?.skills || '');
+
+    const transcript = (history || []).map(msg => 
+        `${msg.role === 'user' ? 'Ứng viên' : 'Người phỏng vấn'}: ${msg.content}`
     ).join('\n');
 
-    // FIX: Thêm prompt nhắc nhở AI chấm điểm gắt gao với các câu trả lời sáo rỗng
     const prompt = `
-    Đóng vai là một chuyên gia tuyển dụng cao cấp cực kỳ khắt khe. Hãy đánh giá cuộc phỏng vấn thử cho vị trí "${jobPosition}" dựa trên nội dung sau:
-    
-    --- BẮT ĐẦU HỘI THOẠI ---
+    Đóng vai là một Giám đốc tuyển dụng và Chuyên gia kỹ thuật cấp cao cực kỳ công tâm, sâu sắc.
+    Hãy đánh giá toàn diện buổi phỏng vấn thử của ứng viên đối chiếu trực tiếp với yêu cầu của Mô tả công việc (JD):
+
+    VỊ TRÍ TUYỂN DỤNG & YÊU CẦU CÔNG VIỆC:
+    - Vị trí: ${jobTitle} (${jobCompany})
+    ${jobDescription ? `- Mô tả công việc: ${jobDescription}` : ''}
+    ${jobRequirements ? `- Yêu cầu kỹ năng (JD): \n${jobRequirements}` : ''}
+
+    THÔNG TIN ỨNG VIÊN:
+    - Họ và tên: ${candidateName}
+    ${candidateSkills ? `- Kỹ năng: ${candidateSkills}` : ''}
+
+    --- BIÊN BẢN HỘI THOẠI PHỎNG VẤN ---
     ${transcript}
-    --- KẾT THÚC HỘI THOẠI ---
+    --- KẾT THÚC BIÊN BẢN ---
 
-    LUẬT CHẤM ĐIỂM NGHIÊM NGẶT:
-    1. Trọng tâm là phần trả lời của Ứng viên. KHÔNG LẤY CÂU HỎI CỦA NHÀ TUYỂN DỤNG ĐỂ CHẤM ĐIỂM.
-    2. Nếu ứng viên chỉ chào hỏi sơ sài, trả lời một vài từ không có ý nghĩa chuyên môn (VD: "dạ", "em không biết", "chào anh"), ĐIỂM TỐI ĐA CHỈ LÀ 15 ĐIỂM.
-    3. Chỉ cho trên 70 điểm nếu ứng viên đưa ra được ví dụ cụ thể, kiến thức thực tế hoặc giải quyết được vấn đề.
+    TIÊU CHÍ ĐÁNH GIÁ NGHIÊM NGẶT:
+    1. Trọng tâm là câu trả lời của Ứng viên đối chiếu với yêu cầu thực tế trong JD.
+    2. Nếu ứng viên chỉ trả lời cụt lủn, sáo rỗng hoặc từ chối trả lời ("dạ", "em không biết", "chào anh"), điểm tối đa chỉ từ 0 đến 15 điểm.
+    3. Đánh giá độ phù hợp với JD: Ứng viên có nắm vững các công nghệ trọng tâm trong JD không? Có tư duy thực chiến và giải quyết được bài toán kỹ thuật không?
+    4. Cho điểm trên 75 nếu ứng viên đưa ra được ví dụ dự án cụ thể, số liệu hoặc phân tích sâu sắc.
 
-    Hãy trả về kết quả dưới dạng JSON chuẩn với cấu trúc sau:
+    Hãy trả về kết quả JSON chuẩn với cấu trúc:
     {
         "score": <Số điểm nguyên từ 0 đến 100>,
-        "overview": "Nhận xét tổng quan ngắn gọn...",
-        "strengths": ["Điểm mạnh 1", "Điểm mạnh 2"],
-        "weaknesses": ["Điểm yếu 1", "Điểm yếu 2"],
-        "improvements": ["Lời khuyên cải thiện 1"]
+        "matchRating": "Đánh giá mức độ phù hợp JD ngắn gọn (Ví dụ: Phù hợp 85% với yêu cầu JD vị trí Senior Frontend)",
+        "overview": "Nhận xét tổng quan toàn diện và mang tính xây dựng về năng lực ứng viên so với JD...",
+        "strengths": [
+            "Điểm mạnh nổi bật 1 (gắn với yêu cầu công việc)",
+            "Điểm mạnh 2"
+        ],
+        "weaknesses": [
+            "Điểm yếu hoặc kiến thức còn thiếu so với JD 1",
+            "Điểm yếu 2"
+        ],
+        "improvements": [
+            "Lời khuyên thiết thực để ứng viên vượt qua phỏng vấn thật cho vị trí này 1",
+            "Lời khuyên 2"
+        ]
     }
     `;
 
@@ -207,6 +315,7 @@ exports.evaluateInterview = async (history, jobPosition) => {
         console.error("Evaluation Error:", error);
         return {
             score: 0,
+            matchRating: "Chưa thể đánh giá độ phù hợp do lỗi mạng",
             overview: "Hệ thống không thể đánh giá chi tiết lúc này do lỗi kết nối AI.",
             strengths: [],
             weaknesses: ["Chưa có dữ liệu do lỗi mạng"],
@@ -254,46 +363,127 @@ exports.parseCVForTemplate = async (pdfText) => {
         throw new Error("Lỗi parse AI: " + error.message);
     }
 };
+const getEffectiveCategories = (job) => {
+    // 1. Nếu job có các Bands cụ thể
+    if (job.requirementCategories && Array.isArray(job.requirementCategories)) {
+        const validCats = job.requirementCategories.filter(c => c && c.name && c.name.trim() && c.name.trim() !== 'Đánh giá chung');
+        if (validCats.length > 0) {
+            const totalW = validCats.reduce((sum, c) => sum + (Number(c.weight) || 0), 0);
+            if (totalW === 100) {
+                return validCats.map(c => ({ name: c.name.trim(), weight: Number(c.weight), isKey: !!c.isKey }));
+            } else if (totalW > 0) {
+                return validCats.map(c => ({
+                    name: c.name.trim(),
+                    weight: Math.round(((Number(c.weight) || 0) / totalW) * 100),
+                    isKey: !!c.isKey
+                }));
+            } else {
+                const avgW = Math.floor(100 / validCats.length);
+                return validCats.map((c, i) => ({
+                    name: c.name.trim(),
+                    weight: i === validCats.length - 1 ? 100 - avgW * (validCats.length - 1) : avgW,
+                    isKey: !!c.isKey
+                }));
+            }
+        }
+    }
+
+    // 2. Nếu rỗng hoặc chỉ có "Đánh giá chung", thử trích xuất từ job.requirements
+    if (job.requirements) {
+        const reqStr = Array.isArray(job.requirements) ? job.requirements.join('\n') : String(job.requirements);
+        const lines = reqStr.split('\n').map(l => l.trim()).filter(l => l.startsWith('-') || l.startsWith('*') || l.startsWith('•') || /^\d+\./.test(l));
+        
+        const extracted = [];
+        for (const line of lines) {
+            const cleanLine = line.replace(/^[-*•\d.]+\s*/, '').trim();
+            const weightMatch = cleanLine.match(/\((\d+)%\s*(-?\s*Trọng điểm)?\)/i);
+            if (weightMatch) {
+                const weight = parseInt(weightMatch[1], 10);
+                const isKey = !!weightMatch[2];
+                const name = cleanLine.replace(/\(\d+%\s*(-?\s*Trọng điểm)?\)/i, '').trim();
+                if (name && name.length >= 3) {
+                    extracted.push({ name, weight, isKey });
+                }
+            } else if (cleanLine.length >= 8 && cleanLine.length <= 120) {
+                extracted.push({ name: cleanLine, weight: 0, isKey: false });
+            }
+        }
+
+        if (extracted.length >= 2) {
+            const totalW = extracted.reduce((sum, c) => sum + c.weight, 0);
+            if (totalW === 100) {
+                return extracted;
+            } else if (totalW > 0) {
+                return extracted.map(c => ({ ...c, weight: Math.round((c.weight / totalW) * 100) }));
+            } else {
+                const avgW = Math.floor(100 / extracted.length);
+                return extracted.map((c, i) => ({
+                    ...c,
+                    weight: i === extracted.length - 1 ? 100 - avgW * (extracted.length - 1) : avgW
+                }));
+            }
+        }
+    }
+
+    // 3. Fallback tiêu chuẩn theo 4 đầu mục chuyên môn phổ quát
+    return [
+        { name: "Kỹ năng chuyên môn & Tech Stack cốt lõi", weight: 40, isKey: true },
+        { name: "Kinh nghiệm thực tế & Dự án đã làm", weight: 30, isKey: true },
+        { name: "Kiến thức nền tảng & Tư duy kỹ thuật", weight: 20, isKey: false },
+        { name: "Mức độ phù hợp với yêu cầu tuyển dụng", weight: 10, isKey: false }
+    ];
+};
+
 exports.evaluateCVMatch = async (job, cvText) => {
-    // 1. Lấy danh sách tiêu chí, fallback an toàn
-    const categories = (job.requirementCategories && job.requirementCategories.length > 0) 
-        ? job.requirementCategories 
-        : [{ name: "Đánh giá chung (Skill & Kinh nghiệm)", weight: 100, isKey: true }];
+    // 1. Lấy danh sách đầu mục (Bands) tối ưu nhất
+    const categories = getEffectiveCategories(job);
 
     try {
         const catPromptText = categories.map((c, index) => 
-            `- "${c.name}" (Trọng số: ${c.weight}%, Trọng điểm: ${c.isKey ? 'CÓ' : 'KHÔNG'})`
+            `${index + 1}. [${c.name}] - Trọng số: ${c.weight}% | Trọng điểm: ${c.isKey ? 'CÓ' : 'KHÔNG'}`
         ).join('\n');
 
         const prompt = `
-        Bạn là hệ thống AI đánh giá CV. Chấm điểm CV ứng viên dựa trên JD.
-        
+        Bạn là Hệ thống AI Chuyên gia Đánh giá Hồ sơ và Tuyển dụng Nhân tài (Senior Hiring Specialist).
+        Nhiệm vụ của bạn là đánh giá và chấm điểm CV của ứng viên chi tiết THEO TỪNG ĐẦU MỤC YÊU CẦU CHUYÊN MÔN (BANDS) được liệt kê dưới đây.
+
         --- THÔNG TIN CÔNG VIỆC ---
         - Tiêu đề: ${job.title}
-        - Mô tả: ${job.description}
-        
-        --- TIÊU CHÍ CẦN CHẤM ---
+        - Mô tả công việc: ${job.description || 'Không có mô tả chi tiết'}
+        - Yêu cầu tuyển dụng: ${Array.isArray(job.requirements) ? job.requirements.join('\n') : (job.requirements || '')}
+
+        --- CÁC ĐẦU MỤC YÊU CẦU CHUYÊN MÔN (BANDS CẦN ĐÁNH GIÁ ĐỘC LẬP) ---
         ${catPromptText}
 
-        --- CV ỨNG VIÊN ---
+        --- NỘI DUNG CV CỦA ỨNG VIÊN ---
         ${cvText}
 
-        --- YÊU CẦU ĐẦU RA ---
-        Chỉ trả về JSON theo đúng định dạng sau, KHÔNG dùng // để comment:
+        --- QUY TẮC ĐÁNH GIÁ TỪNG ĐẦU MỤC ---
+        1. Bạn PHẢI đánh giá ĐỘC LẬP từng đầu mục trong danh sách trên.
+        2. Với MỖI đầu mục:
+           - "name": Copy chính xác tên đầu mục trong dấu ngoặc vuông [] ở trên (không sửa đổi).
+           - "score": Điểm đánh giá năng lực của ứng viên cho RIÊNG đầu mục này trên thang điểm 100 (từ 0 đến 100).
+             + 85 - 100: Vượt trội, đáp ứng trọn vẹn và xuất sắc tiêu chí.
+             + 70 - 84: Tốt, đáp ứng hầu hết các yêu cầu trọng yếu.
+             + 50 - 69: Trung bình / Tiềm năng, đáp ứng được một phần nhưng còn thiếu kinh nghiệm sâu.
+             + Dưới 50: Yếu / Chưa đáp ứng, CV không có hoặc rất ít bằng chứng về tiêu chí này.
+           - "feedback": Nhận xét chi tiết, công tâm (2-4 câu). Nêu rõ những điểm mạnh ứng viên đã thể hiện được trong CV cho đầu mục này, và những điểm còn thiếu/cần cải thiện.
+        3. Mảng "categoryScores" BẮT BUỘC phải có đúng ${categories.length} phần tử tương ứng với từng đầu mục ở trên.
+
+        --- ĐỊNH DẠNG JSON ĐẦU RA (BẮT BUỘC JSON HỢP LỆ, KHÔNG CHỨA BẤT KỲ KÝ TỰ NÀO NGOÀI JSON) ---
         {
-            "verdict": "Tuyệt vời / Tiềm năng / Chưa phù hợp",
-            "reasonToHire": "Lý do nên nhận",
-            "reasonToReject": "Điểm yếu lớn nhất",
+            "verdict": "Tuyệt vời / Tiềm năng / Cần cân nhắc / Chưa phù hợp",
+            "reasonToHire": "Điểm sáng giá và lý do nổi bật nhất nên mời ứng viên vào vòng phỏng vấn",
+            "reasonToReject": "Điểm yếu lớn nhất hoặc rủi ro về năng lực so với yêu cầu của JD",
             "categoryScores": [
                 {
-                    "name": "Copy chính xác tên tiêu chí ở trên",
+                    "name": "Tên chính xác đầu mục",
                     "score": 85,
-                    "feedback": "Nhận xét cụ thể"
+                    "feedback": "Nhận xét chi tiết cho đầu mục này"
                 }
             ],
-            "advice": "Gợi ý cải thiện"
+            "advice": "Lời khuyên ngắn gọn cho nhà tuyển dụng khi phỏng vấn ứng viên này"
         }
-        Lưu ý: "categoryScores" BẮT BUỘC phải có đúng ${categories.length} object.
         `;
 
         const result = await generateWithFallback(prompt, true, 0.2); 
@@ -302,26 +492,31 @@ exports.evaluateCVMatch = async (job, cvText) => {
         let finalCategoryScores = [];
 
         categories.forEach((cat) => {
-            const aiCatResult = result.categoryScores?.find(c => 
-                c.name && c.name.toLowerCase().includes(cat.name.toLowerCase())
-            ) || { score: 0, feedback: "AI chưa đánh giá được tiêu chí này do thiếu thông tin." };
+            const aiCatResult = result.categoryScores?.find(c => {
+                if (!c.name) return false;
+                const cName = c.name.toLowerCase().trim();
+                const targetName = cat.name.toLowerCase().trim();
+                return cName === targetName || cName.includes(targetName) || targetName.includes(cName);
+            }) || { score: 0, feedback: "Chưa có đủ thông tin trong CV để đánh giá đầu mục này." };
             
-            const rawScore = Number(aiCatResult.score) || 0;
-            const weightedScore = rawScore * (cat.weight / 100);
+            const rawScore = Math.min(100, Math.max(0, Math.round(Number(aiCatResult.score) || 0)));
+            const weightedScore = Number(((rawScore * cat.weight) / 100).toFixed(1));
             totalWeightedScore += weightedScore;
 
             finalCategoryScores.push({
                 name: cat.name,
                 weight: cat.weight,
                 isKey: cat.isKey,
-                rawScore: rawScore,
-                weightedScore: weightedScore,
+                rawScore: rawScore, // Điểm gốc thang 100 của riêng đầu mục
+                weightedScore: weightedScore, // Điểm quy đổi đóng góp vào tổng
                 feedback: aiCatResult.feedback || "Không có nhận xét."
             });
         });
 
+        const finalScore = Math.min(100, Math.max(0, Math.round(totalWeightedScore)));
+
         return { 
-            score: Math.round(totalWeightedScore), 
+            score: finalScore, 
             verdict: result.verdict || "Chưa đánh giá",
             reasonToHire: result.reasonToHire || "",
             reasonToReject: result.reasonToReject || "",
@@ -332,7 +527,6 @@ exports.evaluateCVMatch = async (job, cvText) => {
     } catch (error) {
         console.error("Lỗi AI đánh giá CV chi tiết:", error);
         
-        // SỬA LỖI TRẮNG UI: Trả về chính xác các tiêu chí nhưng với điểm 0 để UI render được mảng
         return { 
             score: 0, 
             verdict: "Lỗi Server", 
@@ -344,7 +538,7 @@ exports.evaluateCVMatch = async (job, cvText) => {
                 isKey: cat.isKey,
                 rawScore: 0,
                 weightedScore: 0,
-                feedback: "Lỗi hệ thống hoặc quá tải API, vui lòng nộp lại!"
+                feedback: "Lỗi hệ thống hoặc quá tải API, vui lòng thử lại sau!"
             })), 
             advice: "Hãy liên hệ HR hoặc thử lại sau." 
         };

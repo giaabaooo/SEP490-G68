@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const BusinessDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user')) || {};
@@ -21,17 +23,17 @@ const BusinessDashboard = () => {
     try {
       const token = localStorage.getItem('token');
       
-      const resJobs = await fetch('http://localhost:5000/api/jobs', { headers: { Authorization: `Bearer ${token}` } });
+      const resJobs = await fetch(`${API_BASE}/api/jobs`, { headers: { Authorization: `Bearer ${token}` } });
       const jobsData = await resJobs.json();
       setJobs(Array.isArray(jobsData) ? jobsData : []);
 
-      const resUsage = await fetch('http://localhost:5000/api/payment/my-usage', { headers: { Authorization: `Bearer ${token}` } });
+      const resUsage = await fetch(`${API_BASE}/api/payment/my-usage`, { headers: { Authorization: `Bearer ${token}` } });
       if(resUsage.ok) setUsageInfo(await resUsage.json());
 
-      const resStats = await fetch('http://localhost:5000/api/applications/stats/summary', { headers: { Authorization: `Bearer ${token}` } });
+      const resStats = await fetch(`${API_BASE}/api/applications/stats/summary`, { headers: { Authorization: `Bearer ${token}` } });
       if(resStats.ok) setStatsData(await resStats.json());
 
-      const appRes = await fetch('http://localhost:5000/api/applications?limit=1000', { headers: { Authorization: `Bearer ${token}` } });
+      const appRes = await fetch(`${API_BASE}/api/applications?limit=1000`, { headers: { Authorization: `Bearer ${token}` } });
       if(appRes.ok) {
           const appData = await appRes.json();
           const counts = {};
@@ -63,7 +65,7 @@ const BusinessDashboard = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+      const res = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus })

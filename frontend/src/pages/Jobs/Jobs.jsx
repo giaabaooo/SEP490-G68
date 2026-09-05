@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Briefcase, DollarSign, Clock, Filter, ChevronDown, Bookmark, Loader2, FileText, Zap } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
 
 const Jobs = () => {
+  const [searchParams] = useSearchParams();
+  const initialKeyword = searchParams.get('keyword') || searchParams.get('search') || '';
+  const initialLocation = searchParams.get('location') || '';
+
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [provinces, setProvinces] = useState([]); 
   const [savedJobs, setSavedJobs] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [location, setLocation] = useState('');
+  const [searchTerm, setSearchTerm] = useState(initialKeyword);
+  const [location, setLocation] = useState(initialLocation);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [selectedExps, setSelectedExps] = useState([]);
 
@@ -37,7 +41,16 @@ const Jobs = () => {
     } catch (error) { console.error('Lỗi:', error); } finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchJobs(); }, [selectedTypes, selectedExps]);
+  useEffect(() => {
+    const kw = searchParams.get('keyword') || searchParams.get('search') || '';
+    const loc = searchParams.get('location') || '';
+    if (kw !== searchTerm || loc !== location) {
+      setSearchTerm(kw);
+      setLocation(loc);
+    }
+  }, [searchParams]);
+
+  useEffect(() => { fetchJobs(); }, [selectedTypes, selectedExps, searchTerm, location]);
 
   useEffect(() => {
     const syncSavedJobs = () => setSavedJobs(getSavedJobs());
@@ -212,7 +225,7 @@ const Jobs = () => {
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-2 mt-8 mb-4">
                   <button 
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onClick={() => { setCurrentPage(p => Math.max(1, p - 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={currentPage === 1}
                     className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-sm transition-colors"
                   >
@@ -221,7 +234,7 @@ const Jobs = () => {
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                     <button
                       key={page}
-                      onClick={() => setCurrentPage(page)}
+                      onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                       className={`w-10 h-10 rounded-xl font-bold text-sm transition-all ${
                         currentPage === page 
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20' 
@@ -232,7 +245,7 @@ const Jobs = () => {
                     </button>
                   ))}
                   <button 
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => { setCurrentPage(p => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
                     disabled={currentPage === totalPages}
                     className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 font-bold text-sm transition-colors"
                   >

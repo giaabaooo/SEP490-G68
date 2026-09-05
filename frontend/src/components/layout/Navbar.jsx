@@ -64,6 +64,19 @@ const Navbar = () => {
     } catch (err) {}
   };
 
+  const handleNotificationClick = async (n) => {
+    if (!n.isRead) {
+      await handleMarkAsRead(n._id);
+    }
+    if (n.link) {
+      navigate(n.link);
+    } else if (n.relatedApplicationId) {
+      navigate(role === 'business' ? '/bussiness/cvlist' : '/candidate/applications');
+    } else {
+      navigate('/candidate/notifications');
+    }
+  };
+
   const handleMarkAllAsRead = async (e) => {
     e.stopPropagation();
     try {
@@ -244,11 +257,20 @@ const Navbar = () => {
                     <div className="py-8 text-center text-xs text-black font-medium">Chưa có thông báo nào.</div>
                   ) : (
                     notifications.slice(0, 5).map((n) => (
-                      <div key={n._id} onClick={() => handleMarkAsRead(n._id)} className={`p-3 rounded-xl border transition-all cursor-pointer text-left relative ${!n.isRead ? 'bg-emerald-50/20 border-emerald-100' : 'bg-slate-50/30 border-slate-100'}`}>
-                        <h4 className={`text-xs font-bold text-black mb-0.5 leading-tight ${!n.isRead ? 'font-extrabold' : ''}`}>{n.title}</h4>
-                        <p className="text-[11px] font-medium text-black line-clamp-2 leading-relaxed">{n.message}</p>
-                        <span className="text-[9px] font-bold text-black mt-1 block">{new Date(n.createdAt).toLocaleDateString('vi-VN')}</span>
-                        {!n.isRead && <span className="absolute top-3.5 right-3 w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>}
+                      <div 
+                        key={n._id} 
+                        onClick={() => handleNotificationClick(n)} 
+                        className={`p-3 rounded-xl border transition-all cursor-pointer text-left relative hover:border-emerald-300 hover:shadow-sm ${!n.isRead ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50/40 border-slate-100'}`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h4 className={`text-xs text-black leading-tight truncate ${!n.isRead ? 'font-extrabold text-emerald-950' : 'font-bold'}`}>{n.title}</h4>
+                          {!n.isRead && <span className="w-2 h-2 bg-emerald-500 rounded-full shrink-0"></span>}
+                        </div>
+                        <p className="text-[11px] font-medium text-slate-700 line-clamp-2 leading-relaxed">{n.message}</p>
+                        <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-100/60">
+                          <span className="text-[9px] font-bold text-slate-500">{new Date(n.createdAt).toLocaleDateString('vi-VN')}</span>
+                          <span className="text-[10px] font-bold text-emerald-600">Xem chi tiết →</span>
+                        </div>
                       </div>
                     ))
                   )}

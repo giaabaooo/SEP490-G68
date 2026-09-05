@@ -1,6 +1,7 @@
 const PayOS = require('@payos/node');
 const Transaction = require("../models/Transaction");
 const User = require("../models/User");
+const { createNotification } = require('../utils/notificationHelper');
 
 // Khai báo Key dự phòng. Nếu file .env lỗi, hệ thống vẫn dùng Key này để chạy.
 const CLIENT_ID = process.env.PAYOS_CLIENT_ID || "fed8fcd9-c101-475b-a168-c6fd357a04c2";
@@ -99,6 +100,25 @@ exports.handleWebhook = async (req, res) => {
             user.businessCredits.balance += transaction.tokensAdded;
           }
           await user.save();
+
+          // Gửi thông báo cho User
+          if (transaction.planType === "CANDIDATE_PRO") {
+            await createNotification({
+              userId: user._id,
+              title: 'Nâng cấp tài khoản Pro thành công!',
+              message: 'Chúc mừng bạn đã nâng cấp gói Pro 30 ngày. Bạn có 180 phút phỏng vấn AI và 50 lượt Review CV!',
+              type: 'payment_success',
+              link: '/upgrade'
+            });
+          } else if (transaction.planType === "BUSINESS_TOPUP") {
+            await createNotification({
+              userId: user._id,
+              title: 'Nạp Token thành công!',
+              message: `Bạn đã nạp thành công ${transaction.tokensAdded} Token vào tài khoản Doanh nghiệp.`,
+              type: 'payment_success',
+              link: '/bussiness/dashboard'
+            });
+          }
         }
       }
     }
@@ -163,6 +183,25 @@ exports.checkPaymentStatus = async (req, res) => {
           user.businessCredits.balance += transaction.tokensAdded;
         }
         await user.save();
+
+        // Gửi thông báo cho User
+        if (transaction.planType === "CANDIDATE_PRO") {
+          await createNotification({
+            userId: user._id,
+            title: 'Nâng cấp tài khoản Pro thành công!',
+            message: 'Chúc mừng bạn đã nâng cấp gói Pro 30 ngày. Bạn có 180 phút phỏng vấn AI và 50 lượt Review CV!',
+            type: 'payment_success',
+            link: '/upgrade'
+          });
+        } else if (transaction.planType === "BUSINESS_TOPUP") {
+          await createNotification({
+            userId: user._id,
+            title: 'Nạp Token thành công!',
+            message: `Bạn đã nạp thành công ${transaction.tokensAdded} Token vào tài khoản Doanh nghiệp.`,
+            type: 'payment_success',
+            link: '/bussiness/dashboard'
+          });
+        }
       }
       return res.json({ status: "PAID", message: "Kích hoạt gói thành công!" });
     }

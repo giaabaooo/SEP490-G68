@@ -4,7 +4,7 @@ const multer = require('multer');
 const PDFParser = require("pdf2json");
 
 const auth = require('../middleware/auth');
-const { saveCV, getMyCVs } = require('../controllers/cvController');
+const { saveCV, getMyCVs, getCVById, renderCVView } = require('../controllers/cvController');
 const aiService = require('../services/ai.service');
 
 // Cấu hình Multer lưu file tạm trong RAM
@@ -12,6 +12,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 router.post('/save', auth, saveCV);
 router.get('/my-cvs', auth, getMyCVs);
+router.get('/view/:id', renderCVView);
+router.get('/:id', getCVById);
 
 // Hàm trích xuất chữ an toàn từ file PDF
 const extractTextFromPDF = (buffer) => {

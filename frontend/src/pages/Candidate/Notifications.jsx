@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, Inbox, AlertCircle, Clock, CheckCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, Check, Inbox, AlertCircle, Clock, CheckCheck, ExternalLink } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const Notifications = () => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,6 +52,17 @@ const Notifications = () => {
       toast.success('Đã đánh dấu đã đọc');
     } catch (err) {
       toast.error(err.message || 'Lỗi xử lý');
+    }
+  };
+
+  const handleNotificationClick = async (n) => {
+    if (!n.isRead) {
+      handleMarkAsRead(n._id);
+    }
+    if (n.link) {
+      navigate(n.link);
+    } else if (n.relatedApplicationId) {
+      navigate('/candidate/applications');
     }
   };
 
@@ -128,8 +141,9 @@ const Notifications = () => {
             {currentNotifs.map((n) => (
               <div
                 key={n._id}
-                className={`p-6 flex gap-4 transition-all hover:bg-slate-50/50 ${
-                  !n.isRead ? 'bg-emerald-50/10' : ''
+                onClick={() => handleNotificationClick(n)}
+                className={`p-6 flex gap-4 transition-all cursor-pointer hover:bg-slate-50/80 ${
+                  !n.isRead ? 'bg-emerald-50/15' : ''
                 }`}
               >
                 <div className="relative flex-shrink-0">
@@ -148,7 +162,7 @@ const Notifications = () => {
                 <div className="flex-grow min-w-0">
                   <div className="flex justify-between items-start gap-4">
                     <h4 className={`text-base font-bold text-black leading-tight mb-1 truncate ${
-                      !n.isRead ? 'font-extrabold' : ''
+                      !n.isRead ? 'font-extrabold text-emerald-950' : ''
                     }`}>
                       {n.title}
                     </h4>
@@ -160,11 +174,20 @@ const Notifications = () => {
                   <p className="text-sm font-medium text-black leading-relaxed break-words pr-4">
                     {n.message}
                   </p>
+                  {(n.link || n.relatedApplicationId) && (
+                    <div className="mt-2.5 flex items-center gap-1.5 text-xs font-bold text-emerald-600 hover:text-emerald-700">
+                      <span>Mở trang liên quan</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </div>
+                  )}
                 </div>
 
                 {!n.isRead && (
                   <button
-                    onClick={() => handleMarkAsRead(n._id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMarkAsRead(n._id);
+                    }}
                     className="p-2 bg-slate-50 hover:bg-emerald-50 text-black hover:text-emerald-600 rounded-xl transition-colors border border-slate-100 flex-shrink-0 align-self-start self-start cursor-pointer"
                     title="Đánh dấu đã đọc"
                   >
