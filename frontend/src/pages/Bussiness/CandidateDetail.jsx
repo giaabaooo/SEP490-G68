@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 export default function CandidateDetail() {
   const { id } = useParams(); // id của Application
@@ -41,7 +41,8 @@ export default function CandidateDetail() {
           status: appData.status,
           startedAt: appData.testStartedAt || appData.appliedAt,
           submittedAt: appData.testSubmittedAt || appData.appliedAt,
-          duration: appData.testDuration || 0 // Tính bằng giây
+          duration: appData.testDuration || 0, // Tính bằng giây
+          tabSwitches: appData.tabSwitches || 0, // Số lần cảnh báo rời tab
         });
 
         // 2. LẤY DỮ LIỆU BÀI TEST TỪ API ASSESSMENTS THẬT
@@ -93,14 +94,15 @@ export default function CandidateDetail() {
   if (loading) return <div className="flex h-screen items-center justify-center text-slate-500 font-bold">Đang tải hồ sơ...</div>;
   if (error || !candidate) return <div className="flex h-screen items-center justify-center text-red-500 font-bold">{error || "Không tìm thấy dữ liệu"}</div>;
 
-  const hasTakenTest = candidate.answers && Object.keys(candidate.answers).length > 0;
+  const hasTakenTest = candidate.testStatus === 'Completed' || (candidate.answers && Object.keys(candidate.answers).length > 0);
+  const jobRequiresTest = candidate.hasTest || !!candidate.assessmentId || !!candidate.jobId?.requireTest || !!testDetails;
 
   return (
     <div className="font-sans text-slate-800 bg-slate-50 min-h-screen pb-12">
       
       {/* Header Điều hướng */}
       <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center gap-4 mb-6 shadow-sm sticky top-0 z-40">
-         <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors">
+         <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors cursor-pointer">
             <ArrowLeft className="w-5 h-5" />
          </button>
          <div>
@@ -116,20 +118,37 @@ export default function CandidateDetail() {
           <div className="md:col-span-4 bg-white border border-slate-200 rounded-[24px] p-8 flex flex-col justify-between min-h-[200px] shadow-sm">
             <div>
               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-3">Điểm tổng kết</p>
-              <div className="flex items-baseline gap-2 mt-2">
-                <span className={`text-6xl font-black tracking-tighter ${candidate.score >= 50 ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {hasTakenTest ? candidate.score : '0'}
-                </span>
-                <span className="text-2xl font-bold text-slate-300">/100</span>
-              </div>
+              {hasTakenTest ? (
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className={`text-6xl font-black tracking-tighter ${candidate.score >= 50 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {candidate.score}
+                  </span>
+                  <span className="text-2xl font-bold text-slate-300">/100</span>
+                </div>
+              ) : !jobRequiresTest ? (
+                <div className="mt-2">
+                  <span className="text-2xl font-black text-slate-400">Không có bài test</span>
+                  <p className="text-xs text-slate-400 font-medium mt-1">Vị trí không yêu cầu kiểm tra</p>
+                </div>
+              ) : candidate.status === 'Rejected' ? (
+                <div className="mt-2">
+                  <span className="text-2xl font-black text-slate-400">Đã dừng tuyển</span>
+                  <p className="text-xs text-slate-400 font-medium mt-1">Hồ sơ đã bị từ chối trước khi làm bài</p>
+                </div>
+              ) : (
+                <div className="mt-2">
+                  <span className="text-3xl font-black text-amber-500">Chưa làm</span>
+                  <p className="text-xs text-amber-600 font-medium mt-1">Đang chờ ứng viên làm bài</p>
+                </div>
+              )}
             </div>
             <div className="mt-6 pt-5 border-t border-slate-100 text-sm font-bold text-slate-600 truncate">
-                {testDetails?.assessmentName || 'Bài kiểm tra năng lực'}
+                {testDetails?.assessmentName || (jobRequiresTest ? 'Bài kiểm tra năng lực' : 'Không áp dụng bài test')}
             </div>
           </div>
           
           <div className="md:col-span-8 bg-white border border-slate-200 rounded-[24px] p-8 flex flex-col justify-center shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
               <div className="px-2">
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Thời gian bắt đầu</p>
                 <p className="text-[15px] font-bold text-slate-800 mb-4">{hasTakenTest ? formatDate(candidate.startedAt) : '---'}</p>
@@ -138,18 +157,67 @@ export default function CandidateDetail() {
                 <p className="text-[15px] font-bold text-slate-800">{hasTakenTest ? formatDate(candidate.submittedAt) : '---'}</p>
               </div>
               
-              <div className="px-6 pt-6 sm:pt-0">
+              <div className="px-4 pt-6 sm:pt-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Trạng thái bài Test</p>
-                  {hasTakenTest ? (
-                      <p className="text-base font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg inline-block border border-emerald-100">Đã hoàn thành</p>
+                  {!jobRequiresTest ? (
+                      <p className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-lg inline-block border border-slate-200">
+                        Không yêu cầu test
+                      </p>
+                  ) : hasTakenTest ? (
+                      <p className="text-base font-black text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg inline-block border border-emerald-100">
+                        Đã hoàn thành
+                      </p>
+                  ) : candidate.status === 'Rejected' ? (
+                      <p className="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-lg inline-block border border-slate-200">
+                        Đã dừng tuyển
+                      </p>
                   ) : (
-                      <p className="text-base font-black text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg inline-block border border-amber-100">Chưa làm bài</p>
+                      <p className="text-base font-black text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg inline-block border border-amber-100">
+                        Chưa làm bài
+                      </p>
                   )}
               </div>
               
-              <div className="px-6 pt-6 sm:pt-0">
+              <div className="px-4 pt-6 sm:pt-0">
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Thời lượng</p>
                   <p className="text-xl font-black text-slate-900">{hasTakenTest ? formatDuration(candidate.duration) : '---'}</p>
+              </div>
+
+              {/* Giám sát thi / Số lần cảnh báo rời màn hình */}
+              <div className="px-4 pt-6 sm:pt-0">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Giám sát bài thi</p>
+                  {hasTakenTest ? (
+                      <div>
+                          <div className="flex items-center gap-1.5 mb-1.5">
+                              <span className={`text-2xl font-black ${
+                                  (candidate.tabSwitches || 0) === 0 
+                                      ? 'text-emerald-600' 
+                                      : (candidate.tabSwitches || 0) < 3 ? 'text-amber-600' : 'text-red-600'
+                              }`}>
+                                  {candidate.tabSwitches || 0}
+                              </span>
+                              <span className="text-xs font-bold text-slate-500">lần rời tab</span>
+                          </div>
+                          {(candidate.tabSwitches || 0) === 0 ? (
+                              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200 inline-flex items-center gap-1">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                                  Trung thực (0 vi phạm)
+                              </span>
+                          ) : (candidate.tabSwitches || 0) < 3 ? (
+                              <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 inline-flex items-center gap-1">
+                                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                  Cảnh báo nhẹ
+                              </span>
+                          ) : (
+                              <span className="text-xs font-bold text-red-700 bg-red-50 px-2 py-0.5 rounded-md border border-red-200 inline-flex items-center gap-1 animate-pulse">
+                                  <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                                  Nghi vấn gian lận
+                              </span>
+                          )}
+                      </div>
+                  ) : (
+                      <p className="text-sm font-bold text-slate-400">---</p>
+                  )}
               </div>
             </div>
           </div>
@@ -165,11 +233,17 @@ export default function CandidateDetail() {
 
             {/* DANH SÁCH CÂU HỎI VÀ ĐÁP ÁN (DỮ LIỆU THẬT) */}
             <div className="space-y-6 animate-fadeIn">
-              {!hasTakenTest ? (
+              {!jobRequiresTest ? (
                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
-                    <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                    <CheckCircle className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+                    <h3 className="text-lg font-bold text-slate-800">Vị trí này không yêu cầu bài kiểm tra năng lực</h3>
+                    <p className="text-slate-500 font-medium text-sm mt-1">Hồ sơ ứng viên được sàng lọc qua CV và đánh giá trực tiếp qua phỏng vấn.</p>
+                 </div>
+              ) : !hasTakenTest ? (
+                 <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+                    <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-3" />
                     <h3 className="text-lg font-bold text-slate-800">Ứng viên chưa làm bài kiểm tra</h3>
-                    <p className="text-slate-500 font-medium text-sm mt-1">Hệ thống đang chờ ứng viên hoàn thành để tính điểm.</p>
+                    <p className="text-slate-500 font-medium text-sm mt-1">Hệ thống đang chờ ứng viên hoàn thành bài test để tính điểm.</p>
                  </div>
               ) : testDetails && testDetails.questions ? (
                 testDetails.questions.map((q, idx) => {

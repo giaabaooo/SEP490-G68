@@ -45,6 +45,7 @@ const EditCV = () => {
   const autoDownloadTriggered = useRef(false);
 
   const [loading, setLoading] = useState(false);
+  const [savingMode, setSavingMode] = useState(null); // 'draft' | 'exit' | null
   const [cvId, setCvId] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
   
@@ -186,8 +187,9 @@ const EditCV = () => {
   };
   const onDragEnd = () => { setDraggedItemIndex(null); };
 
-  const saveToDatabase = async () => {
+  const handleSave = async (shouldExit = false) => {
     if (!data.personal.fullName?.trim()) return toast.error('Vui lòng nhập Họ Tên');
+    setSavingMode(shouldExit ? 'exit' : 'draft');
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
@@ -198,10 +200,25 @@ const EditCV = () => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error('Lỗi lưu CV');
-      toast.success('Lưu thành công! Đang chuyển hướng...');
-      setTimeout(() => navigate('/candidate/manage-cv'), 1200);
-    } catch (error) { toast.error(error.message); } finally { setLoading(false); }
+      const resJson = await response.json();
+      if (!response.ok) throw new Error(resJson.message || 'Lỗi lưu CV');
+
+      if (resJson.cv?._id) {
+        setCvId(resJson.cv._id);
+      }
+
+      if (shouldExit) {
+        toast.success('Lưu thành công! Đang chuyển hướng...');
+        setTimeout(() => navigate('/candidate/manage-cv'), 1000);
+      } else {
+        toast.success('Đã lưu bản nháp thành công!');
+      }
+    } catch (error) { 
+      toast.error(error.message); 
+    } finally { 
+      setLoading(false); 
+      setSavingMode(null);
+    }
   };
 
   const handleDownloadPDF = (cvData = data) => {
@@ -605,13 +622,24 @@ const EditCV = () => {
             {/* NÚT HÀNH ĐỘNG */}
             <div className="mt-auto pt-6 flex flex-col gap-3 border-t border-slate-100">
               <div className="flex gap-2">
-                <button className="flex-1 py-3 text-sm font-bold rounded-xl border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2" 
-                        onClick={saveToDatabase} disabled={loading || isExporting}>
-                  <Save className="w-4 h-4"/> {loading ? '...' : 'Lưu nháp'}
+                <button 
+                  type="button"
+                  className="flex-1 py-3 text-sm font-bold rounded-xl border border-emerald-600 text-emerald-600 hover:bg-emerald-50 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50" 
+                  onClick={() => handleSave(false)} 
+                  disabled={loading || isExporting}
+                  title="Lưu bản nháp và tiếp tục chỉnh sửa"
+                >
+                  <Save className={`w-4 h-4 ${savingMode === 'draft' ? 'animate-spin' : ''}`}/> 
+                  {savingMode === 'draft' ? 'Đang lưu...' : 'Lưu nháp'}
                 </button>
-                <button className="flex-1 py-3 text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2" 
-                        onClick={saveToDatabase} disabled={loading || isExporting}>
-                  Lưu & Thoát
+                <button 
+                  type="button"
+                  className="flex-1 py-3 text-sm font-bold rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 shadow-md shadow-emerald-200 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50" 
+                  onClick={() => handleSave(true)} 
+                  disabled={loading || isExporting}
+                  title="Lưu CV và quay về trang Quản lý CV"
+                >
+                  {savingMode === 'exit' ? 'Đang lưu...' : 'Lưu & Thoát'}
                 </button>
               </div>
               <button className="w-full py-3.5 text-sm font-bold rounded-xl bg-slate-900 text-white hover:bg-slate-800 shadow-lg transition-all flex items-center justify-center gap-2" 

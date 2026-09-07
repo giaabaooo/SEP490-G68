@@ -296,7 +296,7 @@ exports.list = async (req, res) => {
     const total = await Application.countDocuments(q);
     const items = await Application.find(q)
       .populate('userId', 'fullName avatar cvUrl email')
-      .populate({ path: 'jobId', select: 'title recruitmentDeadline recruiterId', populate: { path: 'recruiterId', select: 'fullName companyName' } })
+      .populate({ path: 'jobId', select: 'title recruitmentDeadline recruiterId requireTest assessmentId', populate: { path: 'recruiterId', select: 'fullName companyName' } })
       .sort(sort).skip(skip).limit(Number(limit));
 
     // Chuẩn hóa appliedCvFileUrl cho cả các application cũ
@@ -316,7 +316,9 @@ exports.list = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const app = await Application.findById(req.params.id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title description recruiterId');
+    const app = await Application.findById(req.params.id)
+      .populate('userId', 'fullName avatar cvUrl email')
+      .populate('jobId', 'title description recruiterId requireTest assessmentId');
     if (!app) return res.status(404).json({ message: 'Application not found' });
     if (req.user?.role === 'business' && app.jobId?.recruiterId?.toString() !== req.user.id.toString()) return res.status(403).json({ message: 'Access denied' });
     

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, Eye, CheckCircle, XCircle, Download, Sparkles, Clock, ArrowLeft, DownloadCloud, X, ThumbsUp, AlertTriangle, RefreshCw, Layers } from 'lucide-react';
+import { Search, Filter, Eye, CheckCircle, XCircle, Download, Sparkles, Clock, ArrowLeft, DownloadCloud, X, ThumbsUp, AlertTriangle, RefreshCw, Layers, Mail } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { useSearchParams, useNavigate, useLocation, useParams } from 'react-router-dom';
 
@@ -155,12 +155,39 @@ const CVList = () => {
   const [emailType, setEmailType] = useState('Pass');
   const [sendingEmail, setSendingEmail] = useState(false);
 
+  // Modal xác nhận chuyển trạng thái (Nhận việc / Từ chối) để tránh HR bấm nhầm
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    app: null,
+    targetStatus: null
+  });
+
+  const handleOpenConfirmModal = (app, targetStatus) => {
+    setConfirmModal({
+      isOpen: true,
+      app,
+      targetStatus
+    });
+  };
+
+  const handleConfirmStatus = async () => {
+    if (!confirmModal.app || !confirmModal.targetStatus) return;
+    const appId = confirmModal.app._id || confirmModal.app.id;
+    const targetStatus = confirmModal.targetStatus;
+    await updateApplicationStatus(appId, targetStatus);
+    setConfirmModal({ isOpen: false, app: null, targetStatus: null });
+  };
+
   const jobTitle = location.state?.jobTitle || (applications[0]?.jobId?.title) || (currentJobId ? 'Chi tiết công việc' : 'Tất cả công việc');
 
   const templates = {
     test: {
       subject: 'Thư mời thực hiện bài đánh giá năng lực - Careerio',
       content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nChúng tôi rất ấn tượng với hồ sơ của bạn và muốn mời bạn tham gia thực hiện bài đánh giá kỹ năng chuyên môn.\n\nVui lòng hoàn thành bài đánh giá của bạn trước thời hạn quy định.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+    },
+    testReminder: {
+      subject: '[Nhắc nhở] Hoàn thành bài kiểm tra năng lực - Careerio',
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nChúng tôi nhận thấy bạn vẫn chưa hoàn thành bài kiểm tra năng lực cho vị trí ${jobTitle}.\n\nĐể tiếp tục quá trình xét duyệt hồ sơ ứng tuyển, bạn vui lòng đăng nhập vào hệ thống và hoàn thành bài test trong thời gian sớm nhất.\n\nNếu cần hỗ trợ kỹ thuật hoặc có bất kỳ câu hỏi nào, vui lòng phản hồi lại email này.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     },
     interview: {
       subject: 'Thư mời phỏng vấn - Careerio',
@@ -295,12 +322,18 @@ const CVList = () => {
   const handleDrop = async (e, targetStatus) => {
     e.preventDefault();
     const appId = e.dataTransfer.getData('text/plain');
-    if (appId) await updateApplicationStatus(appId, targetStatus);
+    if (!appId) return;
+    const app = deduplicatedApps.find(a => (a._id || a.id) === appId);
+    if (app && (targetStatus === 'Offered' || targetStatus === 'Rejected')) {
+      handleOpenConfirmModal(app, targetStatus);
+      return;
+    }
+    await updateApplicationStatus(appId, targetStatus);
   };
 
   const exportToExcel = () => {
     if (deduplicatedApps.length === 0) return toast.warning('Không có ứng viên nào để xuất dữ liệu.');
-    const headers = ['Tên ứng viên', 'Email', 'Vị trí', 'Điểm CV (%)', 'Điểm Test (/100)', 'Ngày nộp', 'Trạng thái'];
+    const headers = ['Tên ứng viên', 'Email', 'Vị trí', 'Điểm CV (%)', 'Điểm Test (/100)', 'Cảnh báo rời tab', 'Ngày nộp', 'Trạng thái'];
     const csvRows = [headers.join(',')];
 
     deduplicatedApps.forEach(app => {
@@ -308,10 +341,18 @@ const CVList = () => {
       const email = `"${app.userId?.email || 'N/A'}"`;
       const job = `"${app.jobId?.title || 'N/A'}"`;
       const cvScore = app.aiScore || 0;
-      const testScore = app.testScore !== undefined && app.testScore !== null ? app.testScore : 'Chưa làm';
+      const jobRequiresTest = app.hasTest || !!app.assessmentId || !!app.jobId?.requireTest;
+      const testScore = app.testScore !== undefined && app.testScore !== null 
+        ? app.testScore 
+        : app.status === 'Rejected'
+        ? 'Đã dừng tuyển'
+        : app.status === 'Offered'
+        ? 'Đã nhận việc'
+        : (jobRequiresTest ? 'Chưa làm' : 'Không có bài test');
+      const tabSwitches = app.tabSwitches || 0;
       const date = `"${new Date(app.appliedAt || app.createdAt || Date.now()).toLocaleDateString('vi-VN')}"`;
       const status = `"${getStatusLabel(app.status)}"`;
-      csvRows.push([name, email, job, cvScore, testScore, date, status].join(','));
+      csvRows.push([name, email, job, cvScore, testScore, tabSwitches, date, status].join(','));
     });
 
     const csvString = '\uFEFF' + csvRows.join('\n'); 
@@ -327,20 +368,22 @@ const CVList = () => {
     setAiModalOpen(true);
   };
 
-  const handleOpenNotifyModal = (app) => {
+  const handleOpenNotifyModal = (app, forcedTemplateKey = null) => {
     setSelectedApp(app);
     setIsNotifyModalOpen(true);
-    let templateKey = 'test';
+    let templateKey = forcedTemplateKey || 'test';
     let type = 'Pass';
-    if (app.status === 'Interviewing') templateKey = 'interview';
-    else if (app.status === 'Offered') templateKey = 'offer';
-    else if (app.status === 'Rejected') { templateKey = 'reject'; type = 'Reject'; }
+    if (!forcedTemplateKey) {
+      if (app.status === 'Interviewing') templateKey = 'interview';
+      else if (app.status === 'Offered') templateKey = 'offer';
+      else if (app.status === 'Rejected') { templateKey = 'reject'; type = 'Reject'; }
+    }
 
     const candidateName = app.userId?.fullName || 'Ứng viên';
     const title = app.jobId?.title || 'Vị trí ứng tuyển';
     setEmailType(type);
-    setEmailSubject(templates[templateKey].subject);
-    setEmailContent(templates[templateKey].content(candidateName, title));
+    setEmailSubject(templates[templateKey]?.subject || '');
+    setEmailContent(templates[templateKey]?.content ? templates[templateKey].content(candidateName, title) : '');
   };
 
   const handleSendNotification = async (e) => {
@@ -492,8 +535,8 @@ const CVList = () => {
                               <button onClick={() => handleOpenNotifyModal(app)} className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-600 hover:text-white" title="Gửi thông báo"><svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
                             </div>
                             <div className="flex gap-1">
-                              {status !== 'Offered' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-600 hover:text-white">Nhận</button>}
-                              {status !== 'Rejected' && <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black hover:bg-red-600 hover:text-white">Loại</button>}
+                              {status !== 'Offered' && <button onClick={() => handleOpenConfirmModal(app, 'Offered')} className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer" title="Đề nghị nhận việc">Nhận</button>}
+                              {status !== 'Rejected' && <button onClick={() => handleOpenConfirmModal(app, 'Rejected')} className="px-2 py-1 bg-red-50 text-red-600 rounded-lg text-[10px] font-black hover:bg-red-600 hover:text-white transition-colors cursor-pointer" title="Từ chối hồ sơ">Loại</button>}
                             </div>
                         </div>
                       </div>
@@ -525,6 +568,8 @@ const CVList = () => {
 
                 {deduplicatedApps.filter(app => activeFilter === 'All' || app.status === activeFilter).map((app, index) => {
                    const hasDoneTest = app.testStatus === 'Completed' || (app.testScore !== undefined && app.testScore !== null);
+                   const jobRequiresTest = app.hasTest || !!app.assessmentId || !!app.jobId?.requireTest;
+
                    return (
                   <tr key={app._id || app.id} className="hover:bg-slate-50/60 transition-colors group animate-fade-in">
                     <td className="p-5 pl-6 text-sm font-medium text-black">{(page - 1) * limit + index + 1}</td>
@@ -558,13 +603,44 @@ const CVList = () => {
                     <td className="p-5 text-center">
                        {hasDoneTest ? (
                           <div className="flex flex-col items-center">
-                             <div className="flex items-center gap-2 w-full justify-center">
+                             <div className="flex items-center gap-1.5 w-full justify-center">
                                 <span className={`font-black text-[15px] ${app.testScore >= 50 ? 'text-emerald-600' : 'text-red-500'}`}>{app.testScore}</span>
+                                <span className="text-xs text-slate-400 font-bold">/100</span>
                              </div>
-                             <span className="text-[10px] font-bold text-black uppercase bg-slate-100 px-2 py-0.5 rounded mt-1.5 border border-slate-200">Hoàn thành</span>
+                             <span className="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded mt-1 border border-emerald-200">Hoàn thành</span>
+                             {app.tabSwitches > 0 && (
+                                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded mt-1 border border-red-200 flex items-center gap-0.5" title={`Hệ thống phát hiện rời màn hình ${app.tabSwitches} lần trong khi thi`}>
+                                   <AlertTriangle className="w-3 h-3 text-red-500" />
+                                   {app.tabSwitches} lần rời tab
+                                </span>
+                             )}
+                          </div>
+                       ) : app.status === 'Rejected' ? (
+                          <span className="text-[11px] font-medium text-slate-400 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5" title="Hồ sơ đã bị từ chối trước khi làm bài test">
+                             <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                             Đã dừng tuyển
+                          </span>
+                       ) : app.status === 'Offered' ? (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
+                             Đã nhận việc
+                          </span>
+                       ) : jobRequiresTest ? (
+                          <div className="flex flex-col items-center gap-1.5">
+                             <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">Chưa làm bài</span>
+                             <button
+                               onClick={() => handleOpenNotifyModal(app, 'testReminder')}
+                               className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                               title="Gửi email nhắc nhở ứng viên hoàn thành bài test"
+                             >
+                               <Mail className="w-3 h-3 text-blue-600" />
+                               <span>Nhắc làm bài</span>
+                             </button>
                           </div>
                        ) : (
-                          <span className="text-[11px] font-bold text-black italic bg-slate-50 border px-3 py-1.5 rounded-lg">Chưa làm bài</span>
+                          <span className="text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5">
+                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                             Không có bài test
+                          </span>
                        )}
                     </td>
 
@@ -574,10 +650,10 @@ const CVList = () => {
 
                     <td className="p-5 pr-6 text-center">
                       <div className="flex items-center justify-center gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors" title="Xem CV"><Eye className="w-4 h-4" /></button>
-                        <button onClick={() => handleOpenNotifyModal(app)} className="p-2.5 bg-slate-50 text-black rounded-xl hover:bg-slate-200 transition-colors"><svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg></button>
-                        <button onClick={() => updateApplicationStatus(app._id || app.id, 'Offered')} className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors"><CheckCircle className="w-4 h-4" /></button>
-                        <button onClick={() => updateApplicationStatus(app._id || app.id, 'Rejected')} className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors"><XCircle className="w-4 h-4" /></button>
+                        <button onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2.5 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors cursor-pointer" title="Xem CV"><Eye className="w-4 h-4" /></button>
+                        <button onClick={() => handleOpenNotifyModal(app)} className="p-2.5 bg-slate-50 text-black rounded-xl hover:bg-slate-200 transition-colors cursor-pointer" title="Gửi thông báo"><Mail className="w-4 h-4" /></button>
+                        <button onClick={() => handleOpenConfirmModal(app, 'Offered')} className="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer" title="Đề nghị nhận việc"><CheckCircle className="w-4 h-4" /></button>
+                        <button onClick={() => handleOpenConfirmModal(app, 'Rejected')} className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors cursor-pointer" title="Từ chối hồ sơ"><XCircle className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -603,8 +679,14 @@ const CVList = () => {
 
             <div className="mb-6">
               <label className="text-xs font-black text-black uppercase tracking-wider block mb-2">Mẫu thông báo nhanh</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[{ key: 'test', label: 'Mời làm test' }, { key: 'interview', label: 'Mời phỏng vấn' }, { key: 'offer', label: 'Mời nhận việc' }, { key: 'reject', label: 'Thư từ chối' }].map((t) => (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { key: 'test', label: 'Mời làm test' }, 
+                  { key: 'testReminder', label: 'Nhắc làm bài test' },
+                  { key: 'interview', label: 'Mời phỏng vấn' }, 
+                  { key: 'offer', label: 'Mời nhận việc' }, 
+                  { key: 'reject', label: 'Thư từ chối' }
+                ].map((t) => (
                   <button
                     key={t.key} type="button"
                     onClick={() => {
@@ -612,7 +694,7 @@ const CVList = () => {
                       setEmailContent(templates[t.key].content(selectedApp.userId?.fullName || 'Ứng viên', selectedApp.jobId?.title || 'Vị trí ứng tuyển'));
                       setEmailType(t.key === 'reject' ? 'Reject' : 'Pass');
                     }}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-black transition-all border border-slate-200/50"
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-black transition-all border border-slate-200/50 cursor-pointer text-center"
                   >{t.label}</button>
                 ))}
               </div>
@@ -642,6 +724,90 @@ const CVList = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xác nhận Đổi trạng thái Nhận việc / Từ chối để tránh HR bấm nhầm */}
+      {confirmModal.isOpen && confirmModal.app && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in"
+          onClick={() => setConfirmModal({ isOpen: false, app: null, targetStatus: null })}
+        >
+          <div 
+            className="bg-white rounded-[28px] w-full max-w-md p-6 sm:p-7 border border-slate-200 shadow-2xl animate-scale-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                confirmModal.targetStatus === 'Offered' 
+                  ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' 
+                  : 'bg-rose-100 text-rose-600 border border-rose-200'
+              }`}>
+                {confirmModal.targetStatus === 'Offered' ? (
+                  <CheckCircle className="w-6 h-6" />
+                ) : (
+                  <AlertTriangle className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900 leading-tight">
+                  {confirmModal.targetStatus === 'Offered' ? 'Xác nhận nhận việc' : 'Xác nhận từ chối hồ sơ'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Thao tác thay đổi trạng thái tuyển dụng</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 mb-5 text-sm space-y-1.5">
+              <p className="text-slate-600">
+                Ứng viên: <strong className="text-slate-900">{confirmModal.app.userId?.fullName || 'Ứng viên'}</strong>
+              </p>
+              <p className="text-slate-600">
+                Vị trí: <strong className="text-slate-900">{confirmModal.app.jobId?.title || jobTitle}</strong>
+              </p>
+              <p className="text-xs mt-2 pt-2 border-t border-slate-200/80">
+                {confirmModal.targetStatus === 'Offered' ? (
+                  <span className="text-emerald-700 font-semibold">
+                    Ứng viên sẽ được chuyển sang trạng thái <strong>Đề nghị nhận việc (Offered)</strong>.
+                  </span>
+                ) : (
+                  <span className="text-rose-700 font-semibold">
+                    Ứng viên sẽ được chuyển sang trạng thái <strong>Từ chối (Rejected)</strong> và quá trình xét tuyển vị trí này sẽ kết thúc.
+                  </span>
+                )}
+              </p>
+            </div>
+
+            <div className="flex justify-end items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmModal({ isOpen: false, app: null, targetStatus: null })}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmStatus}
+                className={`px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5 ${
+                  confirmModal.targetStatus === 'Offered'
+                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+                    : 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
+                }`}
+              >
+                {confirmModal.targetStatus === 'Offered' ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Xác nhận nhận việc</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    <span>Xác nhận từ chối</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
