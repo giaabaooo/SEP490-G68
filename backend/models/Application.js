@@ -21,6 +21,7 @@ const applicationSchema = new mongoose.Schema({
   testStartedAt: { type: Date, default: null }, // Thời gian bắt đầu làm
   testSubmittedAt: { type: Date, default: null }, // Thời gian nộp bài
   testDuration: { type: Number, default: 0 }, // Thời lượng làm bài (tính bằng giây)
+  tabSwitches: { type: Number, default: 0 }, // Số lần cảnh báo rời màn hình / chuyển tab khi làm bài test
   // ==========================================
   
   hrAdjustedScore: { type: Number, default: null },

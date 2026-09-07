@@ -667,26 +667,45 @@ const JobDetail = () => {
                           </div>
                       </div>
 
+                      {/* CẢNH BÁO KHI ĐIỂM DƯỚI 60 */}
+                      {reviewData.score < 60 && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3 text-amber-900 animate-fade-in">
+                              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                              <div className="text-xs leading-relaxed">
+                                  <strong className="font-bold text-amber-950 block mb-0.5">Cảnh báo: CV chưa được tối ưu!</strong>
+                                  <p className="text-amber-800">
+                                      Điểm CV của bạn hiện tại là <strong>{reviewData.score}/100</strong> (dưới 60%). Bạn nên chọn <strong>"Sửa lại CV ngay"</strong> theo gợi ý của AI để nâng cao cơ hội trúng tuyển. Tuy nhiên, nếu bạn vẫn muốn nộp hồ sơ này, bạn có thể bấm <strong>"Vẫn nộp CV"</strong> bên dưới.
+                                  </p>
+                              </div>
+                          </div>
+                      )}
+
                       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-slate-100">
                           {/* NÚT SỬA LẠI CV (LUÔN HIỆN) */}
-                          <button onClick={handleEditCV} className="flex-1 py-3 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold rounded-xl transition-all">
+                          <button onClick={handleEditCV} className="flex-1 py-3 bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold rounded-xl transition-all cursor-pointer">
                              Sửa lại CV ngay
                           </button>
                           
-                          {/* NẾU ĐIỂM >= 60 MỚI CHO NỘP */}
-                          {reviewData.score >= 60 && (
-                             <button onClick={handleFinalSubmit} disabled={applyCount >= 3 || isClosed} className={`flex-1 py-3 font-bold rounded-xl transition-all shadow-sm ${applyCount >= 3 || isClosed ? 'bg-slate-300 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}>
+                          {/* NÚT NỘP CV */}
+                          {reviewData.score >= 60 ? (
+                             <button 
+                                onClick={handleFinalSubmit} 
+                                disabled={applyCount >= 3 || isClosed} 
+                                className={`flex-1 py-3 font-bold rounded-xl transition-all shadow-sm cursor-pointer ${applyCount >= 3 || isClosed ? 'bg-slate-300 text-white cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+                             >
                                 {isClosed ? 'Job đã đóng' : applyCount >= 3 ? 'Đã hết lượt nộp' : wizardMode === 'review' ? 'Quyết định nộp CV này' : 'Bỏ qua, tiếp tục nộp'}
+                             </button>
+                          ) : (
+                             <button 
+                                onClick={handleFinalSubmit} 
+                                disabled={applyCount >= 3 || isClosed} 
+                                title="Vẫn nộp CV dù điểm đánh giá AI chưa tối ưu"
+                                className={`flex-1 py-3 font-bold rounded-xl transition-all shadow-sm cursor-pointer ${applyCount >= 3 || isClosed ? 'bg-slate-300 text-white cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/20'}`}
+                             >
+                                {isClosed ? 'Job đã đóng' : applyCount >= 3 ? 'Đã hết lượt nộp' : 'Vẫn nộp CV'}
                              </button>
                           )}
                       </div>
-                      
-                      {/* CẢNH BÁO KHI ĐIỂM DƯỚI 60 */}
-                      {reviewData.score < 60 && (
-                          <p className="text-center text-rose-500 text-xs font-bold mt-2">
-                             Điểm CV của bạn dưới 60%, hãy nhấn "Sửa lại CV ngay" để tối ưu theo gợi ý của AI trước khi nộp nhé!
-                          </p>
-                      )}
                   </div>
                )}
 

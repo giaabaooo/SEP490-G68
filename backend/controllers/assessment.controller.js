@@ -123,7 +123,7 @@ exports.getTestForCandidate = async (req, res) => {
 exports.submitTest = async (req, res) => {
     try {
         const { id } = req.params; 
-        const { answers, duration } = req.body; 
+        const { answers, duration, tabSwitches } = req.body; 
         const userId = req.user.id;
 
         const test = await Assessment.findById(id);
@@ -146,6 +146,7 @@ exports.submitTest = async (req, res) => {
         application.testScore = score;
         application.testAnswers = answers;
         application.testDuration = duration || 0;
+        application.tabSwitches = typeof tabSwitches === 'number' ? tabSwitches : (Number(tabSwitches) || 0);
         application.testSubmittedAt = new Date();
         await application.save();
 

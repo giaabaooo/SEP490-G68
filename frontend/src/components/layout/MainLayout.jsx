@@ -8,6 +8,12 @@ const MainLayout = () => {
   
   // Kiểm tra nếu là trang chủ thì cho full màn hình, ngược lại thì giới hạn chiều rộng
   const isHomePage = location.pathname === '/home' || location.pathname === '/';
+  const isTakeTestPage = location.pathname.includes('/take');
+
+  // Màn hình làm bài test độc lập, không hiển thị Navbar và Footer chung
+  if (isTakeTestPage) {
+    return <Outlet />;
+  }
 
   return (
     // Wrapper Flexbox giúp Footer luôn nằm ở đáy trang dù nội dung ngắn
