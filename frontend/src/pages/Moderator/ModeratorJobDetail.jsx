@@ -6,6 +6,8 @@ import {
   Calendar, ClipboardCheck, AlignLeft, ArrowLeft, Loader2
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const ModeratorJobDetail = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
@@ -21,7 +23,7 @@ const ModeratorJobDetail = () => {
     const fetchJob = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:5000/api/jobs/${jobId}`, {
+        const res = await fetch(`${API_BASE}/api/jobs/${jobId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         

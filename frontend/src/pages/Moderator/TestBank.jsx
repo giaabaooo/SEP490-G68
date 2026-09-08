@@ -4,6 +4,8 @@ import { Database, Search, FileEdit, Loader2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const TestBank = () => {
   const navigate = useNavigate();
   const [tests, setTests] = useState([]);
@@ -13,7 +15,7 @@ const TestBank = () => {
     const fetchTests = async () => {
       const token = localStorage.getItem('token');
       try {
-        const res = await fetch('http://localhost:5000/api/assessments/my-tests', {
+        const res = await fetch(`${API_BASE}/api/assessments/my-tests`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();
