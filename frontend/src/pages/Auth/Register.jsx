@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const Register = () => {
   const [role, setRole] = useState('candidate');
   const [step, setStep] = useState(1);
@@ -45,7 +47,7 @@ const Register = () => {
         body.companyName = formData.companyName || '';
       }
 
-      const registerRes = await fetch('http://localhost:5000/api/auth/register', {
+      const registerRes = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
@@ -66,7 +68,7 @@ const Register = () => {
   const handleVerifyOtp = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:5000/api/auth/verify-otp', {
+      const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: formData.email, otp: otp.join('') })

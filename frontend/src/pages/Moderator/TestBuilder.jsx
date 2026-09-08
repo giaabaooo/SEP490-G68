@@ -6,6 +6,8 @@ import {
   Settings, CheckCircle, Clock, CheckSquare, Loader2
 } from 'lucide-react';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 // ================= MODAL BÁO HẾT TOKEN =================
 const TokenTopupModal = ({ isOpen, onClose, isModerator }) => {
     const navigate = useNavigate();
@@ -115,7 +117,7 @@ export default function TestBuilder() {
     if (jobId) {
       const fetchJob = async () => {
         try {
-          const res = await fetch(`http://localhost:5000/api/jobs/${jobId}`);
+          const res = await fetch(`${API_BASE}/api/jobs/${jobId}`);
           if(res.ok) {
             const data = await res.json();
             setJobQuota(data.aiTokensQuota || 0);
@@ -129,7 +131,7 @@ export default function TestBuilder() {
       const fetchTest = async () => {
         const token = localStorage.getItem('token');
         try {
-          const res = await fetch(`http://localhost:5000/api/assessments/${testId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          const res = await fetch(`${API_BASE}/api/assessments/${testId}`, { headers: { 'Authorization': `Bearer ${token}` } });
           const data = await res.json();
           if (!res.ok) throw new Error(data.message);
           
@@ -154,7 +156,7 @@ export default function TestBuilder() {
     setIsAILoading(true);
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:5000/api/assessments/generate-ai`, {
+      const res = await fetch(`${API_BASE}/api/assessments/generate-ai`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ topic, quantity: count, difficulty, jobId })
       });
@@ -191,7 +193,7 @@ export default function TestBuilder() {
     if (!isEditMode && jobId) payload.jobId = jobId;
 
     try {
-      const url = isEditMode ? `http://localhost:5000/api/assessments/${testId}` : `http://localhost:5000/api/assessments/create`;
+      const url = isEditMode ? `${API_BASE}/api/assessments/${testId}` : `${API_BASE}/api/assessments/create`;
       const res = await fetch(url, {
         method: isEditMode ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
