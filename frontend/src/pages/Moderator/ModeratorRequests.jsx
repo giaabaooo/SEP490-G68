@@ -3,6 +3,8 @@ import { FileText, CheckCircle, Clock, Eye, PlusCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const ModeratorRequests = () => {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
@@ -14,7 +16,7 @@ const ModeratorRequests = () => {
       if (!token) return navigate('/login');
 
       try {
-        const res = await fetch('http://localhost:5000/api/jobs/moderator-requests', {
+        const res = await fetch(`${API_BASE}/api/jobs/moderator-requests`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const data = await res.json();

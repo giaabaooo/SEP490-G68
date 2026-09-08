@@ -47,7 +47,13 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== "production") {
+      if (!origin) return callback(null, true);
+      const isAllowed = 
+        allowedOrigins.includes(origin) ||
+        origin.endsWith(".vercel.app") ||
+        (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) ||
+        process.env.NODE_ENV !== "production";
+      if (isAllowed) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));

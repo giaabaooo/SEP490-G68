@@ -6,6 +6,8 @@ import {
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -67,7 +69,7 @@ const Onboarding = () => {
         ...(role === 'candidate' ? candidateData : businessData)
       };
 
-      const res = await fetch('http://localhost:5000/api/auth/google-onboarding/send-otp', {
+      const res = await fetch(`${API_BASE}/api/auth/google-onboarding/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -88,7 +90,7 @@ const Onboarding = () => {
   const handleVerifyComplete = async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/google-onboarding/complete', {
+      const res = await fetch(`${API_BASE}/api/auth/google-onboarding/complete`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: tempEmail, otp: otp.join('') })
