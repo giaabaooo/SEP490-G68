@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const Profile = () => {
   const navigate = useNavigate();
   const token = localStorage.getItem('token');
@@ -39,7 +41,7 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/profile', {
+      const response = await fetch(`${API_BASE}/api/profile`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -70,7 +72,7 @@ const Profile = () => {
 
   const saveProfile = async (updatedFields, successMessage) => {
     try {
-      const response = await fetch('http://localhost:5000/api/profile', {
+      const response = await fetch(`${API_BASE}/api/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -119,7 +121,7 @@ const Profile = () => {
 
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/profile/avatar', {
+      const response = await fetch(`${API_BASE}/api/profile/avatar`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -931,7 +933,7 @@ const Profile = () => {
             <div className="avatar-container" onClick={() => document.getElementById('avatar-file-input').click()} title="Nhấp để đổi ảnh đại diện">
               {profile.avatar ? (
                 <img 
-                  src={profile.avatar.startsWith('http') ? profile.avatar : `http://localhost:5000${profile.avatar}`} 
+                  src={profile.avatar.startsWith('http') ? profile.avatar : `${API_BASE}${profile.avatar}`} 
                   alt="Avatar" 
                   className="avatar-img" 
                 />
@@ -1279,7 +1281,7 @@ const Profile = () => {
                       
                       try {
                         toast.info('Đang tải ảnh lên...');
-                        const res = await fetch('http://localhost:5000/api/profile/avatar', {
+                        const res = await fetch(`${API_BASE}/api/profile/avatar`, {
                           method: 'POST',
                           headers: {
                             'Authorization': `Bearer ${token}`

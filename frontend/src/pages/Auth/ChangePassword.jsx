@@ -4,6 +4,8 @@ import { ArrowLeft } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
 const ChangePassword = () => {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -30,7 +32,7 @@ const ChangePassword = () => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/change-password', {
+      const response = await fetch(`${API_BASE}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
