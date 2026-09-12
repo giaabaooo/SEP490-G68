@@ -76,7 +76,11 @@ const PostJob = () => {
         </button>
         <button onClick={() => setActiveTab('test')} className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === 'test' ? 'text-blue-600' : 'text-black hover:text-black'}`}>
           Kiểm duyệt Test
-          {jobs.some(j => j.requireTest && j.testStatus === 'pending') && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
+          {jobs.some(j => {
+            const dl = j.recruitmentDeadline || j.deadline;
+            const exp = dl && new Date(dl).getTime() < new Date().getTime();
+            return j.requireTest && j.testStatus === 'pending' && !exp;
+          }) && <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>}
           {activeTab === 'test' && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-full"></span>}
         </button>
       </div>
@@ -131,7 +135,11 @@ const PostJob = () => {
                     )}
 
                     <td className="p-5 text-center">
-                      {job.requireTest ? (
+                      {isExpired ? (
+                        <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center bg-red-100 text-red-600">
+                          <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500"></span> Hết hạn
+                        </span>
+                      ) : job.requireTest ? (
                         job.testStatus === 'pending' ? (
                           <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center bg-amber-100 text-amber-700">
                             <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-amber-500 animate-pulse"></span> Đang chờ SME
@@ -143,12 +151,11 @@ const PostJob = () => {
                         )
                       ) : (
                         <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${
-                          isExpired ? 'bg-red-100 text-red-600' :
                           jobStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : 
                           jobStatus === 'draft' ? 'bg-slate-100 text-black' : 'bg-red-100 text-red-600'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${isExpired ? 'bg-red-500' : jobStatus === 'active' ? 'bg-emerald-500' : jobStatus === 'draft' ? 'bg-slate-400' : 'bg-red-500'}`}></span>
-                          {isExpired ? 'Hết hạn' : jobStatus === 'active' ? 'Hoạt động' : jobStatus === 'draft' ? 'Bản nháp' : 'Đã đóng'}
+                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${jobStatus === 'active' ? 'bg-emerald-500' : jobStatus === 'draft' ? 'bg-slate-400' : 'bg-red-500'}`}></span>
+                          {jobStatus === 'active' ? 'Hoạt động' : jobStatus === 'draft' ? 'Bản nháp' : 'Đã đóng'}
                         </span>
                       )}
                     </td>

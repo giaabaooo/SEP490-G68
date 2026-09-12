@@ -27,6 +27,7 @@ import Create from './pages/Bussiness/Create';
 import CVList from './pages/Bussiness/CVList';
 import EditJob from './pages/Bussiness/EditJob';
 import CandidateDetail from './pages/Bussiness/CandidateDetail';
+import InterviewList from './pages/Bussiness/InterviewList';
 
 import ManageCV from './pages/Candidate/ManageCV';
 import TemplateCV from './pages/Candidate/TemplateCV';
@@ -123,8 +124,10 @@ function App() {
             <Route path="/bussiness/profile" element={<BussinessProfile />} />
             <Route path="/bussiness/cvlist" element={<CVList />} />
             <Route path="/bussiness/jobs/:jobId/cvs" element={<CVList />} />
+            <Route path="/bussiness/interviews" element={<InterviewList />} />
             <Route path="/bussiness/edit-job/:id" element={<EditJob />} />
             <Route path="/bussiness/candidate/:id" element={<CandidateDetail />} />
+            <Route path="/bussiness/notifications" element={<Notifications />} />
           </Route>
         </Route>
       </Routes>

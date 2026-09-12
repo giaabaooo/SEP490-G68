@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { fetchProvinces } from '../../services/locationService';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -15,6 +16,11 @@ const Onboarding = () => {
   const [loading, setLoading] = useState(false);
   const [tempToken, setTempToken] = useState(null);
   const [tempEmail, setTempEmail] = useState('');
+  const [provinces, setProvinces] = useState([]);
+
+  useEffect(() => {
+    fetchProvinces().then(setProvinces).catch(console.error);
+  }, []);
 
   const [otp, setOtp] = useState(Array(6).fill(''));
 
@@ -187,9 +193,12 @@ const Onboarding = () => {
                     <label>Khu vực làm việc</label>
                     <div className="input-wrapper">
                       <select name="city" value={candidateData.city} onChange={handleCandidateChange}>
-                        <option value="Hà Nội">Hà Nội</option>
-                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                        <option value="Đà Nẵng">Đà Nẵng</option>
+                        {provinces.map(p => (
+                          <option key={p.code} value={p.cleanName}>{p.cleanName}</option>
+                        ))}
+                        {candidateData.city && !provinces.some(p => p.cleanName === candidateData.city) && (
+                          <option value={candidateData.city}>{candidateData.city}</option>
+                        )}
                       </select>
                     </div>
                   </div>
@@ -208,8 +217,12 @@ const Onboarding = () => {
                     <label>Khu Vực *</label>
                     <div className="input-wrapper">
                       <select name="city" value={businessData.city} onChange={handleBusinessChange}>
-                        <option value="Hà Nội">Hà Nội</option>
-                        <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
+                        {provinces.map(p => (
+                          <option key={p.code} value={p.cleanName}>{p.cleanName}</option>
+                        ))}
+                        {businessData.city && !provinces.some(p => p.cleanName === businessData.city) && (
+                          <option value={businessData.city}>{businessData.city}</option>
+                        )}
                       </select>
                     </div>
                   </div>

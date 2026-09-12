@@ -86,12 +86,17 @@ exports.handleWebhook = async (req, res) => {
         if (user) {
           if (transaction.planType === "CANDIDATE_PRO") {
             const now = new Date();
-            const endDate = new Date();
-            endDate.setDate(now.getDate() + 30); // Cấp quyền 30 ngày
+            let baseDate = now;
+            if (user.subscription?.plan === "pro" && user.subscription?.endDate && new Date(user.subscription.endDate) > now) {
+              baseDate = new Date(user.subscription.endDate);
+            }
+            const endDate = new Date(baseDate);
+            endDate.setDate(endDate.getDate() + 30); // Cộng dồn 30 ngày vào hạn dùng còn lại
 
             user.subscription.plan = "pro";
-            user.subscription.startDate = now;
+            if (!user.subscription.startDate) user.subscription.startDate = now;
             user.subscription.endDate = endDate;
+            if (!user.subscription.usage) user.subscription.usage = {};
             user.subscription.usage.cvReviewCount = 0;
             user.subscription.usage.mockInterviewMinutes = 0;
             user.subscription.usage.roadmapCount = 0;
@@ -167,18 +172,21 @@ exports.checkPaymentStatus = async (req, res) => {
       if (user) {
         if (transaction.planType === "CANDIDATE_PRO") {
           const now = new Date();
-          const endDate = new Date();
-          endDate.setDate(now.getDate() + 30);
+          let baseDate = now;
+          if (user.subscription?.plan === "pro" && user.subscription?.endDate && new Date(user.subscription.endDate) > now) {
+            baseDate = new Date(user.subscription.endDate);
+          }
+          const endDate = new Date(baseDate);
+          endDate.setDate(endDate.getDate() + 30); // Cộng dồn 30 ngày vào hạn dùng còn lại
 
           user.subscription.plan = "pro";
-          user.subscription.startDate = now;
+          if (!user.subscription.startDate) user.subscription.startDate = now;
           user.subscription.endDate = endDate;
-          user.subscription.usage = {
-            cvReviewCount: 0,
-            mockInterviewMinutes: 0,
-            roadmapCount: 0,
-            lastResetDate: now,
-          };
+          if (!user.subscription.usage) user.subscription.usage = {};
+          user.subscription.usage.cvReviewCount = 0;
+          user.subscription.usage.mockInterviewMinutes = 0;
+          user.subscription.usage.roadmapCount = 0;
+          user.subscription.usage.lastResetDate = now;
         } else if (transaction.planType === "BUSINESS_TOPUP") {
           user.businessCredits.balance += transaction.tokensAdded;
         }

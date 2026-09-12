@@ -20,7 +20,6 @@ const notificationSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['status_change', 'email_notification', 'test_invite', 'interview_invite', 'general', 'application_submitted', 'test_completed', 'payment_success', 'job_approved', 'job_rejected'],
       default: 'general'
     },
     link: {
