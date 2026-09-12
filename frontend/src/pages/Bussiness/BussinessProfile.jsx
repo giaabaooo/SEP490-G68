@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { fetchProvinces } from '../../services/locationService';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -8,6 +9,11 @@ const HRProfile = () => {
 
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [provinces, setProvinces] = useState([]);
+
+  useEffect(() => {
+    fetchProvinces().then(setProvinces).catch(console.error);
+  }, []);
 
   // Các trường dữ liệu từ luồng Onboarding
   const [profileData, setProfileData] = useState({
@@ -68,6 +74,8 @@ const HRProfile = () => {
     fetchProfile();
   }, [token]);
 
+  const [submitting, setSubmitting] = useState(false);
+
   const handleEditClick = () => {
     setFormData({ ...profileData });
     setIsEditing(true);
@@ -88,13 +96,13 @@ const HRProfile = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.companyName.trim() || !formData.city || !formData.companySize || !formData.address.trim()) {
-      toast.error('Vui lòng nhập đầy đủ các thông tin bắt buộc (*)!');
+    if (!formData.companyName || !formData.companyName.trim()) {
+      toast.error('Vui lòng nhập tên công ty!');
       return;
     }
 
     try {
-      // Lưu ý: Không gửi taxCode lên để update vì trường này cố định sau khi xác thực
+      setSubmitting(true);
       const response = await fetch(`${API_BASE}/api/profile`, {
         method: 'PUT',
         headers: {
@@ -103,10 +111,11 @@ const HRProfile = () => {
         },
         body: JSON.stringify({
           companyName: formData.companyName.trim(),
-          website: formData.website.trim(),
-          city: formData.city,
-          companySize: formData.companySize,
-          address: formData.address.trim()
+          taxCode: (formData.taxCode || '').trim(),
+          website: (formData.website || '').trim(),
+          city: formData.city || '',
+          companySize: formData.companySize || '',
+          address: (formData.address || '').trim()
         })
       });
 
@@ -115,24 +124,36 @@ const HRProfile = () => {
         throw new Error(data.message || 'Cập nhật hồ sơ thất bại');
       }
 
-      //  Map lại dữ liệu sau khi update thành công
+      // Map lại dữ liệu sau khi update thành công
+      const updatedUser = data.user || {};
       const nextProfile = {
-        email: data.user?.email || profileData.email,
-        companyName: data.user?.companyName || '',
-        taxCode: profileData.taxCode, // Giữ nguyên MST cũ
-        website: data.user?.website || '',
-        city: data.user?.city || '',
-        companySize: data.user?.companySize || '',
-        address: data.user?.address || ''
+        email: updatedUser.email || profileData.email,
+        companyName: updatedUser.companyName !== undefined ? updatedUser.companyName : formData.companyName.trim(),
+        taxCode: updatedUser.taxCode !== undefined ? updatedUser.taxCode : (formData.taxCode || '').trim(),
+        website: updatedUser.website !== undefined ? updatedUser.website : (formData.website || '').trim(),
+        city: updatedUser.city !== undefined ? updatedUser.city : (formData.city || ''),
+        companySize: updatedUser.companySize !== undefined ? updatedUser.companySize : (formData.companySize || ''),
+        address: updatedUser.address !== undefined ? updatedUser.address : (formData.address || '').trim()
       };
 
       setProfileData(nextProfile);
       setFormData(nextProfile);
       setIsEditing(false);
+
+      // Cập nhật localStorage để Header / Dashboard đồng bộ ngay
+      try {
+        const localUser = JSON.parse(localStorage.getItem('user')) || {};
+        localStorage.setItem('user', JSON.stringify({ ...localUser, ...updatedUser }));
+      } catch (err) {
+        console.error('Error updating local user storage:', err);
+      }
+
       toast.success('Cập nhật hồ sơ Nhà tuyển dụng thành công!');
     } catch (error) {
       console.error(error);
       toast.error(error.message || 'Có lỗi xảy ra khi lưu hồ sơ doanh nghiệp.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -281,9 +302,13 @@ const HRProfile = () => {
           </div>
           
           <div className="info-item">
-            <div className="info-label">Mã số thuế (Xác thực)</div>
-            <div className="info-value text-emerald-600 font-bold">
-              {profileData.taxCode || <span style={{ color: '#ef4444' }}>Chưa xác thực</span>}
+            <div className="info-label">Mã số thuế</div>
+            <div className="info-value font-bold">
+              {profileData.taxCode ? (
+                <span className="text-emerald-600">{profileData.taxCode}</span>
+              ) : (
+                <span style={{ color: '#94a3b8', fontStyle: 'italic', fontWeight: '400' }}>Chưa cập nhật</span>
+              )}
             </div>
           </div>
           
@@ -346,10 +371,11 @@ const HRProfile = () => {
               <label>Mã số thuế</label>
               <input
                 type="text"
+                name="taxCode"
                 className="form-control"
                 value={formData.taxCode}
-                disabled
-                title="Mã số thuế đã được xác thực, không thể thay đổi."
+                onChange={handleChange}
+                placeholder="Nhập mã số thuế doanh nghiệp (VD: 0101234567)"
               />
             </div>
 
@@ -365,24 +391,26 @@ const HRProfile = () => {
             </div>
 
             <div className="form-group">
-              <label>Thành phố <span className="required-asterisk">*</span></label>
+              <label>Thành phố</label>
               <select 
                 name="city" 
                 className="form-control"
                 value={formData.city} 
                 onChange={handleChange}
               >
-                <option value="" disabled>Chọn thành phố</option>
-                <option value="Hà Nội">Hà Nội</option>
-                <option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                <option value="Đà Nẵng">Đà Nẵng</option>
-                <option value="Cần Thơ">Cần Thơ</option>
+                <option value="" disabled>Chọn tỉnh / thành phố</option>
+                {provinces.map(p => (
+                  <option key={p.code} value={p.cleanName}>{p.cleanName}</option>
+                ))}
+                {formData.city && !provinces.some(p => p.cleanName === formData.city) && (
+                  <option value={formData.city}>{formData.city}</option>
+                )}
                 <option value="Khác">Khác...</option>
               </select>
             </div>
 
             <div className="form-group">
-              <label>Quy mô công ty <span className="required-asterisk">*</span></label>
+              <label>Quy mô công ty</label>
               <select 
                 name="companySize" 
                 className="form-control"
@@ -411,7 +439,7 @@ const HRProfile = () => {
             </div>
 
             <div className="form-group full-width">
-              <label>Địa chỉ trụ sở chi tiết <span className="required-asterisk">*</span></label>
+              <label>Địa chỉ trụ sở chi tiết</label>
               <textarea
                 name="address"
                 className="form-control"
@@ -423,11 +451,11 @@ const HRProfile = () => {
           </div>
 
           <div className="button-group">
-            <button type="button" className="btn btn-secondary" onClick={handleCancel}>
+            <button type="button" className="btn btn-secondary" onClick={handleCancel} disabled={submitting}>
               Hủy thay đổi
             </button>
-            <button type="submit" className="btn btn-primary">
-              Lưu thông tin
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Đang lưu...' : 'Lưu thông tin'}
             </button>
           </div>
         </form>

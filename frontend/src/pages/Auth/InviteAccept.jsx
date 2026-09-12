@@ -48,7 +48,11 @@ export default function InviteAccept() {
       
       // Đẩy về Dashboard của Business/Moderator
       setTimeout(() => {
-        navigate('/bussiness/dashboard'); 
+        if (data.user?.subRole === 'moderator') {
+          navigate('/moderator/requests', { replace: true });
+        } else {
+          navigate('/bussiness/dashboard', { replace: true }); 
+        }
       }, 1500);
 
     } catch (error) {
@@ -63,8 +67,8 @@ export default function InviteAccept() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 text-center max-w-md w-full">
           <ShieldCheck className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-xl font-black text-slate-800 mb-2">Đường link không hợp lệ</h2>
-          <p className="text-sm text-slate-500 font-medium mb-6">Không tìm thấy mã xác thực. Vui lòng click đúng đường link chúng tôi đã gửi vào Email của bạn.</p>
+          <h2 className="text-xl font-black text-slate-950 mb-2">Đường link không hợp lệ</h2>
+          <p className="text-sm text-slate-800 font-semibold mb-6">Không tìm thấy mã xác thực. Vui lòng click đúng đường link chúng tôi đã gửi vào Email của bạn.</p>
           <button onClick={() => navigate('/login')} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold w-full">Về trang Đăng nhập</button>
         </div>
       </div>
@@ -80,8 +84,8 @@ export default function InviteAccept() {
             <ShieldCheck className="w-7 h-7 text-blue-600" />
         </div>
 
-        <h1 className="text-2xl font-black text-slate-900 mb-2">Thiết lập Mật khẩu</h1>
-        <p className="text-slate-500 text-sm font-medium mb-8">
+        <h1 className="text-2xl font-black text-slate-950 mb-2">Thiết lập Mật khẩu</h1>
+        <p className="text-slate-800 text-sm font-semibold mb-8">
           Chào mừng bạn đến với Careerio! Vui lòng tạo mật khẩu để hoàn tất quá trình thiết lập tài khoản Chuyên gia (Moderator).
         </p>
 

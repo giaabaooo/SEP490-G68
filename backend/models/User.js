@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema(
     },
     subRole: {
       type: String,
-      enum: ["admin", "hr", "moderator"],
+      enum: ["admin", "hr", "moderator", "", null],
       default: "hr",
     },
     status: {

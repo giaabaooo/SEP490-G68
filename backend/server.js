@@ -27,12 +27,11 @@ const paymentRoutes = require("./routes/payment.routes");
 
 const app = express();
 
-// Kết nối DB, sau đó chạy Seed Admin, Candidate và HR Data
+// Kết nối DB, chỉ seed Admin và Moderator mặc định nếu chưa có
 connectDB().then(async () => {
   await seedAdmin();
   await seedModerator();
-  await seedCandidate();
-  await seedHRData();
+  // seedCandidate và seedHRData đã được tắt để tránh sinh mock data
 });
 
 // Cấu hình CORS linh hoạt cho cả Localhost và Production (Vercel)

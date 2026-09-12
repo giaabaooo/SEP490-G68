@@ -53,16 +53,35 @@ exports.createAssessment = async (req, res) => {
         const newTest = new Assessment({ createdBy: req.user.id, jobId, assessmentName, timeLimit, questions, description, status: status || 'DRAFT', isPublic: isPublic || false, startDate, endDate, tags });
         const savedTest = await newTest.save();
 
-        if (status === 'PUBLISHED' && jobId) {
-            const updatedJob = await Job.findByIdAndUpdate(jobId, { testStatus: 'approved', status: 'active' }, { new: true });
+        if (jobId) {
+            const isPublished = status === 'PUBLISHED';
+            const updatedJob = await Job.findByIdAndUpdate(
+                jobId, 
+                { 
+                    assessmentId: savedTest._id,
+                    ...(isPublished ? { testStatus: 'approved', status: 'active' } : { testStatus: 'pending' })
+                }, 
+                { new: true }
+            );
+
             if (updatedJob && updatedJob.recruiterId) {
-                await createNotification({
-                    userId: updatedJob.recruiterId,
-                    title: 'Bài test tuyển dụng đã được duyệt!',
-                    message: `Bài test cho vị trí "${updatedJob.title}" đã được duyệt và xuất bản. Tin tuyển dụng hiện đang hoạt động.`,
-                    type: 'job_approved',
-                    link: `/bussiness/dashboard`
-                });
+                if (isPublished) {
+                    await createNotification({
+                        userId: updatedJob.recruiterId,
+                        title: 'Bài test đã duyệt - Tin tuyển dụng đã kích hoạt!',
+                        message: `Chuyên gia đã hoàn tất và xuất bản bài test cho vị trí "${updatedJob.title}". Tin tuyển dụng của bạn hiện đã hoạt động.`,
+                        type: 'job_approved',
+                        link: `/bussiness/post-job`
+                    });
+                } else {
+                    await createNotification({
+                        userId: updatedJob.recruiterId,
+                        title: 'Bài test đang được soạn thảo (Bản nháp)',
+                        message: `Chuyên gia đã tạo bản nháp bài test cho vị trí "${updatedJob.title}". Tin tuyển dụng sẽ tự động kích hoạt khi bài test được xuất bản.`,
+                        type: 'test_draft',
+                        link: `/bussiness/post-job`
+                    });
+                }
             }
         }
         res.json(savedTest);
@@ -76,19 +95,40 @@ exports.updateAssessment = async (req, res) => {
         const test = await Assessment.findOne({ _id: id, createdBy: req.user.id });
         if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
 
+        const prevStatus = test.status;
         Object.keys(updates).forEach(key => test[key] = updates[key]);
         const savedTest = await test.save();
 
-        if (updates.status === 'PUBLISHED' && test.jobId) {
-            const updatedJob = await Job.findByIdAndUpdate(test.jobId, { testStatus: 'approved', status: 'active' }, { new: true });
+        const targetJobId = test.jobId || updates.jobId;
+        if (targetJobId) {
+            const isPublished = updates.status === 'PUBLISHED' || test.status === 'PUBLISHED';
+            const updatedJob = await Job.findByIdAndUpdate(
+                targetJobId, 
+                { 
+                    assessmentId: savedTest._id,
+                    ...(isPublished ? { testStatus: 'approved', status: 'active' } : {})
+                }, 
+                { new: true }
+            );
+
             if (updatedJob && updatedJob.recruiterId) {
-                await createNotification({
-                    userId: updatedJob.recruiterId,
-                    title: 'Bài test tuyển dụng đã được duyệt!',
-                    message: `Bài test cho vị trí "${updatedJob.title}" đã được duyệt và xuất bản. Tin tuyển dụng hiện đang hoạt động.`,
-                    type: 'job_approved',
-                    link: `/bussiness/dashboard`
-                });
+                if (updates.status === 'PUBLISHED' && prevStatus !== 'PUBLISHED') {
+                    await createNotification({
+                        userId: updatedJob.recruiterId,
+                        title: 'Bài test đã duyệt - Tin tuyển dụng đã kích hoạt!',
+                        message: `Chuyên gia đã phê duyệt bài test cho vị trí "${updatedJob.title}". Tin tuyển dụng của bạn hiện đã hoạt động.`,
+                        type: 'job_approved',
+                        link: `/bussiness/post-job`
+                    });
+                } else {
+                    await createNotification({
+                        userId: updatedJob.recruiterId,
+                        title: 'Bài test đã được cập nhật',
+                        message: `Chuyên gia vừa cập nhật lại nội dung bộ đề cho vị trí "${updatedJob.title}".`,
+                        type: 'test_updated',
+                        link: `/bussiness/post-job`
+                    });
+                }
             }
         }
         res.json(savedTest);
@@ -97,7 +137,10 @@ exports.updateAssessment = async (req, res) => {
 
 exports.getMyTests = async (req, res) => {
     try {
-        const tests = await Assessment.find({ createdBy: req.user.id }).populate('jobId', 'title').sort({ createdAt: -1 }).lean();
+        const tests = await Assessment.find({ createdBy: req.user.id })
+            .populate('jobId', 'title recruitmentDeadline deadline status location salary type tags')
+            .sort({ createdAt: -1 })
+            .lean();
         res.json(tests);
     } catch (error) { res.status(500).json({ message: error.message }); }
 };
@@ -165,14 +208,26 @@ exports.submitTest = async (req, res) => {
         });
 
         // Gửi thông báo cho nhà tuyển dụng
+        const candidateUser = await User.findById(userId).select('fullName');
         if (populatedApp?.jobId?.recruiterId) {
-            const candidateUser = await User.findById(userId).select('fullName');
             await createNotification({
                 userId: populatedApp.jobId.recruiterId,
-                title: 'Ứng viên vừa hoàn thành bài test',
-                message: `Ứng viên ${candidateUser?.fullName || 'Một ứng viên'} vừa nộp bài test cho vị trí "${populatedApp.jobId.title}" với kết quả: ${score}/100.`,
+                title: `Ứng viên nộp bài test: ${candidateUser?.fullName || 'Ứng viên'} (${score}/100đ)`,
+                message: `Ứng viên ${candidateUser?.fullName || 'Một ứng viên'} vừa nộp bài test cho vị trí "${populatedApp.jobId.title}" với kết quả: ${score}/100 (${correctCount}/${totalQuestions} câu đúng). Bấm để xem chi tiết bài làm.`,
                 type: 'test_completed',
-                link: `/bussiness/jobs/${populatedApp.jobId._id}/cvs`,
+                link: `/bussiness/candidate/${application._id}`,
+                relatedApplicationId: application._id
+            });
+        }
+
+        // Gửi thông báo cho Moderator (người biên soạn đề)
+        if (test.createdBy) {
+            await createNotification({
+                userId: test.createdBy,
+                title: 'Ứng viên vừa hoàn thành bài test của bạn',
+                message: `Ứng viên ${candidateUser?.fullName || 'Một ứng viên'} vừa nộp bài test cho vị trí "${populatedApp?.jobId?.title || 'vị trí'}" với kết quả: ${score}/100.`,
+                type: 'test_submitted',
+                link: '/moderator/test-bank',
                 relatedApplicationId: application._id
             });
         }

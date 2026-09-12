@@ -37,26 +37,26 @@ export default function PaymentSuccess() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-12 h-12 text-indigo-600 animate-spin mb-4" />
-        <p className="text-slate-600 font-bold">Đang xác thực giao dịch qua PayOS...</p>
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-inter">
+        <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mb-4" />
+        <p className="text-slate-800 font-extrabold">Đang xác thực giao dịch qua PayOS...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 font-inter">
       <div className="bg-white rounded-3xl p-8 max-w-md w-full border border-slate-200 shadow-xl text-center">
         {success ? (
           <>
             <CheckCircle2 className="w-16 h-16 text-emerald-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-black text-slate-900 mb-2">Thanh toán thành công!</h2>
-            <p className="text-slate-500 text-sm font-medium mb-6">
+            <h2 className="text-2xl font-black text-slate-950 mb-2">Thanh toán thành công!</h2>
+            <p className="text-slate-700 text-sm font-semibold mb-6">
               Gói dịch vụ AI đã được kích hoạt thành công vào tài khoản của bạn.
             </p>
             <button
               onClick={() => navigate('/home')}
-              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors"
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-xl transition-colors cursor-pointer shadow-md shadow-emerald-600/20"
             >
               Về Trang chủ
             </button>
@@ -64,13 +64,13 @@ export default function PaymentSuccess() {
         ) : (
           <>
             <XCircle className="w-16 h-16 text-rose-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-black text-slate-900 mb-2">Chưa xác nhận thanh toán</h2>
-            <p className="text-slate-500 text-sm font-medium mb-6">
+            <h2 className="text-2xl font-black text-slate-950 mb-2">Chưa xác nhận thanh toán</h2>
+            <p className="text-slate-700 text-sm font-semibold mb-6">
               Hệ thống chưa ghi nhận chuyển khoản cho đơn hàng #{orderCode}. Vui lòng kiểm tra lại.
             </p>
             <button
               onClick={() => navigate('/upgrade')}
-              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors"
+              className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-black rounded-xl transition-colors cursor-pointer"
             >
               Thử lại
             </button>

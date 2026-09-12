@@ -6,6 +6,7 @@ import {
   Loader2, Zap, Building2, ChevronRight, Filter, TrendingUp, Award
 } from 'lucide-react';
 import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
+import { fetchProvinces } from '../../services/locationService';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -13,12 +14,18 @@ const Home = () => {
   // State
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [provinces, setProvinces] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
   const [activeTab, setActiveTab] = useState('all'); // 'all', 'test', 'hot', 'hanoi', 'hcm'
   const [savedJobs, setSavedJobs] = useState([]);
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  // Nạp danh sách tỉnh thành từ API v2
+  useEffect(() => {
+    fetchProvinces().then(setProvinces).catch(console.error);
+  }, []);
 
   // Lấy dữ liệu công việc thật từ Backend
   useEffect(() => {
@@ -186,9 +193,12 @@ const Home = () => {
                 className="w-full bg-transparent border-none outline-none pl-2.5 text-slate-700 font-bold text-sm cursor-pointer py-2.5"
               >
                 <option value="">Tất cả địa điểm</option>
-                <option value="Hà Nội">Hà Nội</option>
-                <option value="Hồ Chí Minh">TP. Hồ Chí Minh</option>
-                <option value="Đà Nẵng">Đà Nẵng</option>
+                {provinces.map(p => (
+                  <option key={p.code} value={p.cleanName}>{p.cleanName}</option>
+                ))}
+                {selectedLocation && selectedLocation !== 'Remote' && !provinces.some(p => p.cleanName === selectedLocation) && (
+                  <option value={selectedLocation}>{selectedLocation}</option>
+                )}
                 <option value="Remote">Làm việc từ xa (Remote)</option>
               </select>
             </div>
