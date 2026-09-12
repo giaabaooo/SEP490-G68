@@ -31,6 +31,32 @@ exports.saveCV = async (req, res) => {
         { title, design, data, ...(sectionOrder ? { sectionOrder } : {}) },
         { new: true }
       );
+
+      // Thông báo cho nhà tuyển dụng của các hồ sơ đang hoạt động sử dụng CV này
+      try {
+        const Application = require('../models/Application');
+        const { createNotification } = require('../utils/notificationHelper');
+        const activeApps = await Application.find({
+          userId: userId,
+          appliedCvId: cvId,
+          status: { $in: ['Applied', 'Testing', 'Interviewing'] }
+        }).populate('jobId', 'title recruiterId');
+
+        for (const app of activeApps) {
+          if (app.jobId?.recruiterId) {
+            await createNotification({
+              userId: app.jobId.recruiterId,
+              title: `Ứng viên cập nhật nội dung CV: ${data?.personal?.fullName || 'Ứng viên'}`,
+              message: `Ứng viên ${data?.personal?.fullName || 'Ứng viên'} vừa cập nhật lại thông tin trên CV trực tuyến cho vị trí "${app.jobId.title}". Bấm để xem chi tiết hồ sơ.`,
+              type: 'application_submitted',
+              link: `/bussiness/candidate/${app._id}`,
+              relatedApplicationId: app._id
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.error('Lỗi gửi thông báo cập nhật CV:', notifErr.message);
+      }
     } else {
       // Nếu không -> Tạo mới
       cv = new CV({ user: userId, title, design, data, sectionOrder: sectionOrder || undefined });

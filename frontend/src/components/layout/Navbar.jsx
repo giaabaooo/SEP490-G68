@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Bell, ArrowRight } from 'lucide-react';
+import { Bell, ArrowRight, Clock, Sparkles, Check } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { formatNotificationTime } from '../../utils/timeAgo';
 import './Layout.css';
 
 const Navbar = () => {
@@ -10,9 +11,9 @@ const Navbar = () => {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user')) || null;
   const isLoggedIn = !!token;
-  
-  const role = user?.role || 'candidate'; 
-  const subRole = user?.subRole || ''; 
+
+  const role = user?.role || 'candidate';
+  const subRole = user?.subRole || '';
 
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -31,7 +32,7 @@ const Navbar = () => {
         setNotifications(data);
         setUnreadCount(data.filter(n => !n.isRead).length);
       }
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const fetchUsageInfo = async () => {
@@ -41,7 +42,7 @@ const Navbar = () => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) setUsageInfo(await res.json());
-    } catch (err) {}
+    } catch (err) { }
   };
 
   useEffect(() => {
@@ -61,7 +62,7 @@ const Navbar = () => {
         setNotifications(prev => prev.map(n => n._id === id ? { ...n, isRead: true } : n));
         setUnreadCount(prev => Math.max(0, prev - 1));
       }
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleNotificationClick = async (n) => {
@@ -71,9 +72,9 @@ const Navbar = () => {
     if (n.link) {
       navigate(n.link);
     } else if (n.relatedApplicationId) {
-      navigate(role === 'business' ? '/bussiness/cvlist' : '/candidate/applications');
+      navigate(role === 'business' ? `/bussiness/candidate/${n.relatedApplicationId}` : '/candidate/applications');
     } else {
-      navigate('/candidate/notifications');
+      navigate(role === 'business' ? (subRole === 'moderator' ? '/moderator/requests' : '/bussiness/notifications') : '/candidate/notifications');
     }
   };
 
@@ -88,7 +89,7 @@ const Navbar = () => {
         setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
         setUnreadCount(0);
       }
-    } catch (err) {}
+    } catch (err) { }
   };
 
   const handleLogout = () => {
@@ -108,9 +109,9 @@ const Navbar = () => {
   const handleProtectedNav = (e) => {
     const currentToken = localStorage.getItem('token');
     if (!currentToken) {
-        e.preventDefault();
-        toast.info('Vui lòng đăng nhập để sử dụng tính năng này!');
-        navigate('/login');
+      e.preventDefault();
+      toast.info('Vui lòng đăng nhập để sử dụng tính năng này!');
+      navigate('/login');
     }
   };
 
@@ -154,8 +155,8 @@ const Navbar = () => {
         .dropdown-item { padding: 10px 16px 10px 36px; font-size: 14px; color: #000000; font-weight: 600; display: flex; align-items: center; gap: 10px; text-decoration: none; transition: background 0.2s; cursor: pointer; }
         .dropdown-item.has-icon { padding-left: 16px; }
         .dropdown-item:hover { background: #f1f5f9; color: #059669; }
-        .dropdown-item.upgrade-btn { color: #4f46e5; font-weight: 800; }
-        .dropdown-item.upgrade-btn:hover { background: #e0e7ff; color: #4338ca; }
+        .dropdown-item.upgrade-btn { color: #059669; font-weight: 800; }
+        .dropdown-item.upgrade-btn:hover { background: #ecfdf5; color: #047857; }
         .dropdown-item.logout { color: #dc2626; font-weight: 800; }
         .dropdown-item.logout:hover { background: #fef2f2; color: #dc2626; }
         
@@ -163,7 +164,8 @@ const Navbar = () => {
         .user-dropdown-container:hover .avatar-circle { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
         .user-profile { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #000000; }
         
-        .nav-link-item { display: flex; align-items: center; gap: 4px; color: #000000; font-weight: 700; text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; transition: 0.2s;}
+        .nav-link-item { display: flex; align-items: center; gap: 4px; color: #000000; font-weight: 700; text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; transition: 0.2s; outline: none; }
+        .nav-link-item:focus, .nav-link-item:focus-visible { outline: none !important; }
         .nav-link-item:hover { color: #059669; border-bottom-color: #059669; }
         .nav-link-item.active { color: #059669; border-bottom-color: #059669; }
       `}</style>
@@ -173,7 +175,7 @@ const Navbar = () => {
           <Link to={getHomeLink()} style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
             <img src="/logo-careerio.png" alt="Careerio Logo" style={{ height: '52px', width: 'auto', objectFit: 'contain' }} />
           </Link>
-          
+
           {role === 'admin' && <span style={{ marginLeft: '10px', fontSize: '12px', background: '#dc2626', color: 'white', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>ADMIN</span>}
           {role === 'business' && subRole !== 'moderator' && <span style={{ marginLeft: '10px', fontSize: '12px', background: '#2563eb', color: 'white', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>BUSINESS</span>}
           {role === 'business' && subRole === 'moderator' && <span style={{ marginLeft: '10px', fontSize: '12px', background: '#059669', color: 'white', padding: '2px 8px', borderRadius: '12px', fontWeight: 'bold' }}>MODERATOR</span>}
@@ -192,15 +194,16 @@ const Navbar = () => {
           {role === 'business' && subRole !== 'moderator' && (
             <>
               <div className="nav-item-dropdown"><NavLink to="/bussiness/dashboard" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Dashboard</NavLink></div>
-              <div className="nav-item-dropdown"><NavLink to="/bussiness/post-job" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Tạo Tin Tuyển Dụng</NavLink></div>
+              <div className="nav-item-dropdown"><NavLink to="/bussiness/post-job" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Quản Lý Tuyển Dụng</NavLink></div>
+
             </>
           )}
 
           {role === 'business' && subRole === 'moderator' && (
-             <>
-               <div className="nav-item-dropdown"><NavLink to="/moderator/requests" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Yêu cầu Test</NavLink></div>
-               <div className="nav-item-dropdown"><NavLink to="/moderator/test-bank" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Ngân hàng Bài Test</NavLink></div>
-             </>
+            <>
+              <div className="nav-item-dropdown"><NavLink to="/moderator/requests" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Yêu cầu Test</NavLink></div>
+              <div className="nav-item-dropdown"><NavLink to="/moderator/test-bank" className={({ isActive }) => isActive ? "nav-link-item active" : "nav-link-item"}>Ngân hàng Bài Test</NavLink></div>
+            </>
           )}
 
           {role === 'candidate' && (
@@ -257,9 +260,9 @@ const Navbar = () => {
                     <div className="py-8 text-center text-xs text-black font-medium">Chưa có thông báo nào.</div>
                   ) : (
                     notifications.slice(0, 5).map((n) => (
-                      <div 
-                        key={n._id} 
-                        onClick={() => handleNotificationClick(n)} 
+                      <div
+                        key={n._id}
+                        onClick={() => handleNotificationClick(n)}
                         className={`p-3 rounded-xl border transition-all cursor-pointer text-left relative hover:border-emerald-300 hover:shadow-sm ${!n.isRead ? 'bg-emerald-50/30 border-emerald-200' : 'bg-slate-50/40 border-slate-100'}`}
                       >
                         <div className="flex items-center justify-between gap-2 mb-0.5">
@@ -267,16 +270,24 @@ const Navbar = () => {
                           {!n.isRead && <span className="w-2 h-2 bg-emerald-500 rounded-full shrink-0"></span>}
                         </div>
                         <p className="text-[11px] font-medium text-slate-700 line-clamp-2 leading-relaxed">{n.message}</p>
-                        <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-100/60">
-                          <span className="text-[9px] font-bold text-slate-500">{new Date(n.createdAt).toLocaleDateString('vi-VN')}</span>
-                          <span className="text-[10px] font-bold text-emerald-600">Xem chi tiết →</span>
+                        <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-slate-100">
+                          <span className="text-[10px] font-black text-slate-800 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-700 shrink-0" />
+                            {formatNotificationTime(n.createdAt)}
+                          </span>
+                          <span className="text-[10px] font-black text-emerald-700 hover:text-emerald-800">Xem chi tiết →</span>
                         </div>
                       </div>
                     ))
                   )}
                 </div>
                 <div className="mt-3 pt-3 border-t border-slate-100 flex justify-center">
-                  <Link to="/candidate/notifications" className="text-xs font-bold text-black hover:text-emerald-600 flex items-center gap-1">Xem tất cả thông báo <ArrowRight className="w-3.5 h-3.5" /></Link>
+                  <Link 
+                    to={role === 'business' ? (subRole === 'moderator' ? '/moderator/requests' : '/bussiness/notifications') : '/candidate/notifications'} 
+                    className="text-xs font-bold text-black hover:text-emerald-600 flex items-center gap-1"
+                  >
+                    Xem tất cả thông báo <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               </div>
             </div>
@@ -288,51 +299,86 @@ const Navbar = () => {
                 <div className="avatar-circle"><span style={{ color: '#059669', fontWeight: 'bold' }}>{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span></div>
               </div>
               <div className="dropdown-menu-content" style={{ width: '280px' }}>
-                
-                <div 
-                  className="dropdown-header" 
+
+                <div
+                  className="dropdown-header"
                   onClick={() => {
                     if (role === 'business') {
-                        navigate('/bussiness/profile');
+                      navigate('/bussiness/profile');
                     } else {
-                        navigate('/profile');
+                      navigate('/profile');
                     }
-                  }} 
+                  }}
                   title={role === 'business' ? "Xem hồ sơ doanh nghiệp" : "Xem Hồ sơ cá nhân"}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="avatar-circle" style={{ width: '48px', height: '48px', fontSize: '20px' }}><span style={{ color: '#059669', fontWeight: 'bold' }}>{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span></div>
                   <div className="dropdown-header-info">
-                    <div className="dropdown-name">
-                      {user?.fullName || 'bạn'}
+                    <div className="dropdown-name flex items-center gap-2">
+                      <span className="font-black text-slate-950">{user?.fullName || 'bạn'}</span>
                       {role === 'candidate' && usageInfo && (
-                        <span style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: 'bold', border: '1px solid', backgroundColor: isPro ? '#eef2ff' : '#f1f5f9', color: isPro ? '#4338ca' : '#475569', borderColor: isPro ? '#c7d2fe' : '#e2e8f0' }}>
-                            GÓI {isPro ? 'PRO' : 'FREE'}
+                        <span style={{ 
+                          padding: '2px 8px', 
+                          borderRadius: '6px', 
+                          fontSize: '10px', 
+                          fontWeight: '900', 
+                          border: '1px solid', 
+                          backgroundColor: isPro ? '#ecfdf5' : '#f8fafc', 
+                          color: isPro ? '#047857' : '#334155', 
+                          borderColor: isPro ? '#6ee7b7' : '#cbd5e1' 
+                        }}>
+                          {isPro ? '★ GÓI PRO' : 'GÓI FREE'}
                         </span>
                       )}
                     </div>
-                    <div className="dropdown-id text-xs text-black">{user?.email || 'Tài khoản đã xác thực'}</div>
+                    <div className="dropdown-id text-xs font-semibold text-slate-700">{user?.email || 'Tài khoản đã xác thực'}</div>
                   </div>
                 </div>
 
                 {role === 'candidate' && (
-                  <div className="menu-section bg-indigo-50/50">
-                    <div className="menu-section-title text-indigo-700">Gói Dịch Vụ AI</div>
-                    <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                      Nâng cấp Pro ngay
-                    </Link>
+                  <div className="menu-section">
+                    <div className="menu-section-title flex items-center justify-between pr-4">
+                      <span>Gói Dịch Vụ AI</span>
+                      {isPro && (
+                        <span className="text-[9px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-black tracking-normal normal-case">
+                          PRO
+                        </span>
+                      )}
+                    </div>
+                    {isPro ? (
+                      <Link to="/upgrade" className="dropdown-item has-icon text-emerald-800 font-bold hover:text-emerald-950">
+                        <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="truncate">Gói Pro (Hạn: {usageInfo?.subscription?.endDate ? new Date(usageInfo.subscription.endDate).toLocaleDateString('vi-VN') : 'Active'})</span>
+                      </Link>
+                    ) : (
+                      <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
+                        <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Nâng cấp Pro ngay</span>
+                      </Link>
+                    )}
                   </div>
                 )}
 
                 {role === 'business' && subRole !== 'moderator' && (
-                  <div className="menu-section bg-indigo-50/50">
-                    <div className="menu-section-title text-indigo-700">Tài nguyên hệ thống</div>
-                    <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
-                      Nạp Token AI
-                    </Link>
-                  </div>
+                  <>
+                    <div className="menu-section">
+                      <div className="menu-section-title">Quản lý doanh nghiệp</div>
+                      <Link to="/bussiness/profile" className="dropdown-item">Hồ sơ doanh nghiệp</Link>
+                      <Link to="/bussiness/post-job" className="dropdown-item">Quản lý tuyển dụng</Link>
+                      <Link to="/bussiness/create" className="dropdown-item">Đăng tin tuyển dụng mới</Link>
+
+                      <Link to="/bussiness/interviews" className="dropdown-item">Lịch phỏng vấn</Link>
+                      <Link to="/bussiness/notifications" className="dropdown-item">Thông báo tuyển dụng</Link>
+                    </div>
+
+                    <div className="menu-section bg-emerald-50/40">
+                      <div className="menu-section-title text-emerald-900">Tài nguyên hệ thống</div>
+                      <Link to="/upgrade" className="dropdown-item has-icon upgrade-btn">
+                        <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span>Nạp Token AI</span>
+                      </Link>
+                    </div>
+                  </>
                 )}
 
                 {role === 'candidate' && (

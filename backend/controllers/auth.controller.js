@@ -162,7 +162,10 @@ exports.resetPassword = async (req, res) => {
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    if (!email || !password) return res.status(400).json({ message: "Vui lòng nhập đầy đủ email và mật khẩu" });
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } });
 
     if (!user) return res.status(400).json({ message: "Email hoặc mật khẩu không đúng" });
 
@@ -171,6 +174,20 @@ exports.login = async (req, res) => {
 
     if (user.status === "banned") return res.status(403).json({ message: "Tài khoản của bạn đã bị khóa" });
     if (user.status === "pending") return res.status(403).json({ message: "Tài khoản đang chờ xác nhận. Vui lòng liên hệ admin" });
+
+    // Tự động kiểm tra và nâng cấp subRole moderator nếu email này được phân công làm đề thi trong Job
+    const Job = require('../models/Job');
+    if (user.role !== 'admin' && user.subRole !== 'moderator') {
+      const isAssignedMod = await Job.exists({ 
+        moderatorEmail: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }, 
+        requireTest: true 
+      });
+      if (isAssignedMod) {
+        user.role = "business";
+        user.subRole = "moderator";
+        await user.save();
+      }
+    }
 
     // Cập nhật payload có thêm subRole
     const token = jwt.sign(
@@ -241,7 +258,8 @@ exports.googleLogin = async (req, res) => {
     if (!email) return res.status(400).json({ message: "Email not found in Google token" });
 
     // ==== PHẦN LOGIC CHECK DB GIỮ NGUYÊN ====
-    let user = await User.findOne({ email });
+    const normalizedEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } });
 
     if (user) {
       if (!user.googleId) {
@@ -250,6 +268,20 @@ exports.googleLogin = async (req, res) => {
       }
       if (user.status === "banned") return res.status(403).json({ message: "Tài khoản của bạn đã bị khóa" });
       if (user.status === "pending") return res.status(403).json({ message: "Tài khoản đang chờ xác nhận." });
+
+      // Tự động kiểm tra và nâng cấp subRole moderator nếu email này được phân công làm đề thi trong Job
+      const Job = require('../models/Job');
+      if (user.role !== 'admin' && user.subRole !== 'moderator') {
+        const isAssignedMod = await Job.exists({ 
+          moderatorEmail: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }, 
+          requireTest: true 
+        });
+        if (isAssignedMod) {
+          user.role = "business";
+          user.subRole = "moderator";
+          await user.save();
+        }
+      }
 
       const jwtToken = jwt.sign(
         { id: user._id, role: user.role, subRole: user.subRole },
@@ -261,11 +293,44 @@ exports.googleLogin = async (req, res) => {
         message: "Google login thành công",
         token: jwtToken,
         isNewUser: false,
-        user: { _id: user._id, email: user.email, fullName: user.fullName, role: user.role, status: user.status }
+        user: { _id: user._id, email: user.email, fullName: user.fullName, role: user.role, subRole: user.subRole, status: user.status }
       });
     }
 
-    // TÀI KHOẢN MỚI -> Yêu cầu Onboarding
+    // TÀI KHOẢN MỚI
+    // Kiểm tra xem email này có được HR chỉ định làm Moderator trong Job không
+    const Job = require('../models/Job');
+    const isAssignedMod = await Job.exists({ 
+      moderatorEmail: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') }, 
+      requireTest: true 
+    });
+
+    if (isAssignedMod) {
+      user = await User.create({
+        email: normalizedEmail,
+        fullName: name || "Chuyên gia Kiểm duyệt (Moderator)",
+        googleId,
+        role: "business",
+        subRole: "moderator",
+        status: "active",
+        isVerified: true
+      });
+
+      const jwtToken = jwt.sign(
+        { id: user._id, role: user.role, subRole: user.subRole },
+        process.env.JWT_SECRET,
+        { expiresIn: "7d" }
+      );
+
+      return res.json({
+        message: "Google login thành công với vai trò Moderator",
+        token: jwtToken,
+        isNewUser: false,
+        user: { _id: user._id, email: user.email, fullName: user.fullName, role: user.role, subRole: user.subRole, status: user.status }
+      });
+    }
+
+    // TÀI KHOẢN MỚI THÔNG THƯỜNG -> Yêu cầu Onboarding
     const tempPayload = { email, name, googleId, purpose: "google-onboarding" };
     const tempToken = jwt.sign(tempPayload, process.env.JWT_SECRET, { expiresIn: "1h" });
 
@@ -395,23 +460,32 @@ exports.acceptInvite = async (req, res) => {
         return res.status(400).json({ message: "Lời mời này không tồn tại, đã được sử dụng, hoặc đã hết hạn." });
     }
 
-    // 3. Kiểm tra User đã tồn tại chưa (Đề phòng click link 2 lần)
-    let user = await User.findOne({ email });
-    if (user) {
-        return res.status(400).json({ message: "Tài khoản của bạn đã được tạo. Vui lòng quay lại trang Đăng nhập." });
-    }
-
-    // 4. Tạo tài khoản Moderator
+    // 3. Kiểm tra User đã tồn tại chưa
     const hash = await bcrypt.hash(password, 10);
-    user = await User.create({
-      email,
-      password: hash,
-      fullName: "Chuyên gia Kiểm duyệt (SME)", // Tên mặc định, họ có thể sửa sau
-      role: role || "business",
-      subRole: subRole || "moderator",
-      status: "active",
-      isVerified: true
-    });
+    const normalizedEmail = email.toLowerCase().trim();
+    let user = await User.findOne({ email: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } });
+
+    if (user) {
+      user.password = hash;
+      if (user.role !== 'admin') {
+        user.role = "business";
+        user.subRole = "moderator";
+      }
+      user.status = "active";
+      user.isVerified = true;
+      await user.save();
+    } else {
+      // 4. Tạo tài khoản Moderator mới
+      user = await User.create({
+        email: normalizedEmail,
+        password: hash,
+        fullName: "Chuyên gia Kiểm duyệt (Moderator)",
+        role: role || "business",
+        subRole: subRole || "moderator",
+        status: "active",
+        isVerified: true
+      });
+    }
 
     // 5. Xóa record mời để link không dùng lại được nữa
     await Otp.deleteOne({ _id: otpRecord._id });

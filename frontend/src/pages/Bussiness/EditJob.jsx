@@ -6,6 +6,7 @@ import {
   Calendar, ClipboardCheck, AlignLeft, Send, Save, ArrowLeft,
   CheckCircle2, AlertCircle, X, Sparkles, Plus, Trash2, Users, Loader2, Info
 } from 'lucide-react';
+import { fetchProvinces } from '../../services/locationService';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -36,6 +37,11 @@ const EditJob = () => {
   const [loading, setLoading] = useState(id ? true : false); 
   const [submitting, setSubmitting] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
+  const [provinces, setProvinces] = useState([]);
+
+  useEffect(() => {
+    fetchProvinces().then(setProvinces).catch(console.error);
+  }, []);
 
   // FIX: Thêm trường requirements vào formData
   const [formData, setFormData] = useState({
@@ -238,7 +244,13 @@ const EditJob = () => {
                     <div className="relative">
                       <MapPin className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                       <select name="location" value={formData.location} onChange={handleChange} className="w-full p-3 pl-10 border border-slate-300 rounded-xl bg-white focus:ring-2 focus:ring-blue-100">
-                        <option value="Hà Nội">Hà Nội</option><option value="TP. Hồ Chí Minh">TP. Hồ Chí Minh</option><option value="Đà Nẵng">Đà Nẵng</option><option value="Khác">Khác...</option>
+                        {provinces.map(p => (
+                          <option key={p.code} value={p.cleanName}>{p.cleanName}</option>
+                        ))}
+                        {formData.location && !provinces.some(p => p.cleanName === formData.location) && (
+                          <option value={formData.location}>{formData.location}</option>
+                        )}
+                        <option value="Khác">Khác...</option>
                       </select>
                     </div>
                   </div>
@@ -266,21 +278,45 @@ const EditJob = () => {
                   </div>
                 </div>
                 
-                <label className="flex items-center gap-3 p-4 bg-white rounded-xl border border-blue-200 cursor-pointer hover:border-blue-400 transition-all">
-                  <input type="checkbox" name="requireTest" checked={formData.requireTest} onChange={handleChange} className="w-5 h-5 accent-blue-600" />
-                  <span className="text-sm font-bold text-slate-700">Yêu cầu tạo Test & Kiểm duyệt</span>
-                </label>
+                {(() => {
+                  const isDeadlineExpired = formData.deadline && new Date(formData.deadline).getTime() < new Date().getTime();
+                  return (
+                    <>
+                      <label className={`flex items-center gap-3 p-4 bg-white rounded-xl border transition-all ${
+                        isDeadlineExpired ? 'opacity-60 cursor-not-allowed border-slate-200 bg-slate-50' : 'border-blue-200 cursor-pointer hover:border-blue-400'
+                      }`}>
+                        <input 
+                          type="checkbox" 
+                          name="requireTest" 
+                          disabled={isDeadlineExpired}
+                          checked={isDeadlineExpired ? false : formData.requireTest} 
+                          onChange={(e) => {
+                            if (isDeadlineExpired) return;
+                            handleChange(e);
+                          }} 
+                          className="w-5 h-5 accent-blue-600 disabled:cursor-not-allowed" 
+                        />
+                        <div>
+                          <span className="text-sm font-bold text-slate-700 block">Yêu cầu tạo Test & Kiểm duyệt</span>
+                          {isDeadlineExpired && (
+                            <span className="text-[11px] font-bold text-red-500 block mt-0.5">⚠️ Tin tuyển dụng đã quá hạn, không thể tạo hoặc cập nhật bài test.</span>
+                          )}
+                        </div>
+                      </label>
 
-                {formData.requireTest && (
-                  <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 animate-fade-in">
-                    <label className="block text-xs font-bold text-slate-700 mb-2">Email người kiểm duyệt (SME) <span className="text-red-500">*</span></label>
-                    <input type="email" name="moderatorEmail" value={formData.moderatorEmail} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-100" placeholder="vd: techlead@congty.com" />
-                    <div className="mt-3 flex items-start gap-2 text-xs font-medium text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
-                        <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                        Tạm thu 200 Token để cấp Hạn mức nội bộ cho Moderator tạo Test AI.
-                    </div>
-                  </div>
-                )}
+                      {!isDeadlineExpired && formData.requireTest && (
+                        <div className="mt-4 bg-white p-4 rounded-xl border border-blue-100 animate-fade-in">
+                          <label className="block text-xs font-bold text-slate-700 mb-2">Email người kiểm duyệt (SME) <span className="text-red-500">*</span></label>
+                          <input type="email" name="moderatorEmail" value={formData.moderatorEmail} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-100" placeholder="vd: techlead@congty.com" />
+                          <div className="mt-3 flex items-start gap-2 text-xs font-medium text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200">
+                              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                              Tạm thu 200 Token để cấp Hạn mức nội bộ cho Moderator tạo Test AI.
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
