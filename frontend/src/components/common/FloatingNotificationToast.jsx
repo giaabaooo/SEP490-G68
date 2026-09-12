@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, X, ExternalLink, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Bell, X, ExternalLink, Sparkles, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { formatNotificationTime } from '../../utils/timeAgo';
 
 const FloatingNotificationToast = () => {
   const [activeToast, setActiveToast] = useState(null);
@@ -103,8 +104,12 @@ const FloatingNotificationToast = () => {
     // Điều hướng tới đúng trang
     if (targetLink) {
       navigate(targetLink);
+    } else if (activeToast.relatedApplicationId) {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      navigate(user.role === 'business' ? `/bussiness/candidate/${activeToast.relatedApplicationId}` : '/candidate/applications');
     } else {
-      navigate('/candidate/notifications');
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      navigate(user.role === 'business' ? '/bussiness/notifications' : '/candidate/notifications');
     }
   };
 
@@ -149,21 +154,25 @@ const FloatingNotificationToast = () => {
 
           {/* Nội dung */}
           <div className="flex-1 min-w-0 pr-6">
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <div className="flex items-center justify-between gap-1.5 mb-1.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
                 <Sparkles className="w-3 h-3 text-emerald-600" /> Thông báo mới
+              </span>
+              <span className="text-[10px] font-black text-slate-800 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-slate-700" />
+                {formatNotificationTime(activeToast.createdAt)}
               </span>
             </div>
 
-            <h4 className="text-sm font-black text-slate-900 leading-snug line-clamp-1 group-hover:text-emerald-700 transition-colors">
+            <h4 className="text-sm font-black text-slate-950 leading-snug line-clamp-1 group-hover:text-emerald-700 transition-colors">
               {activeToast.title}
             </h4>
 
-            <p className="text-xs font-medium text-slate-600 mt-0.5 leading-relaxed line-clamp-2">
+            <p className="text-xs font-bold text-slate-800 mt-1 leading-relaxed line-clamp-2">
               {activeToast.message}
             </p>
 
-            <div className="mt-2 flex items-center gap-1 text-[11px] font-bold text-emerald-600 group-hover:translate-x-0.5 transition-transform">
+            <div className="mt-2 flex items-center gap-1 text-[11px] font-black text-emerald-700 group-hover:translate-x-0.5 transition-transform">
               <span>Bấm để xem chi tiết</span>
               <ExternalLink className="w-3 h-3" />
             </div>

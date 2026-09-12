@@ -3,6 +3,7 @@ const User = require("../models/User");
 const jwt = require("jsonwebtoken");
 const Otp = require("../models/Otp");
 const sendEmail = require("../utils/sendEmail");
+const { createNotification } = require("../utils/notificationHelper");
 
 const parseStringArray = (value) => {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
@@ -40,6 +41,7 @@ const serializeJob = async (job) => {
     companySize: recruiter?.companySize || "", website: recruiter?.website || "",
     companyLocation: recruiter?.address || recruiter?.city || job.location || "", companyLogo: recruiter?.avatar || "",
     requireTest: job.requireTest || false, moderatorEmail: job.moderatorEmail || "", testStatus: job.testStatus || null,
+    assessmentId: job.assessmentId || null,
     requirementCategories: job.requirementCategories || [], useAiReview: job.useAiReview !== false,
   };
 };
@@ -123,11 +125,36 @@ exports.createJob = async (req, res) => {
     // 2. FIX LỖI MODERATOR (GỬI EMAIL THAY VÌ TẠO TRẮNG USER)
     if (requireTest && normalizedModEmail) {
       const modUser = await User.findOne({ email: normalizedModEmail });
+      const recruiterUser = await User.findById(req.user.id).select("fullName companyName");
+      const companyDisplayName = recruiterUser?.companyName || recruiterUser?.fullName || "Doanh nghiệp";
+
       if (modUser) {
           // Bỏ qua nếu họ đang là Admin
           if (modUser.role !== 'admin') {
               modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save();
           }
+
+          // THÔNG BÁO IN-APP CHO MODERATOR
+          await createNotification({
+            userId: modUser._id,
+            title: 'Yêu cầu tạo bài Test chuyên môn mới',
+            message: `Bạn được phân công xây dựng bài test cho vị trí "${job.title}" từ ${companyDisplayName}.`,
+            type: 'moderator_request',
+            link: '/moderator/requests'
+          });
+
+          // GỬI EMAIL THÔNG BÁO CHO MODERATOR ĐÃ CÓ TÀI KHOẢN
+          await sendEmail(
+            normalizedModEmail,
+            `[Careerio] Yêu cầu tạo bài Test chuyên môn: ${job.title}`,
+            `<div style="font-family:Arial,sans-serif;padding:20px;color:#333;">
+              <h2 style="color:#059669;">Yêu cầu tạo bài Test chuyên môn mới</h2>
+              <p>Xin chào,</p>
+              <p>Nhà tuyển dụng <strong>${companyDisplayName}</strong> đã chỉ định bạn làm Chuyên gia kiểm duyệt và xây dựng bài test cho vị trí: <strong>${job.title}</strong>.</p>
+              <p>Vui lòng đăng nhập hệ thống để xem chi tiết JD và tiến hành biên soạn bộ đề.</p>
+              <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/moderator/requests" style="display:inline-block;background:#059669;color:#fff;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:12px;">Xem yêu cầu tạo Test</a>
+            </div>`
+          );
       } else {
           // Tạo Token cho Email Mời
           const inviteToken = jwt.sign({ email: normalizedModEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -144,6 +171,18 @@ exports.createJob = async (req, res) => {
           );
       }
     }
+
+    try {
+      await createNotification({
+        userId: req.user.id,
+        title: requireTest ? `Đã tạo tin tuyển dụng (Chờ bài test): ${job.title}` : `Đăng tin tuyển dụng thành công: ${job.title}`,
+        message: requireTest 
+          ? `Tin tuyển dụng "${job.title}" đã được tạo. Đang chờ chuyên gia Moderator hoàn thiện đề kiểm tra năng lực trước khi công khai.`
+          : `Tin tuyển dụng "${job.title}" đã được đăng thành công và sẵn sàng tiếp nhận hồ sơ ứng viên.`,
+        type: 'general',
+        link: '/bussiness/post-job'
+      });
+    } catch (notifErr) {}
 
     const formattedJob = await serializeJob(job);
     res.status(201).json({ message: "Đăng tin tuyển dụng thành công", job: formattedJob });
@@ -190,6 +229,14 @@ exports.updateJob = async (req, res) => {
           const modUser = await User.findOne({ email: job.moderatorEmail });
           if (modUser) {
               if (modUser.role !== 'admin') { modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save(); }
+              // THÔNG BÁO CHO MODERATOR
+              await createNotification({
+                userId: modUser._id,
+                title: 'Yêu cầu tạo bài Test chuyên môn',
+                message: `Bạn được phân công xây dựng bài test cho vị trí "${job.title}".`,
+                type: 'moderator_request',
+                link: '/moderator/requests'
+              });
           } else {
               const inviteToken = jwt.sign({ email: job.moderatorEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
               await Otp.create({ email: job.moderatorEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
@@ -203,6 +250,20 @@ exports.updateJob = async (req, res) => {
 
     if (status && ["active", "draft", "closed"].includes(status)) {
       if (!(job.requireTest && job.testStatus === 'pending')) job.status = status;
+
+      // THÔNG BÁO CHO MODERATOR NẾU TIN TUYỂN DỤNG ĐÓNG
+      if (status === 'closed' && job.moderatorEmail) {
+        const modUser = await User.findOne({ email: job.moderatorEmail });
+        if (modUser) {
+          await createNotification({
+            userId: modUser._id,
+            title: 'Công việc đã đóng tuyển dụng',
+            message: `Vị trí "${job.title}" đã được nhà tuyển dụng đóng tuyển dụng.`,
+            type: 'job_closed',
+            link: '/moderator/requests'
+          });
+        }
+      }
     }
 
     await job.save();
@@ -216,11 +277,48 @@ exports.getModeratorRequests = async (req, res) => {
     const currentUser = await User.findById(req.user.id);
     if (!currentUser) return res.status(404).json({ message: "Không tìm thấy người dùng" });
 
-    const jobs = await Job.find({ requireTest: true, moderatorEmail: currentUser.email }).populate("recruiterId", "fullName email").sort({ createdAt: -1 }).lean();
-    const formattedRequests = jobs.map((job) => ({
-      id: job._id, jobTitle: job.title, hrName: job.recruiterId?.fullName || job.recruiterId?.email || "Nhân sự công ty",
-      deadline: job.recruitmentDeadline ? job.recruitmentDeadline.toISOString().split("T")[0] : "Không có", status: job.testStatus || "pending" 
-    }));
+    const normalizedEmail = currentUser.email ? currentUser.email.toLowerCase().trim() : "";
+    const jobs = await Job.find({ 
+      requireTest: true, 
+      moderatorEmail: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } 
+    })
+      .populate("recruiterId", "fullName email companyName")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const formattedRequests = jobs.map((job) => {
+      const deadlineDate = job.recruitmentDeadline || job.deadline;
+      let isExpired = false;
+      let deadlineFormatted = "Không giới hạn";
+
+      if (deadlineDate) {
+        const d = new Date(deadlineDate);
+        if (!isNaN(d.getTime())) {
+          deadlineFormatted = d.toISOString().split("T")[0];
+          const checkDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+          isExpired = checkDate < today;
+        }
+      }
+
+      return {
+        id: job._id,
+        jobTitle: job.title,
+        salary: job.salary || "Thỏa thuận",
+        location: job.location || "Toàn quốc",
+        type: job.type || "Toàn thời gian",
+        jobStatus: job.status,
+        assessmentId: job.assessmentId,
+        companyName: job.recruiterId?.companyName || "Doanh nghiệp",
+        hrName: job.recruiterId?.fullName || job.recruiterId?.email || "Nhân sự công ty",
+        hrEmail: job.recruiterId?.email || "",
+        deadline: deadlineFormatted,
+        isExpired,
+        status: job.testStatus || "pending" 
+      };
+    });
     res.json(formattedRequests);
   } catch (error) { res.status(500).json({ message: error.message }); }
 };

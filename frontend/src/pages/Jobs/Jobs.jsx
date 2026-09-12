@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Briefcase, DollarSign, Clock, Filter, ChevronDown, Bookmark, Loader2, FileText, Zap } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
+import { fetchProvinces } from '../../services/locationService';
 
 const Jobs = () => {
   const [searchParams] = useSearchParams();
@@ -22,7 +23,7 @@ const Jobs = () => {
   const jobsPerPage = 5;
 
   useEffect(() => {
-    fetch('https://provinces.open-api.vn/api/?depth=1').then(res => res.json()).then(data => setProvinces(data)).catch(console.error);
+    fetchProvinces().then(data => setProvinces(data)).catch(console.error);
   }, []);
 
   const fetchJobs = async () => {
@@ -89,7 +90,12 @@ const Jobs = () => {
               <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
               <select className="w-full bg-transparent border-none outline-none pl-3 text-slate-800 font-semibold cursor-pointer" value={location} onChange={(e) => setLocation(e.target.value)}>
                 <option value="">Tất cả địa điểm</option>
-                {provinces.map(p => (<option key={p.code} value={p.name.replace('Thành phố ', '').replace('Tỉnh ', '')}>{p.name.replace('Thành phố ', '').replace('Tỉnh ', '')}</option>))}
+                {provinces.map(p => (
+                  <option key={p.code} value={p.cleanName}>{p.cleanName}</option>
+                ))}
+                {location && !provinces.some(p => p.cleanName === location) && (
+                  <option value={location}>{location}</option>
+                )}
               </select>
             </div>
             <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-8 rounded-xl transition-all w-full md:w-auto mt-2 md:mt-0 shadow-sm">

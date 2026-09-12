@@ -224,12 +224,14 @@ exports.createApplication = async (req, res) => {
             relatedApplicationId: existingApp._id
         });
         if (job.recruiterId) {
+            const scoreText = aiEvaluation.score !== undefined ? ` (AI Match: ${aiEvaluation.score}%)` : '';
+            const verdictText = aiEvaluation.verdict ? ` [${aiEvaluation.verdict}]` : '';
             await createNotification({
                 userId: job.recruiterId,
-                title: 'Ứng viên cập nhật hồ sơ ứng tuyển',
-                message: `Ứng viên ${user.fullName} vừa cập nhật lại hồ sơ cho vị trí "${job.title}".`,
+                title: `Ứng viên cập nhật lại CV: ${user.fullName}${scoreText}`,
+                message: `Ứng viên ${user.fullName} vừa nộp phiên bản CV mới cho vị trí "${job.title}". Điểm AI đánh giá: ${aiEvaluation.score || 0}/100${verdictText}. Bấm để xem chi tiết hồ sơ.`,
                 type: 'application_submitted',
-                link: `/bussiness/jobs/${job._id}/cvs`,
+                link: `/bussiness/candidate/${existingApp._id}`,
                 relatedApplicationId: existingApp._id
             });
         }
@@ -254,12 +256,14 @@ exports.createApplication = async (req, res) => {
             relatedApplicationId: application._id
         });
         if (job.recruiterId) {
+            const scoreText = aiEvaluation.score !== undefined ? ` (AI Match: ${aiEvaluation.score}%)` : '';
+            const verdictText = aiEvaluation.verdict ? ` [${aiEvaluation.verdict}]` : '';
             await createNotification({
                 userId: job.recruiterId,
-                title: 'Hồ sơ ứng tuyển mới',
-                message: `Ứng viên ${user.fullName} vừa nộp hồ sơ vào vị trí "${job.title}".`,
+                title: `Hồ sơ ứng tuyển mới: ${user.fullName}${scoreText}`,
+                message: `Ứng viên ${user.fullName} vừa nộp hồ sơ ứng tuyển vị trí "${job.title}". Điểm AI đánh giá CV: ${aiEvaluation.score || 0}/100${verdictText}. Bấm để xem chi tiết hồ sơ & CV.`,
                 type: 'application_submitted',
-                link: `/bussiness/jobs/${job._id}/cvs`,
+                link: `/bussiness/candidate/${application._id}`,
                 relatedApplicationId: application._id
             });
         }
@@ -346,9 +350,27 @@ exports.updateStatus = async (req, res) => {
     const updatedApp = await Application.findById(id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title');
 
     try {
-      const statusNamesVi = { Applied: 'Hồ sơ mới nộp', Testing: 'Làm bài kiểm tra', Interviewing: 'Đang phỏng vấn', Offered: 'Đề nghị nhận việc (Offer)', Rejected: 'Đã từ chối' };
-const { createNotification } = require('../utils/notificationHelper');
-      await Notification.create({ userId: app.userId, title: 'Cập nhật trạng thái ứng tuyển', message: `Hồ sơ cho vị trí "${app.jobId?.title}" đã chuyển sang trạng thái: ${statusNamesVi[status] || status}.`, type: 'status_change', link: '/candidate/applications', relatedApplicationId: app._id });
+      const statusNamesVi = { 
+        Applied: 'Hồ sơ mới nộp', 
+        Testing: 'Làm bài kiểm tra', 
+        Interviewing: 'Đang phỏng vấn', 
+        Offered: 'Đề nghị nhận việc (Offer)', 
+        Rejected: 'Đã từ chối' 
+      };
+      const statusDetailMsg = {
+        Testing: `Hồ sơ cho vị trí "${app.jobId?.title}" đã được duyệt để làm bài test chuyên môn.`,
+        Interviewing: `Chúc mừng! Hồ sơ của bạn cho vị trí "${app.jobId?.title}" đã được mời vào vòng Phỏng vấn. Nhà tuyển dụng sẽ sớm liên hệ lịch hẹn.`,
+        Offered: `Chúc mừng! Bạn đã nhận được lời mời nhận việc (Offer) cho vị trí "${app.jobId?.title}".`,
+        Rejected: `Cảm ơn bạn đã ứng tuyển vị trí "${app.jobId?.title}". Hồ sơ hiện chưa phù hợp với đợt tuyển dụng này.`
+      };
+      await createNotification({ 
+        userId: app.userId, 
+        title: `Cập nhật trạng thái: ${statusNamesVi[status] || status}`, 
+        message: statusDetailMsg[status] || `Hồ sơ cho vị trí "${app.jobId?.title}" đã chuyển sang trạng thái: ${statusNamesVi[status] || status}.`, 
+        type: 'status_change', 
+        link: '/candidate/applications', 
+        relatedApplicationId: app._id 
+      });
     } catch (notifErr) {}
 
     return res.json({ message: 'Cập nhật thành công', data: updatedApp });
@@ -371,7 +393,26 @@ exports.sendNotification = async (req, res) => {
     app.mailSentStatus = type === 'Pass' ? 'Sent_Pass' : type === 'Reject' ? 'Sent_Reject' : (app.status === 'Rejected' ? 'Sent_Reject' : 'Sent_Pass');
     await app.save();
 
-    try { await Notification.create({ userId: app.userId._id, title: subject, message: content, type: 'general', link: '/candidate/applications', relatedApplicationId: app._id }); } catch (err) {}
+    try { 
+      await createNotification({ 
+        userId: app.userId._id, 
+        title: subject, 
+        message: content, 
+        type: 'email_notification', 
+        link: '/candidate/applications', 
+        relatedApplicationId: app._id 
+      }); 
+      if (req.user?.id) {
+        await createNotification({
+          userId: req.user.id,
+          title: `Đã gửi thư mời: ${app.userId?.fullName || 'Ứng viên'}`,
+          message: `Bạn đã gửi thư/thông báo "${subject}" đến ứng viên ${app.userId?.fullName || ''} cho vị trí "${app.jobId?.title}".`,
+          type: 'email_notification',
+          link: `/bussiness/candidate/${app._id}`,
+          relatedApplicationId: app._id
+        });
+      }
+    } catch (err) {}
 
     return res.json({ message: 'Gửi thành công', mailSentStatus: app.mailSentStatus });
   } catch (error) { res.status(500).json({ message: 'Lỗi' }); }
@@ -436,6 +477,21 @@ exports.reEvaluate = async (req, res) => {
     const populatedApp = await Application.findById(application._id)
       .populate('userId', 'fullName avatar cvUrl email')
       .populate('jobId', 'title recruitmentDeadline');
+
+    try {
+      if (req.user?.id) {
+        const scoreText = aiEvaluation.score !== undefined ? ` (Điểm mới: ${aiEvaluation.score}/100)` : '';
+        const verdictText = aiEvaluation.verdict ? ` [${aiEvaluation.verdict}]` : '';
+        await createNotification({
+          userId: req.user.id,
+          title: `AI đã chấm lại CV: ${populatedApp.userId?.fullName || 'Ứng viên'}${scoreText}`,
+          message: `Hệ thống AI đã hoàn tất chấm lại hồ sơ cho vị trí "${job.title}". Điểm phù hợp mới: ${aiEvaluation.score || 0}/100${verdictText}.`,
+          type: 'application_submitted',
+          link: `/bussiness/candidate/${application._id}`,
+          relatedApplicationId: application._id
+        });
+      }
+    } catch (notifErr) {}
 
     return res.json({
       message: 'Đã phân tích và chấm lại hồ sơ theo Bands thành công!',
