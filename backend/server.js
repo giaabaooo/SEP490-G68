@@ -8,8 +8,6 @@ const path = require("path");
 
 const connectDB = require("./config/db");
 const seedAdmin = require("./scripts/seedAdmin");
-const seedCandidate = require("./scripts/seedCandidate");
-const seedHRData = require("./scripts/seedHRData");
 const seedModerator = require("./scripts/seedModerator");
 
 const authRoutes = require("./routes/auth");
@@ -27,11 +25,10 @@ const paymentRoutes = require("./routes/payment.routes");
 
 const app = express();
 
-// Kết nối DB, chỉ seed Admin và Moderator mặc định nếu chưa có
+// Kết nối DB, khởi tạo Admin và Moderator mặc định nếu chưa có
 connectDB().then(async () => {
   await seedAdmin();
   await seedModerator();
-  // seedCandidate và seedHRData đã được tắt để tránh sinh mock data
 });
 
 // Cấu hình CORS linh hoạt cho cả Localhost và Production (Vercel)
@@ -63,7 +60,6 @@ app.use(
 );
 
 app.use(express.json());
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api/auth", authRoutes);
 app.use("/api/profile", profileRoutes);

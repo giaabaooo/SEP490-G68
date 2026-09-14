@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import Pagination from '../../components/common/Pagination';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -15,6 +16,8 @@ const ModeratorRequests = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all | pending | approved | expired
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   const fetchRequests = async () => {
     const token = localStorage.getItem('token');
@@ -48,9 +51,9 @@ const ModeratorRequests = () => {
     return { total, pending, approved, expired };
   }, [requests]);
 
-  // Bộ lọc dữ liệu theo tìm kiếm và tab
+  // Bộ lọc dữ liệu theo tìm kiếm và tab (Job còn hạn list lên đầu)
   const filteredRequests = useMemo(() => {
-    return requests.filter(req => {
+    const list = requests.filter(req => {
       const query = searchTerm.toLowerCase().trim();
       const matchSearch = !query || 
         req.jobTitle?.toLowerCase().includes(query) ||
@@ -69,7 +72,23 @@ const ModeratorRequests = () => {
 
       return matchSearch && matchStatus;
     });
+
+    // Những job còn hạn thì list lên đầu
+    return [...list].sort((a, b) => {
+      const isExpA = a.isExpired ? 1 : 0;
+      const isExpB = b.isExpired ? 1 : 0;
+      return isExpA - isExpB;
+    });
   }, [requests, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredRequests.length / pageSize) || 1;
+  const paginatedRequests = useMemo(() => {
+    return filteredRequests.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [filteredRequests, currentPage, pageSize]);
 
   // Định dạng ngày
   const formatDate = (dateStr) => {
@@ -281,8 +300,8 @@ const ModeratorRequests = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="text-xs uppercase tracking-wider text-slate-800 bg-slate-100 font-black border-b border-slate-300">
-                  <th className="py-4 px-6 min-w-[280px]">Vị trí tuyển dụng</th>
+                <tr className="text-xs uppercase tracking-wider text-slate-900 bg-slate-100 font-black border-b border-slate-300">
+                  <th className="py-4 px-6 min-w-[280px]">Tin tuyển dụng</th>
                   <th className="py-4 px-6 min-w-[200px]">HR Yêu cầu</th>
                   <th className="py-4 px-6 min-w-[160px]">Hạn chót Job</th>
                   <th className="py-4 px-6 min-w-[160px]">Trạng thái Test</th>
@@ -290,7 +309,7 @@ const ModeratorRequests = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredRequests.map((req) => (
+                {paginatedRequests.map((req) => (
                   <tr key={req.id} className="hover:bg-slate-50 transition-colors group">
                     {/* Cột 1: Vị trí tuyển dụng & Meta tags */}
                     <td className="py-4 px-6">
@@ -439,6 +458,15 @@ const ModeratorRequests = () => {
                 ))}
               </tbody>
             </table>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredRequests.length}
+              pageSize={pageSize}
+              itemName="yêu cầu"
+              onPageChange={(p) => setCurrentPage(p)}
+            />
           </div>
         )}
       </div>

@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusCircle, Edit3, Loader2, AlertCircle, Users, ExternalLink, UserCheck, Clock } from 'lucide-react';
+import Pagination from '../../components/common/Pagination';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -11,6 +12,8 @@ const PostJob = () => {
   const [loading, setLoading] = useState(true);
   
   const [activeTab, setActiveTab] = useState('main'); 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
   useEffect(() => {
     const loadJobsAndCounts = async () => {
@@ -49,7 +52,47 @@ const PostJob = () => {
     loadJobsAndCounts();
   }, [navigate]);
 
-  const filteredJobs = jobs.filter(job => activeTab === 'test' ? job.requireTest === true : true);
+  // Sắp xếp các Job còn hạn lên đầu
+  const sortedJobs = useMemo(() => {
+    const filtered = jobs.filter(job => activeTab === 'test' ? job.requireTest === true : true);
+    const now = Date.now();
+
+    return [...filtered].sort((a, b) => {
+      const isExpA = (() => {
+        if ((a.status || '').toLowerCase() === 'closed') return true;
+        const dl = a.recruitmentDeadline || a.deadline;
+        if (!dl) return false;
+        const d = new Date(dl);
+        if (isNaN(d.getTime())) return false;
+        const dEnd = new Date(d);
+        if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) dEnd.setHours(23, 59, 59, 999);
+        return dEnd.getTime() < now;
+      })();
+
+      const isExpB = (() => {
+        if ((b.status || '').toLowerCase() === 'closed') return true;
+        const dl = b.recruitmentDeadline || b.deadline;
+        if (!dl) return false;
+        const d = new Date(dl);
+        if (isNaN(d.getTime())) return false;
+        const dEnd = new Date(d);
+        if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) dEnd.setHours(23, 59, 59, 999);
+        return dEnd.getTime() < now;
+      })();
+
+      if (!isExpA && isExpB) return -1;
+      if (isExpA && !isExpB) return 1;
+      return new Date(b.postedAt || b.createdAt || 0).getTime() - new Date(a.postedAt || a.createdAt || 0).getTime();
+    });
+  }, [jobs, activeTab]);
+
+  const totalPages = Math.ceil(sortedJobs.length / pageSize) || 1;
+  const paginatedJobs = sortedJobs.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setCurrentPage(1);
+  };
 
   return (
     <div className="animate-fade-in pb-12">
@@ -63,18 +106,18 @@ const PostJob = () => {
         
         <button 
           onClick={() => navigate('/bussiness/create')} 
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-blue-600/20 flex items-center transition-all hover:-translate-y-0.5 shrink-0"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-xl font-bold shadow-lg shadow-blue-600/20 flex items-center transition-all hover:-translate-y-0.5 shrink-0 cursor-pointer"
         >
           <PlusCircle className="w-5 h-5 mr-2" /> Tạo Job Mới
         </button>
       </div>
 
       <div className="flex gap-8 mb-6 border-b border-slate-200 px-2">
-        <button onClick={() => setActiveTab('main')} className={`pb-4 text-sm font-bold transition-all relative ${activeTab === 'main' ? 'text-blue-600' : 'text-black hover:text-black'}`}>
+        <button onClick={() => handleTabChange('main')} className={`pb-4 text-sm font-bold transition-all relative cursor-pointer ${activeTab === 'main' ? 'text-blue-600' : 'text-slate-600 hover:text-black'}`}>
           Tin đăng thường
           {activeTab === 'main' && <span className="absolute bottom-0 left-0 w-full h-[3px] bg-blue-600 rounded-t-full"></span>}
         </button>
-        <button onClick={() => setActiveTab('test')} className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 ${activeTab === 'test' ? 'text-blue-600' : 'text-black hover:text-black'}`}>
+        <button onClick={() => handleTabChange('test')} className={`pb-4 text-sm font-bold transition-all relative flex items-center gap-2 cursor-pointer ${activeTab === 'test' ? 'text-blue-600' : 'text-slate-600 hover:text-black'}`}>
           Kiểm duyệt Test
           {jobs.some(j => {
             const dl = j.recruitmentDeadline || j.deadline;
@@ -89,23 +132,35 @@ const PostJob = () => {
         <div className="overflow-x-auto p-1">
           <table className="w-full text-left">
             <thead>
-              <tr className="text-[11px] uppercase tracking-wider text-black font-black border-b border-slate-100 bg-slate-50/50">
-                <th className="p-5">Vị trí tuyển dụng</th>
-                <th className="p-5">Mức lương</th>
-                <th className="p-5">Hạn chót</th>
-                {activeTab === 'test' && <th className="p-5">SME Phụ trách</th>}
-                <th className="p-5 text-center">Trạng thái</th>
-                <th className="p-5 text-center">Hồ sơ</th>
-                <th className="p-5 text-center">Thao tác</th>
+              <tr className="text-xs uppercase tracking-wider text-slate-900 font-black border-b border-slate-200 bg-slate-50/80">
+                <th className="p-5 font-black text-slate-900">Tin tuyển dụng</th>
+                <th className="p-5 font-black text-slate-900">Mức lương</th>
+                <th className="p-5 font-black text-slate-900">Hạn chót</th>
+                {activeTab === 'test' && <th className="p-5 font-black text-slate-900">SME Phụ trách</th>}
+                <th className="p-5 text-center font-black text-slate-900">Trạng thái</th>
+                <th className="p-5 text-center font-black text-slate-900">Hồ sơ</th>
+                <th className="p-5 text-center font-black text-slate-900">Thao tác</th>
               </tr>
             </thead>
             <tbody className="text-sm">
               {loading && <tr><td colSpan={7} className="p-10 text-center text-black"><Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-blue-500" /> Đang tải...</td></tr>}
-              {!loading && filteredJobs.length === 0 && <tr><td colSpan={7} className="p-10 text-center text-black font-medium">Không có công việc nào.</td></tr>}
+              {!loading && sortedJobs.length === 0 && <tr><td colSpan={7} className="p-10 text-center text-black font-medium">Không có công việc nào.</td></tr>}
 
-              {filteredJobs.map((job) => {
+              {paginatedJobs.map((job) => {
                 const targetDeadline = job.recruitmentDeadline || job.deadline;
-                const isExpired = targetDeadline && new Date(targetDeadline).getTime() < new Date().getTime();
+                let isExpired = false;
+                if ((job.status || '').toLowerCase() === 'closed') {
+                  isExpired = true;
+                } else if (targetDeadline) {
+                  const d = new Date(targetDeadline);
+                  if (!isNaN(d.getTime())) {
+                    const dEnd = new Date(d);
+                    if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) {
+                      dEnd.setHours(23, 59, 59, 999);
+                    }
+                    isExpired = dEnd.getTime() < Date.now();
+                  }
+                }
                 
                 const jobStatus = (job.status || '').toLowerCase();
                 const cvCount = appCounts[job._id || job.id] || 0;
@@ -113,7 +168,7 @@ const PostJob = () => {
                 return (
                   <tr key={job._id || job.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80 transition-colors">
                     <td className="p-5">
-                      <button onClick={() => navigate(`/bussiness/cvlist?jobId=${job._id || job.id}`, { state: { jobTitle: job.title } })} className="font-bold text-black hover:text-blue-600 transition-colors flex items-center gap-2 group text-left">
+                      <button onClick={() => navigate(`/bussiness/cvlist?jobId=${job._id || job.id}`, { state: { jobTitle: job.title } })} className="font-bold text-black hover:text-blue-600 transition-colors flex items-center gap-2 group text-left cursor-pointer">
                         {job.title} <ExternalLink className="w-3 h-3 text-black group-hover:text-blue-500 transition-colors opacity-0 group-hover:opacity-100" />
                       </button>
                     </td>
@@ -161,12 +216,12 @@ const PostJob = () => {
                     </td>
                     
                     <td className="p-5 text-center">
-                      <button onClick={() => navigate(`/bussiness/cvlist?jobId=${job._id || job.id}`, { state: { jobTitle: job.title } })} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-100 font-bold rounded-lg transition-colors flex items-center justify-center mx-auto gap-1.5 text-xs shadow-sm whitespace-nowrap">
+                      <button onClick={() => navigate(`/bussiness/cvlist?jobId=${job._id || job.id}`, { state: { jobTitle: job.title } })} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white border border-indigo-100 font-bold rounded-lg transition-colors flex items-center justify-center mx-auto gap-1.5 text-xs shadow-sm whitespace-nowrap cursor-pointer">
                         <Users className="w-3.5 h-3.5" /> {cvCount} CV
                       </button>
                     </td>
                     <td className="p-5 text-center">
-                      <button onClick={() => navigate(`/bussiness/edit-job/${job._id || job.id}`)} className="px-4 py-2 hover:bg-blue-50 hover:text-blue-700 bg-white border border-slate-200 text-black font-bold rounded-lg transition-colors flex items-center justify-center mx-auto gap-2 text-xs shadow-sm">
+                      <button onClick={() => navigate(`/bussiness/edit-job/${job._id || job.id}`)} className="px-4 py-2 hover:bg-blue-50 hover:text-blue-700 bg-white border border-slate-200 text-black font-bold rounded-lg transition-colors flex items-center justify-center mx-auto gap-2 text-xs shadow-sm cursor-pointer">
                         <Edit3 className="w-3.5 h-3.5" /> Sửa
                       </button>
                     </td>
@@ -176,6 +231,16 @@ const PostJob = () => {
             </tbody>
           </table>
         </div>
+
+        {/* PHÂN TRANG */}
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={sortedJobs.length}
+          pageSize={pageSize}
+          itemName="tin tuyển dụng"
+          onPageChange={setCurrentPage}
+        />
       </div>
     </div>
   );

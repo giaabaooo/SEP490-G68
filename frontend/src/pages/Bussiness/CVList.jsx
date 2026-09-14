@@ -6,24 +6,24 @@ import { useSearchParams, useNavigate, useLocation, useParams } from 'react-rout
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 import AiDetailModal from '../../components/business/AiDetailModal';
+import Pagination from '../../components/common/Pagination';
 
 const CVList = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { jobId: paramJobId } = useParams();
-  const currentJobId = searchParams.get('jobId') || paramJobId;
+  const currentJobId = searchParams.get('jobId') || paramJobId || '';
 
   const [jobs, setJobs] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState(currentJobId || 'all');
 
   const [applications, setApplications] = useState([]);
-  const [deduplicatedApps, setDeduplicatedApps] = useState([]); 
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(5);
   const [total, setTotal] = useState(0);
 
   const [search, setSearch] = useState('');
@@ -65,9 +65,7 @@ const CVList = () => {
   };
 
   useEffect(() => {
-    if (currentJobId) {
-      setSelectedJobId(currentJobId);
-    }
+    setSelectedJobId(currentJobId || 'all');
   }, [currentJobId]);
 
   useEffect(() => {
@@ -80,7 +78,21 @@ const CVList = () => {
         });
         if (res.ok) {
           const data = await res.json();
-          setJobs(Array.isArray(data) ? data : []);
+          const jobList = Array.isArray(data) ? data : [];
+          const sorted = [...jobList].sort((a, b) => {
+            const isExp = (j) => {
+              if ((j.status || '').toLowerCase() === 'closed') return 1;
+              const dl = j.recruitmentDeadline || j.deadline;
+              if (!dl) return 0;
+              const d = new Date(dl);
+              if (isNaN(d.getTime())) return 0;
+              const dEnd = new Date(d);
+              if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) dEnd.setHours(23, 59, 59, 999);
+              return dEnd.getTime() < Date.now() ? 1 : 0;
+            };
+            return isExp(a) - isExp(b);
+          });
+          setJobs(sorted);
         }
       } catch (e) {
         console.error('Lỗi nạp danh sách công việc:', e);
@@ -198,22 +210,6 @@ const CVList = () => {
     return () => controller.abort();
   }, [fetchApplications]);
 
-  useEffect(() => {
-      const uniqueAppsMap = new Map();
-      applications.forEach(app => {
-          const uid = app.userId?._id || app.userId?.id || app.userId;
-          if (!uniqueAppsMap.has(uid)) {
-              uniqueAppsMap.set(uid, app);
-          } else {
-              const existingApp = uniqueAppsMap.get(uid);
-              if (new Date(app.updatedAt) > new Date(existingApp.updatedAt)) {
-                  uniqueAppsMap.set(uid, app);
-              }
-          }
-      });
-      setDeduplicatedApps(Array.from(uniqueAppsMap.values()));
-  }, [applications]);
-
   const updateApplicationStatus = async (appId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
@@ -238,7 +234,7 @@ const CVList = () => {
     e.preventDefault();
     const appId = e.dataTransfer.getData('text/plain');
     if (!appId) return;
-    const app = deduplicatedApps.find(a => (a._id || a.id) === appId);
+    const app = applications.find(a => (a._id || a.id) === appId);
     if (app && (targetStatus === 'Offered' || targetStatus === 'Rejected')) {
       handleOpenConfirmModal(app, targetStatus);
       return;
@@ -247,11 +243,11 @@ const CVList = () => {
   };
 
   const exportToExcel = () => {
-    if (deduplicatedApps.length === 0) return toast.warning('Không có ứng viên nào để xuất dữ liệu.');
+    if (applications.length === 0) return toast.warning('Không có ứng viên nào để xuất dữ liệu.');
     const headers = ['Tên ứng viên', 'Email', 'Vị trí', 'Điểm CV (%)', 'Điểm Test (/100)', 'Cảnh báo rời tab', 'Ngày nộp', 'Trạng thái'];
     const csvRows = [headers.join(',')];
 
-    deduplicatedApps.forEach(app => {
+    applications.forEach(app => {
       const name = `"${app.userId?.fullName || 'N/A'}"`;
       const email = `"${app.userId?.email || 'N/A'}"`;
       const job = `"${app.jobId?.title || 'N/A'}"`;
@@ -347,7 +343,6 @@ const CVList = () => {
       if (json.data) {
         setSelectedAiData(json.data);
         setApplications(prev => prev.map(a => (a._id || a.id) === appId ? { ...a, ...json.data } : a));
-        setDeduplicatedApps(prev => prev.map(a => (a._id || a.id) === appId ? { ...a, ...json.data } : a));
       }
     } catch (err) {
       toast.error(err.message || 'Không thể chấm lại');
@@ -388,8 +383,14 @@ const CVList = () => {
             <select 
               value={selectedJobId} 
               onChange={(e) => { 
-                setSelectedJobId(e.target.value); 
+                const newId = e.target.value;
+                setSelectedJobId(newId); 
                 setPage(1); 
+                if (newId && newId !== 'all') {
+                  setSearchParams({ jobId: newId });
+                } else {
+                  setSearchParams({});
+                }
               }} 
               className="w-full sm:w-56 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-black focus:outline-none focus:border-blue-500"
             >
@@ -428,7 +429,7 @@ const CVList = () => {
       {viewMode === 'pipeline' ? (
         <div className="flex gap-4 overflow-x-auto pb-6 items-start hide-scrollbar" style={{ minHeight: '600px' }}>
           {['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].map((status) => {
-            const columnApps = deduplicatedApps.filter((app) => app.status === status);
+            const columnApps = applications.filter((app) => app.status === status);
             const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Làm Test', Interviewing: 'Phỏng vấn', Offered: 'Nhận việc', Rejected: 'Từ chối' };
             const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-amber-500 bg-amber-50/10', Interviewing: 'border-t-4 border-t-blue-500 bg-blue-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
             
@@ -484,20 +485,20 @@ const CVList = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/80 border-b border-slate-100">
-                  <th className="p-5 pl-6 text-xs font-semibold text-black w-12">#</th>
-                  <th className="p-5 text-xs font-semibold text-black">Ứng viên</th>
-                  <th className="p-5 text-xs font-semibold text-black text-center">Đánh giá CV (AI)</th>
-                  <th className="p-5 text-xs font-semibold text-black text-center w-40">Điểm Bài Test</th>
-                  <th className="p-5 text-xs font-semibold text-black">Trạng thái hồ sơ</th>
-                  <th className="p-5 pr-6 text-xs font-semibold text-black text-center">Hành động</th>
+                  <th className="p-5 pl-6 text-xs font-black uppercase tracking-wider text-slate-900 w-12">#</th>
+                  <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900">Ứng viên</th>
+                  <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Đánh giá CV (AI)</th>
+                  <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900 text-center w-40">Điểm Bài Test</th>
+                  <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900">Trạng thái hồ sơ</th>
+                  <th className="p-5 pr-6 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Hành động</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading && <tr><td colSpan={7} className="p-12 text-center text-black">Đang tải...</td></tr>}
                 {!loading && error && <tr><td colSpan={7} className="p-12 text-center text-red-500">{error}</td></tr>}
-                {!loading && !error && deduplicatedApps.length === 0 && <tr><td colSpan={7} className="p-16 text-center"><p className="text-black font-medium italic">Chưa có ứng viên nào ứng tuyển vào vị trí này.</p></td></tr>}
+                {!loading && !error && applications.length === 0 && <tr><td colSpan={7} className="p-16 text-center"><p className="text-black font-medium italic">Chưa có ứng viên nào ứng tuyển vào vị trí này.</p></td></tr>}
 
-                {deduplicatedApps.filter(app => activeFilter === 'All' || app.status === activeFilter).map((app, index) => {
+                {applications.map((app, index) => {
                    const hasDoneTest = app.testStatus === 'Completed' || (app.testScore !== undefined && app.testScore !== null);
                    const jobRequiresTest = app.hasTest || !!app.assessmentId || !!app.jobId?.requireTest;
 
@@ -518,6 +519,11 @@ const CVList = () => {
                             {app.mailSentStatus && app.mailSentStatus !== 'Pending' && <span className={`w-1.5 h-1.5 rounded-full inline-block ${app.mailSentStatus === 'Sent_Pass' ? 'bg-emerald-500' : 'bg-red-500'}`} title={app.mailSentStatus === 'Sent_Pass' ? 'Đã báo đạt' : 'Đã báo loại'}></span>}
                           </p>
                           <p className="text-xs font-medium text-black truncate max-w-[200px]" title={app.userId?.email}>{app.userId?.email || `ID: #${(app._id || app.id).toString().slice(-6).toUpperCase()}`}</p>
+                          {app.jobId?.title && (
+                            <span className="inline-block mt-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md" title={app.jobId.title}>
+                              {app.jobId.title}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -592,6 +598,17 @@ const CVList = () => {
               </tbody>
             </table>
           </div>
+
+          {viewMode === 'list' && (
+            <Pagination
+              currentPage={page}
+              totalPages={Math.ceil(total / limit) || 1}
+              totalItems={total}
+              pageSize={limit}
+              itemName="hồ sơ"
+              onPageChange={(p) => setPage(p)}
+            />
+          )}
         </div>
       )}
 
