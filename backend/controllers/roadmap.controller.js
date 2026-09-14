@@ -16,6 +16,43 @@ exports.generateRoadmap = async (req, res) => {
     try {
         const userId = req.user?.id;
 
+        const { sourceId, testType, timeframe, goal, testResult } = req.body;
+
+        // Nếu là bài kiểm tra theo Job, kiểm tra hạn của Job trước tiên
+        if (testType === 'JOB') {
+            const Application = require('../models/Application');
+            const application = await Application.findById(sourceId).populate('jobId');
+            if (!application || !application.jobId) {
+                return res.status(404).json({ message: "Không tìm thấy thông tin công việc liên kết." });
+            }
+
+            const job = application.jobId;
+            let isExpired = false;
+            if (job.status === 'closed') {
+                isExpired = true;
+            } else {
+                const dl = job.recruitmentDeadline || job.deadline;
+                if (dl) {
+                    const d = new Date(dl);
+                    if (!isNaN(d.getTime())) {
+                        const deadlineEnd = new Date(d);
+                        if (deadlineEnd.getHours() === 0 && deadlineEnd.getMinutes() === 0 && deadlineEnd.getSeconds() === 0) {
+                            deadlineEnd.setHours(23, 59, 59, 999);
+                        }
+                        if (deadlineEnd.getTime() < Date.now()) {
+                            isExpired = true;
+                        }
+                    }
+                }
+            }
+
+            if (isExpired) {
+                return res.status(400).json({ 
+                    message: "Công việc đã hết hạn tuyển dụng. Bạn không thể tạo AI Roadmap cho công việc đã hết hạn (chỉ được tạo khi còn hạn)." 
+                });
+            }
+        }
+
         // KIỂM TRA LIMIT TẠO LỘ TRÌNH CỦA CANDIDATE
         if (req.user?.role === 'candidate') {
             try {
@@ -27,9 +64,6 @@ exports.generateRoadmap = async (req, res) => {
                 throw err;
             }
         }
-        
-        // Nhận động thời gian và mục tiêu từ UI gửi lên (Bao gồm cả custom time)
-        const { sourceId, testType, timeframe, goal, testResult } = req.body;
         const { topic, score, totalQuestions, weakSkills, jd } = testResult;
 
         let contextPart = `

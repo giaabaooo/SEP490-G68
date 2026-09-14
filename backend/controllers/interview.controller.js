@@ -145,14 +145,14 @@ exports.evaluateInterview = async (req, res) => {
         const userMessages = (history || []).filter(msg => msg.role === 'user');
         let result;
 
-        if (userMessages.length === 0) {
+        if (!userMessages || userMessages.length === 0) {
             result = {
                 score: 0,
-                matchRating: "Không thể đánh giá độ phù hợp (Ứng viên chưa trả lời câu nào)",
-                overview: "Đánh giá không thể thực hiện vì ứng viên chưa đưa ra bất kỳ câu trả lời nào. Một cuộc phỏng vấn là một cuộc đối thoại tương tác hai chiều, và hệ thống không có dữ liệu để đánh giá năng lực của bạn.",
-                strengths: ["Chưa có dữ liệu để đánh giá điểm mạnh."],
-                weaknesses: ["Ứng viên không cung cấp bất kỳ câu trả lời nào trong suốt buổi phỏng vấn."],
-                improvements: ["Hãy mạnh dạn trả lời các câu hỏi", "Đảm bảo micro/bàn phím của bạn hoạt động tốt"]
+                matchRating: "Chưa thể đánh giá",
+                overview: "Đánh giá không thể thực hiện vì ứng viên chưa cung cấp câu trả lời nào trong suốt buổi phỏng vấn.",
+                strengths: [],
+                weaknesses: ["Ứng viên chưa cung cấp câu trả lời trong suốt buổi phỏng vấn."],
+                improvements: ["Hãy tham gia trả lời các câu hỏi để nhận được đánh giá chi tiết về năng lực."]
             };
         } else {
             // Lấy thông tin ngữ cảnh Job và Ứng viên để đối chiếu JD

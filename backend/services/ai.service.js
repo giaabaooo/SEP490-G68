@@ -266,36 +266,46 @@ exports.evaluateInterview = async (history, jobContext, candidateContext) => {
         `${msg.role === 'user' ? 'Ứng viên' : 'Người phỏng vấn'}: ${msg.content}`
     ).join('\n');
 
+    const modelQuestionsCount = (history || []).filter(msg => msg.role === 'model').length;
+    const userAnswersCount = (history || []).filter(msg => msg.role === 'user').length;
+
     const prompt = `
     Đóng vai là một Giám đốc tuyển dụng và Chuyên gia kỹ thuật cấp cao cực kỳ công tâm, sâu sắc.
-    Hãy đánh giá toàn diện buổi phỏng vấn thử của ứng viên đối chiếu trực tiếp với yêu cầu của Mô tả công việc (JD):
+    Hãy đánh giá toàn diện năng lực của ứng viên qua buổi phỏng vấn thử đối chiếu trực tiếp với yêu cầu của Mô tả công việc (JD):
 
     VỊ TRÍ TUYỂN DỤNG & YÊU CẦU CÔNG VIỆC:
     - Vị trí: ${jobTitle} (${jobCompany})
     ${jobDescription ? `- Mô tả công việc: ${jobDescription}` : ''}
     ${jobRequirements ? `- Yêu cầu kỹ năng (JD): \n${jobRequirements}` : ''}
 
-    THÔNG TIN ỨNG VIÊN:
-    - Họ và tên: ${candidateName}
-    ${candidateSkills ? `- Kỹ năng: ${candidateSkills}` : ''}
-
-    --- BIÊN BẢN HỘI THOẠI PHỎNG VẤN ---
+    --- BIÊN BẢN HỘI THOẠI PHỎNG VẤN THỰC TẾ ---
     ${transcript}
     --- KẾT THÚC BIÊN BẢN ---
 
-    TIÊU CHÍ ĐÁNH GIÁ NGHIÊM NGẶT:
-    1. Trọng tâm là câu trả lời của Ứng viên đối chiếu với yêu cầu thực tế trong JD.
-    2. Nếu ứng viên chỉ trả lời cụt lủn, sáo rỗng hoặc từ chối trả lời ("dạ", "em không biết", "chào anh"), điểm tối đa chỉ từ 0 đến 15 điểm.
-    3. Đánh giá độ phù hợp với JD: Ứng viên có nắm vững các công nghệ trọng tâm trong JD không? Có tư duy thực chiến và giải quyết được bài toán kỹ thuật không?
-    4. Cho điểm trên 75 nếu ứng viên đưa ra được ví dụ dự án cụ thể, số liệu hoặc phân tích sâu sắc.
+    THANG ĐIỂM NGHIỆP VỤ ĐÁNH GIÁ NĂNG LỰC PHỎNG VẤN (TỔNG 100 ĐIỂM):
+    1. Kiến thức chuyên môn & Độ bám sát yêu cầu JD (0 - 40 điểm):
+       - Mức độ nắm vững các công nghệ, công cụ và yêu cầu kỹ thuật then chốt trong JD.
+       - Nếu các câu hỏi kỹ thuật trong JD không có câu trả lời từ ứng viên hoặc trả lời sai: Tiêu chí này chỉ đạt từ 0 đến 10 điểm.
+    2. Kinh nghiệm thực chiến & Năng lực giải quyết vấn đề (0 - 30 điểm):
+       - Ứng viên có chứng minh được kinh nghiệm qua dự án cụ thể, số liệu đo lường, cách xử lý sự cố/khó khăn không?
+       - Nếu ứng viên chỉ nêu lý thuyết chung hoặc mới chỉ dừng lại ở phần giới thiệu bản thân: Tiêu chí này chỉ đạt từ 0 đến 5 điểm.
+    3. Kỹ năng giao tiếp & Cấu trúc câu trả lời STAR (0 - 20 điểm):
+       - Khả năng diễn đạt mạch lạc, đi thẳng vào trọng tâm, có cấu trúc logic (Tình huống - Nhiệm vụ - Hành động - Kết quả).
+    4. Thái độ & Tác phong nghề nghiệp (0 - 10 điểm):
+       - Tinh thần cầu thị, trung thực, nghiêm túc và chuyên nghiệp trong giao tiếp.
+
+    QUY TẮC CHẤM ĐIỂM BẮT BUỘC:
+    - Điểm số tổng (score) = Tổng điểm thực tế ứng viên đạt được ở 4 tiêu chí trên (0 - 100).
+    - CHỈ CHẤM DỰA TRÊN DỮ LIỆU ỨNG VIÊN ĐÃ NÓI TRONG BIÊN BẢN. Tuyệt đối không tự suy đoán, không lấy kỹ năng từ CV hay giả định ứng viên biết nếu ứng viên chưa thể hiện.
+    - Nếu ứng viên trả lời quá ít, câu trả lời cộc lốc, vô nghĩa, né tránh hoặc từ chối ("dạ", "em không biết", "chào anh", "alo"), tiêu chí Chuyên môn và Thực chiến nhận 0 điểm, tổng điểm chỉ từ 0 đến 15 điểm.
 
     Hãy trả về kết quả JSON chuẩn với cấu trúc:
     {
-        "score": <Số điểm nguyên từ 0 đến 100>,
-        "matchRating": "Đánh giá mức độ phù hợp JD ngắn gọn (Ví dụ: Phù hợp 85% với yêu cầu JD vị trí Senior Frontend)",
+        "score": <Số điểm nguyên từ 0 đến 100 phản ánh trung thực nỗ lực và năng lực>,
+        "matchRating": "Đánh giá mức độ phù hợp JD ngắn gọn (Ví dụ: Đạt mức Cơ bản / Tương đối phù hợp / Rất phù hợp với vị trí ...)",
         "overview": "Nhận xét tổng quan toàn diện và mang tính xây dựng về năng lực ứng viên so với JD...",
         "strengths": [
-            "Điểm mạnh nổi bật 1 (gắn với yêu cầu công việc)",
+            "Điểm mạnh nổi bật 1 (gắn với yêu cầu công việc thực tế)",
             "Điểm mạnh 2"
         ],
         "weaknesses": [

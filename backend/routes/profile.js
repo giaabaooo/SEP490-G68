@@ -1,32 +1,12 @@
 const express = require("express");
 const auth = require("../middleware/auth");
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 
 const router = express.Router();
 
 const profileController = require("../controllers/profile.controller");
 
-// Ensure uploads folder exists
-const uploadDir = path.join(__dirname, "../uploads/avatars");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1E9);
-    cb(null, `avatar-${req.user.id}-${uniqueSuffix}${ext}`);
-  }
-});
-
-// Multer File Validation
+// Cấu hình Multer lưu tạm ảnh trong RAM trước khi đẩy lên Cloudinary
 const fileFilter = (req, file, cb) => {
   const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
   if (allowedTypes.includes(file.mimetype)) {
@@ -37,7 +17,7 @@ const fileFilter = (req, file, cb) => {
 };
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit

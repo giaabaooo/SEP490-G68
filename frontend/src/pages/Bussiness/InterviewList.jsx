@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import AiDetailModal from '../../components/business/AiDetailModal';
+import Pagination from '../../components/common/Pagination';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -20,6 +21,8 @@ const InterviewList = () => {
   const [applications, setApplications] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState(filterJobParam);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   // AI Review modal state
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -62,7 +65,20 @@ const InterviewList = () => {
       });
       const jobsData = await jobsRes.json();
       const jobList = Array.isArray(jobsData) ? jobsData : [];
-      setJobs(jobList);
+      const sortedJobs = [...jobList].sort((a, b) => {
+        const isExp = (j) => {
+          if ((j.status || '').toLowerCase() === 'closed') return 1;
+          const dl = j.recruitmentDeadline || j.deadline;
+          if (!dl) return 0;
+          const d = new Date(dl);
+          if (isNaN(d.getTime())) return 0;
+          const dEnd = new Date(d);
+          if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) dEnd.setHours(23, 59, 59, 999);
+          return dEnd.getTime() < Date.now() ? 1 : 0;
+        };
+        return isExp(a) - isExp(b);
+      });
+      setJobs(sortedJobs);
 
       // Fetch Applications with status = Interviewing
       const appsRes = await fetch(`${API_BASE}/api/applications?status=Interviewing&limit=1000`, {
@@ -83,6 +99,10 @@ const InterviewList = () => {
     loadData();
   }, [loadData]);
 
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedJobId, searchQuery]);
+
   // Count interviews per job
   const jobInterviewCounts = {};
   applications.forEach(app => {
@@ -101,6 +121,9 @@ const InterviewList = () => {
       (app.userId?.email || '').toLowerCase().includes(searchQuery.toLowerCase());
     return matchJob && nameMatch;
   });
+
+  const totalPages = Math.ceil(filteredApps.length / pageSize) || 1;
+  const paginatedApps = filteredApps.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // Open notify email modal
   const handleOpenNotifyModal = (app) => {
@@ -332,12 +355,12 @@ const InterviewList = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-500 font-black">
-                <th className="p-5">Ứng viên</th>
-                <th className="p-5">Vị trí tuyển dụng</th>
-                <th className="p-5 text-center">AI Match</th>
-                <th className="p-5 text-center">Bài Test</th>
-                <th className="p-5 text-center">Thao tác</th>
+              <tr className="bg-slate-50/80 border-b border-slate-100">
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900">Ứng viên</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900">Vị trí ứng tuyển</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900 text-center">AI Match</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Bài Test</th>
+                <th className="p-5 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Thao tác</th>
               </tr>
             </thead>
             <tbody className="text-sm divide-y divide-slate-100">
@@ -359,7 +382,7 @@ const InterviewList = () => {
                   </td>
                 </tr>
               ) : (
-                filteredApps.map((app) => {
+                paginatedApps.map((app) => {
                   const hasDoneTest = app.testScore !== undefined && app.testScore !== null;
                   const targetJob = app.jobId;
 
@@ -472,6 +495,15 @@ const InterviewList = () => {
             </tbody>
           </table>
         </div>
+
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          totalItems={filteredApps.length}
+          pageSize={pageSize}
+          itemName="ứng viên"
+          onPageChange={(p) => setCurrentPage(p)}
+        />
       </div>
 
       {/* MODAL GỬI EMAIL MỜI PHỎNG VẤN */}
