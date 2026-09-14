@@ -10,6 +10,7 @@
     "@google/generative-ai": "^0.24.1",
     "@payos/node": "^1.0.10",
     "bcryptjs": "^3.0.2",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",

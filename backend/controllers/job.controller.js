@@ -68,7 +68,40 @@ exports.getJobs = async (req, res) => {
 
     const jobs = await Job.find(query).sort({ createdAt: -1 }).lean();
     const formattedJobs = await Promise.all(jobs.map((job) => serializeJob(job)));
-    res.json(formattedJobs);
+
+    // Sắp xếp các Job còn hạn lên đầu, Job hết hạn / đã đóng xếp sau
+    const now = Date.now();
+    const sortedJobs = formattedJobs.sort((a, b) => {
+      const isExpiredA = (() => {
+        if ((a.status || '').toLowerCase() === 'closed') return true;
+        if (!a.deadline) return false;
+        const d = new Date(a.deadline);
+        if (isNaN(d.getTime())) return false;
+        const dEnd = new Date(d);
+        if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) {
+          dEnd.setHours(23, 59, 59, 999);
+        }
+        return dEnd.getTime() < now;
+      })();
+
+      const isExpiredB = (() => {
+        if ((b.status || '').toLowerCase() === 'closed') return true;
+        if (!b.deadline) return false;
+        const d = new Date(b.deadline);
+        if (isNaN(d.getTime())) return false;
+        const dEnd = new Date(d);
+        if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) {
+          dEnd.setHours(23, 59, 59, 999);
+        }
+        return dEnd.getTime() < now;
+      })();
+
+      if (!isExpiredA && isExpiredB) return -1;
+      if (isExpiredA && !isExpiredB) return 1;
+      return new Date(b.postedAt || 0).getTime() - new Date(a.postedAt || 0).getTime();
+    });
+
+    res.json(sortedJobs);
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
 

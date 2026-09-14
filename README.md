@@ -116,8 +116,7 @@ SEP490-G68/
 │   ├── routes/              # Định nghĩa API routes
 │   ├── scripts/             # Scripts tự động seed dữ liệu mẫu (Admin, HR, Candidate, Moderator)
 │   ├── services/            # Tầng tích hợp AI Service (Gemini & OpenAI TTS)
-│   ├── utils/               # Tiện ích gửi email, tính toán hạn mức, upload
-│   ├── uploads/             # Thư mục lưu trữ tạm file CV và ảnh đại diện
+│   ├── utils/               # Tiện ích gửi email, tính toán hạn mức, Cloudinary upload
 │   ├── .env.example         # File mẫu cấu hình biến môi trường Backend
 │   ├── package.json         # Danh sách thư viện và scripts Backend
 │   ├── seedPractice.js      # Script seed ngân hàng câu hỏi luyện tập

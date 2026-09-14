@@ -100,6 +100,31 @@ export default function TestHistory() {
                                             <span className="bg-blue-50 text-blue-700 text-[10px] font-black uppercase px-2 py-0.5 rounded border border-blue-100 flex items-center gap-1"><Briefcase className="w-3 h-3" /> Ứng tuyển</span>
                                         )}
                                         <span className="text-xs font-bold text-black">{new Date(app.testSubmittedAt).toLocaleDateString('vi-VN')}</span>
+                                        {activeTab === 'JOB' && (() => {
+                                            const job = app.jobId;
+                                            if (!job) return null;
+                                            const dl = job.recruitmentDeadline || job.deadline;
+                                            let isExp = job.status === 'closed';
+                                            if (!isExp && dl) {
+                                                const d = new Date(dl);
+                                                if (!isNaN(d.getTime())) {
+                                                    const dEnd = new Date(d);
+                                                    if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) {
+                                                        dEnd.setHours(23, 59, 59, 999);
+                                                    }
+                                                    isExp = dEnd.getTime() < Date.now();
+                                                }
+                                            }
+                                            return isExp ? (
+                                                <span className="bg-rose-100 text-rose-700 text-[10px] font-black px-2 py-0.5 rounded border border-rose-200">
+                                                    Đã hết hạn
+                                                </span>
+                                            ) : (
+                                                <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-2 py-0.5 rounded border border-emerald-200">
+                                                    Còn hạn
+                                                </span>
+                                            );
+                                        })()}
                                     </div>
                                     <h3 className={`text-lg font-black text-black group-hover:text-${themeColor}-600 transition-colors mb-1`}>{testName}</h3>
                                     <p className="text-sm font-semibold text-black flex items-center gap-1.5"><CheckCircle2 className={`w-4 h-4 ${activeTab === 'PRACTICE' ? 'text-amber-500' : 'text-emerald-500'}`} /> {app.jobId?.title}</p>
