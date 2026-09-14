@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import Pagination from '../../components/common/Pagination';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -16,6 +17,8 @@ const TestBank = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all'); // all | PUBLISHED | DRAFT
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   const fetchTests = async () => {
     const token = localStorage.getItem('token');
@@ -64,6 +67,15 @@ const TestBank = () => {
       return matchSearch && matchStatus;
     });
   }, [tests, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
+  const totalPages = Math.ceil(filteredTests.length / pageSize) || 1;
+  const paginatedTests = useMemo(() => {
+    return filteredTests.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  }, [filteredTests, currentPage, pageSize]);
 
   // Định dạng ngày
   const formatDate = (dateStr) => {
@@ -273,9 +285,9 @@ const TestBank = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="text-xs uppercase tracking-wider text-slate-800 bg-slate-100 font-black border-b border-slate-300">
+                <tr className="text-xs uppercase tracking-wider text-slate-900 bg-slate-100 font-black border-b border-slate-300">
                   <th className="py-4 px-6 min-w-[280px]">Tên bài Test & Thông tin</th>
-                  <th className="py-4 px-6 min-w-[220px]">Job liên kết</th>
+                  <th className="py-4 px-6 min-w-[220px]">Tin tuyển dụng liên kết</th>
                   <th className="py-4 px-6 text-center min-w-[140px]">Số câu hỏi</th>
                   <th className="py-4 px-6 text-center min-w-[140px]">Thời lượng</th>
                   <th className="py-4 px-6 min-w-[150px]">Trạng thái</th>
@@ -283,7 +295,7 @@ const TestBank = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredTests.map((test) => (
+                {paginatedTests.map((test) => (
                   <tr key={test._id} className="hover:bg-slate-50 transition-colors group">
                     {/* Cột 1: Tên bài Test */}
                     <td className="py-4 px-6">
@@ -403,6 +415,15 @@ const TestBank = () => {
                 ))}
               </tbody>
             </table>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredTests.length}
+              pageSize={pageSize}
+              itemName="bài test"
+              onPageChange={(p) => setCurrentPage(p)}
+            />
           </div>
         )}
       </div>

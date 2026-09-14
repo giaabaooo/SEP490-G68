@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BookOpen, PlusCircle, Edit3, Trash2, Clock, HelpCircle, AlertCircle, Sparkles, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
+import Pagination from '../../components/common/Pagination';
 
 const PracticeTopicsList = () => {
   const navigate = useNavigate();
   const [topics, setTopics] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 8;
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -54,6 +57,9 @@ const PracticeTopicsList = () => {
     }
   };
 
+  const totalPages = Math.ceil(topics.length / pageSize) || 1;
+  const paginatedTopics = topics.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   return (
     <div className="animate-fade-in pb-12 max-w-7xl mx-auto mt-6">
       {/* Header */}
@@ -94,18 +100,18 @@ const PracticeTopicsList = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-100 text-xs uppercase tracking-wider text-slate-400 font-black">
-                  <th className="p-6">Tên chủ đề</th>
-                  <th className="p-6">Phân loại</th>
-                  <th className="p-6">Mô tả</th>
-                  <th className="p-6 text-center">Thời gian</th>
-                  <th className="p-6 text-center">Số câu hỏi</th>
-                  <th className="p-6 text-center">Người tạo</th>
-                  <th className="p-6 text-center">Thao tác</th>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-900 font-black">
+                  <th className="p-6 text-xs font-black uppercase tracking-wider text-slate-900">Tên chủ đề</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-wider text-slate-900">Phân loại</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-wider text-slate-900">Mô tả</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Thời gian</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Số câu hỏi</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Người tạo</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-wider text-slate-900 text-center">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm font-medium text-slate-700">
-                {topics.map((topic) => (
+                {paginatedTopics.map((topic) => (
                   <tr key={topic._id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="p-6">
                       <span className="font-extrabold text-slate-900 block flex items-center gap-2">
@@ -166,6 +172,15 @@ const PracticeTopicsList = () => {
                 ))}
               </tbody>
             </table>
+
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={topics.length}
+              pageSize={pageSize}
+              itemName="chủ đề"
+              onPageChange={(p) => setCurrentPage(p)}
+            />
           </div>
         )}
       </div>

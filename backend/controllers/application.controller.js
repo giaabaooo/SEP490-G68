@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const CVReview = require('../models/CVReview');
 const CV = require('../models/CV');
+const { uploadCvToCloudinary } = require('../utils/cloudinary');
 
 let pdfParseModule;
 try { pdfParseModule = require('pdf-parse'); } catch (err) { console.warn("⚠️ Không tìm thấy thư viện pdf-parse."); }
@@ -18,14 +19,28 @@ async function extractTextFromCV(reqFile, appliedCvId, user, appliedCvFileUrl = 
     let text = `Hồ sơ ứng viên: ${user?.fullName}. Kỹ năng: ${user?.skills?.join(', ') || 'Chưa cập nhật'}`;
     try {
         let dataBuffer = null;
-        if (reqFile) { 
+        if (reqFile && reqFile.buffer) { 
+            dataBuffer = reqFile.buffer; 
+        } else if (reqFile && reqFile.path && fs.existsSync(reqFile.path)) {
             dataBuffer = fs.readFileSync(reqFile.path); 
         } else {
             const pdfUrl = appliedCvFileUrl || user?.cvUrl;
-            if (pdfUrl && String(pdfUrl).toLowerCase().endsWith('.pdf')) {
-                const relativePath = pdfUrl.startsWith('/') ? pdfUrl.slice(1) : pdfUrl;
-                const filePath = path.join(__dirname, '..', relativePath);
-                if (fs.existsSync(filePath)) dataBuffer = fs.readFileSync(filePath);
+            if (pdfUrl) {
+                if (pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://')) {
+                    try {
+                        const resp = await fetch(pdfUrl);
+                        if (resp.ok) {
+                            const arrayBuf = await resp.arrayBuffer();
+                            dataBuffer = Buffer.from(arrayBuf);
+                        }
+                    } catch (fetchErr) {
+                        console.error("Lỗi tải CV từ Cloudinary URL:", fetchErr.message);
+                    }
+                } else if (String(pdfUrl).toLowerCase().endsWith('.pdf')) {
+                    const relativePath = pdfUrl.startsWith('/') ? pdfUrl.slice(1) : pdfUrl;
+                    const filePath = path.join(__dirname, '..', relativePath);
+                    if (fs.existsSync(filePath)) dataBuffer = fs.readFileSync(filePath);
+                }
             }
         }
 
@@ -149,7 +164,9 @@ exports.createApplication = async (req, res) => {
 
     let appliedCvFileUrl = '';
     if (req.file) { 
-        appliedCvFileUrl = `/uploads/cvs/${req.file.filename}`; 
+        // Upload CV trực tiếp lên Cloudinary
+        const uploadResult = await uploadCvToCloudinary(req.file.buffer, req.file.originalname, userId);
+        appliedCvFileUrl = uploadResult.secure_url; 
         user.cvUrl = appliedCvFileUrl; 
         await user.save(); 
     } 
@@ -433,16 +450,39 @@ exports.getStatsSummary = async (req, res) => {
     statusCounts.forEach((item) => { if (statsObj[item._id] !== undefined) statsObj[item._id] = item.count; });
     const avgScoreResult = await Application.aggregate([{ $match: q }, { $group: { _id: null, avgScore: { $avg: '$aiScore' } } }]);
     const avgAiScore = avgScoreResult.length > 0 ? Math.round(avgScoreResult[0].avgScore) : 0;
-    const trendResult = await Application.aggregate([{ $match: q }, { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$appliedAt' } }, count: { $sum: 1 } } }, { $sort: { _id: 1 } }, { $limit: 10 }]);
+    const trendResult = await Application.aggregate([
+      { $match: q },
+      { $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$appliedAt' } }, count: { $sum: 1 } } },
+      { $sort: { _id: -1 } },
+      { $limit: 10 }
+    ]);
 
-    return res.json({ totalJobs, totalApplications, statusCounts: statsObj, avgAiScore, trend: trendResult });
+    const recentApplications = await Application.find(q)
+      .populate('userId', 'fullName email avatar cvUrl')
+      .populate('jobId', 'title')
+      .sort({ appliedAt: -1, createdAt: -1 })
+      .limit(15)
+      .lean();
+
+    return res.json({ 
+      totalJobs, 
+      totalApplications, 
+      statusCounts: statsObj, 
+      avgAiScore, 
+      trend: trendResult,
+      recentApplications 
+    });
   } catch (error) { res.status(500).json({ message: 'Lỗi' }); }
 };
 
 exports.getMyTestHistory = async (req, res) => {
     try {
         const userId = req.user.id;
-        const history = await Application.find({ userId, testStatus: 'Completed' }).populate('jobId', 'title companyName').populate('assessmentId', 'assessmentName timeLimit questions').sort({ testSubmittedAt: -1 }).lean();
+        const history = await Application.find({ userId, testStatus: 'Completed' })
+            .populate('jobId', 'title companyName recruitmentDeadline deadline status')
+            .populate('assessmentId', 'assessmentName timeLimit questions')
+            .sort({ testSubmittedAt: -1 })
+            .lean();
         res.status(200).json(history);
     } catch (error) { res.status(500).json({ message: 'Lỗi lấy lịch sử bài test' }); }
 };

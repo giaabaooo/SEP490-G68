@@ -194,7 +194,7 @@ exports.submitTest = async (req, res) => {
         await application.save();
 
         const populatedApp = await Application.findById(application._id)
-            .populate('jobId', 'title companyName recruitmentDeadline recruiterId')
+            .populate('jobId', 'title companyName recruitmentDeadline deadline status recruiterId')
             .populate('assessmentId');
 
         // Gửi thông báo cho ứng viên

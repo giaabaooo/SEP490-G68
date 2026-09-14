@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const { uploadAvatarToCloudinary } = require("../utils/cloudinary");
 
 // ===== GET PROFILE =====
 exports.getProfile = async (req, res) => {
@@ -105,8 +106,9 @@ exports.uploadAvatar = async (req, res) => {
       });
     }
 
-    // Relative static URL path to return and save
-    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    // Tải ảnh đại diện lên Cloudinary
+    const uploadResult = await uploadAvatarToCloudinary(req.file.buffer, req.file.originalname, req.user.id);
+    const avatarUrl = uploadResult.secure_url;
 
     // Update user's avatar path in the database
     const user = await User.findByIdAndUpdate(

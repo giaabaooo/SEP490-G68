@@ -47,35 +47,62 @@ export default function TestResult() {
 
     const [calculatedDeadlineText, setCalculatedDeadlineText] = useState('');
 
+    const jobDeadline = app?.jobId?.recruitmentDeadline || app?.jobId?.deadline;
+    
+    // Kiểm tra Job hết hạn
+    const checkJobExpired = () => {
+        if (isPractice || !app?.jobId) return false;
+        if (app.jobId.status === 'closed') return true;
+        if (!jobDeadline) return false;
+        const d = new Date(jobDeadline);
+        if (isNaN(d.getTime())) return false;
+        const deadlineEnd = new Date(d);
+        if (deadlineEnd.getHours() === 0 && deadlineEnd.getMinutes() === 0 && deadlineEnd.getSeconds() === 0) {
+            deadlineEnd.setHours(23, 59, 59, 999);
+        }
+        return deadlineEnd.getTime() < Date.now();
+    };
+
+    const isJobExpired = checkJobExpired();
+
     useEffect(() => {
         window.scrollTo(0, 0);
         if (!app) navigate('/candidate/test-history');
         fetchUsageData();
 
-        if (!isPractice && app?.jobId?.recruitmentDeadline) {
-            const today = new Date();
-            const deadline = new Date(app.jobId.recruitmentDeadline);
-            const diffTime = deadline - today;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            
-            if (diffDays <= 0) {
-                setCalculatedDeadlineText('1 Tuần (Job đã hết hạn)');
-                setTimeframe('1 Tuần');
-            } else if (diffDays <= 7) {
-                setCalculatedDeadlineText('1 Tuần (Sắp hết hạn)');
-                setTimeframe('1 Tuần');
-            } else if (diffDays <= 14) {
-                setCalculatedDeadlineText('2 Tuần');
-                setTimeframe('2 Tuần');
-            } else if (diffDays <= 21) {
-                setCalculatedDeadlineText('3 Tuần');
-                setTimeframe('3 Tuần');
+        if (!isPractice && app?.jobId) {
+            if (isJobExpired) {
+                setCalculatedDeadlineText('Đã hết hạn');
+            } else if (jobDeadline) {
+                const today = new Date();
+                const deadline = new Date(jobDeadline);
+                const deadlineEnd = new Date(deadline);
+                if (deadlineEnd.getHours() === 0 && deadlineEnd.getMinutes() === 0 && deadlineEnd.getSeconds() === 0) {
+                    deadlineEnd.setHours(23, 59, 59, 999);
+                }
+                const diffTime = deadlineEnd - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                if (diffDays <= 0) {
+                    setCalculatedDeadlineText('Đã hết hạn');
+                } else if (diffDays <= 7) {
+                    setCalculatedDeadlineText(`${diffDays} ngày (Sắp hết hạn)`);
+                    setTimeframe('1 Tuần');
+                } else if (diffDays <= 14) {
+                    setCalculatedDeadlineText('2 Tuần');
+                    setTimeframe('2 Tuần');
+                } else if (diffDays <= 21) {
+                    setCalculatedDeadlineText('3 Tuần');
+                    setTimeframe('3 Tuần');
+                } else {
+                    setCalculatedDeadlineText('1 Tháng');
+                    setTimeframe('1 Tháng');
+                }
             } else {
-                setCalculatedDeadlineText('1 Tháng');
-                setTimeframe('1 Tháng');
+                setCalculatedDeadlineText('Còn hạn (Không giới hạn)');
             }
         }
-    }, [app, navigate, isPractice]);
+    }, [app, navigate, isPractice, isJobExpired, jobDeadline]);
 
     const fetchUsageData = async () => {
         try {
@@ -119,6 +146,12 @@ export default function TestResult() {
     };
 
     const handleGenerateRoadmap = async () => {
+        if (isJobExpired) {
+            toast.error("Công việc đã hết hạn tuyển dụng. Chỉ có thể tạo AI Roadmap khi công việc còn hạn!");
+            setShowRoadmapModal(false);
+            return;
+        }
+
         if (remainRoadmap <= 0) {
             setShowUpgradeModal(true); 
             setShowRoadmapModal(false);
@@ -165,8 +198,9 @@ export default function TestResult() {
             });
 
             if (!res.ok) {
-                if(res.status === 403) { setShowUpgradeModal(true); setShowRoadmapModal(false); return; }
-                throw new Error("Lỗi khi tạo Roadmap");
+                const errData = await res.json().catch(() => ({}));
+                if (res.status === 403) { setShowUpgradeModal(true); setShowRoadmapModal(false); return; }
+                throw new Error(errData.message || "Lỗi khi tạo Roadmap");
             }
             
             const data = await res.json();
@@ -196,7 +230,19 @@ export default function TestResult() {
                     </button>
                     <div className="text-center">
                         <h1 className="text-3xl md:text-4xl font-black text-black mb-3 tracking-tight">{testTitle}</h1>
-                        <p className="text-black text-base font-medium">{app.jobId?.title || 'Đánh giá kỹ năng cá nhân'}</p>
+                        <div className="flex items-center justify-center gap-2.5 flex-wrap">
+                            <p className="text-black text-base font-medium">{app.jobId?.title || 'Đánh giá kỹ năng cá nhân'}</p>
+                            {!isPractice && isJobExpired && (
+                                <span className="px-3 py-0.5 rounded-full text-xs font-black bg-rose-100 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                                    <XCircle className="w-3.5 h-3.5" /> Đã hết hạn
+                                </span>
+                            )}
+                            {!isPractice && !isJobExpired && app?.jobId && (
+                                <span className="px-3 py-0.5 rounded-full text-xs font-black bg-emerald-100 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Còn hạn
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -355,22 +401,44 @@ export default function TestResult() {
                             </div>
                         ) : !roadmap ? (
                             <div className="bg-white rounded-3xl p-16 shadow-sm border border-slate-200 flex flex-col items-center justify-center text-center">
-                                <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
-                                    <Sparkles className="w-10 h-10 text-indigo-500" />
+                                <div className={`w-20 h-20 ${isJobExpired ? 'bg-rose-50' : 'bg-indigo-50'} rounded-full flex items-center justify-center mb-6`}>
+                                    {isJobExpired ? (
+                                        <Clock className="w-10 h-10 text-rose-500" />
+                                    ) : (
+                                        <Sparkles className="w-10 h-10 text-indigo-500" />
+                                    )}
                                 </div>
-                                <h3 className="text-2xl font-black text-black mb-4">Lộ trình chưa được khởi tạo</h3>
-                                <p className="text-black font-medium mb-8 max-w-md">Dựa trên kết quả bài làm (những phần làm sai), AI của hệ thống sẽ thiết kế riêng cho bạn một lộ trình cải thiện năng lực cá nhân hóa.</p>
+                                <h3 className="text-2xl font-black text-black mb-4">
+                                    {isJobExpired ? 'Công việc đã hết hạn tuyển dụng' : 'Lộ trình chưa được khởi tạo'}
+                                </h3>
+                                <p className="text-black font-medium mb-6 max-w-md">
+                                    {isJobExpired 
+                                        ? 'Công việc này hiện đã hết hạn nhận hồ sơ. Bạn chỉ có thể tạo AI Roadmap khi công việc còn hạn.'
+                                        : 'Dựa trên kết quả bài làm (những phần làm sai), AI của hệ thống sẽ thiết kế riêng cho bạn một lộ trình cải thiện năng lực cá nhân hóa.'
+                                    }
+                                </p>
                                 
-                                <button 
-                                    onClick={() => {
-                                        if(remainRoadmap <= 0) setShowUpgradeModal(true);
-                                        else setShowRoadmapModal(true);
-                                    }}
-                                    className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer"
-                                >
-                                    Bắt đầu tạo AI Roadmap 
-                                    {usageInfo && <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-md text-xs font-black">Còn {remainRoadmap}/{limitRoadmap} lượt</span>}
-                                </button>
+                                {isJobExpired ? (
+                                    <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 max-w-md w-full text-center space-y-3">
+                                        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-100 text-rose-800 text-xs font-black uppercase rounded-full border border-rose-200">
+                                            <XCircle className="w-4 h-4" /> Đã hết hạn
+                                        </div>
+                                        <p className="text-rose-700 font-bold text-sm">
+                                            Không thể tạo AI Roadmap (Chỉ được tạo khi còn hạn)
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <button 
+                                        onClick={() => {
+                                            if(remainRoadmap <= 0) setShowUpgradeModal(true);
+                                            else setShowRoadmapModal(true);
+                                        }}
+                                        className="px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2 cursor-pointer"
+                                    >
+                                        Bắt đầu tạo AI Roadmap 
+                                        {usageInfo && <span className="ml-2 px-2 py-0.5 bg-white/20 rounded-md text-xs font-black">Còn {remainRoadmap}/{limitRoadmap} lượt</span>}
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <>
@@ -444,7 +512,7 @@ export default function TestResult() {
                     <div className="bg-white rounded-[32px] w-full max-w-[450px] shadow-2xl overflow-hidden animate-scale-in">
                         <div className="bg-indigo-600 px-6 py-5 flex justify-between items-center text-white">
                             <div>
-                                <h3 className="text-lg font-black flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-300" /> AI Roadmap Builder</h3>
+                                <h3 className="text-lg font-black flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-300" /> AI Roadmap</h3>
                                 <p className="text-indigo-200 text-xs font-medium mt-1">Cá nhân hóa lộ trình của bạn</p>
                             </div>
                             <button onClick={() => setShowRoadmapModal(false)} className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"><XCircle className="w-5 h-5" /></button>
@@ -468,9 +536,11 @@ export default function TestResult() {
                                 <label className="block text-xs font-black text-black uppercase tracking-widest mb-2">Thời gian của Lộ Trình</label>
                                 
                                 {(!isPractice && goal === 'Vượt qua phỏng vấn kỹ thuật') ? (
-                                    <div className="w-full px-4 py-3 border border-indigo-100 rounded-xl bg-indigo-50/50 text-indigo-700 font-bold flex items-center justify-between">
+                                    <div className={`w-full px-4 py-3 border rounded-xl font-bold flex items-center justify-between ${isJobExpired ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-indigo-100 bg-indigo-50/50 text-indigo-700'}`}>
                                         <span>{calculatedDeadlineText}</span>
-                                        <span className="text-[10px] bg-indigo-100 px-2 py-0.5 rounded text-indigo-600 uppercase">Tự động (Theo Job)</span>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-black ${isJobExpired ? 'bg-rose-100 text-rose-800' : 'bg-indigo-100 text-indigo-600'}`}>
+                                            {isJobExpired ? 'Đã hết hạn' : 'Tự động (Theo Job)'}
+                                        </span>
                                     </div>
                                 ) : (
                                     <div className="space-y-3">
@@ -506,8 +576,12 @@ export default function TestResult() {
 
                         <div className="p-6 pt-2 border-t border-slate-100 flex gap-3">
                             <button onClick={() => setShowRoadmapModal(false)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-black font-bold rounded-xl transition-colors">Hủy bỏ</button>
-                            <button onClick={handleGenerateRoadmap} disabled={isGenerating} className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang tạo...</> : 'Bắt đầu tạo'}
+                            <button 
+                                onClick={handleGenerateRoadmap} 
+                                disabled={isGenerating || isJobExpired} 
+                                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
+                            >
+                                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Đang tạo...</> : isJobExpired ? 'Job đã hết hạn' : 'Bắt đầu tạo'}
                             </button>
                         </div>
                     </div>
