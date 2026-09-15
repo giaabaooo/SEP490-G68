@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, PlusCircle, Edit3, Trash2, Clock, HelpCircle, AlertCircle, Sparkles, CreditCard } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Pagination from '../../components/common/Pagination';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const PracticeTopicsList = () => {
   const navigate = useNavigate();
@@ -11,6 +12,14 @@ const PracticeTopicsList = () => {
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 8;
+
+  // State Modal xác nhận xóa chủ đề
+  const [deleteTopicState, setDeleteTopicState] = useState({
+    isOpen: false,
+    topicId: null,
+    topicName: '',
+    isDeleting: false
+  });
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -38,22 +47,35 @@ const PracticeTopicsList = () => {
     fetchTopics();
   }, [navigate]);
 
-  const handleDelete = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete the topic "${name}"?`)) return;
+  const handlePromptDelete = (id, name) => {
+    setDeleteTopicState({
+      isOpen: true,
+      topicId: id,
+      topicName: name,
+      isDeleting: false
+    });
+  };
 
+  const executeDeleteTopic = async () => {
+    const { topicId } = deleteTopicState;
+    if (!topicId) return;
+
+    setDeleteTopicState(prev => ({ ...prev, isDeleting: true }));
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`${API_BASE}/api/practice-topics/${id}`, {
+      const res = await fetch(`${API_BASE}/api/practice-topics/${topicId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to delete topic');
+      if (!res.ok) throw new Error(data.message || 'Xóa chủ đề thất bại');
       
-      toast.success('Practice topic deleted successfully');
-      setTopics(prev => prev.filter(t => t._id !== id));
+      toast.success('Đã xóa chủ đề luyện tập thành công');
+      setTopics(prev => prev.filter(t => t._id !== topicId));
+      setDeleteTopicState({ isOpen: false, topicId: null, topicName: '', isDeleting: false });
     } catch (err) {
       toast.error(err.message);
+      setDeleteTopicState(prev => ({ ...prev, isDeleting: false }));
     }
   };
 
@@ -160,7 +182,7 @@ const PracticeTopicsList = () => {
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(topic._id, topic.topicName)}
+                          onClick={() => handlePromptDelete(topic._id, topic.topicName)}
                           className="p-2.5 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
                           title="Xóa chủ đề"
                         >
@@ -184,6 +206,19 @@ const PracticeTopicsList = () => {
           </div>
         )}
       </div>
+
+      {/* Modal xác nhận xóa chủ đề luyện tập */}
+      <ConfirmModal
+        isOpen={deleteTopicState.isOpen}
+        onClose={() => setDeleteTopicState({ isOpen: false, topicId: null, topicName: '', isDeleting: false })}
+        onConfirm={executeDeleteTopic}
+        isLoading={deleteTopicState.isDeleting}
+        type="danger"
+        title="Xóa chủ đề luyện tập"
+        confirmText="Xác nhận xóa"
+        cancelText="Hủy bỏ"
+        message={`Bạn có chắc chắn muốn xóa chủ đề "${deleteTopicState.topicName}"? Toàn bộ danh sách câu hỏi trong chủ đề này sẽ bị xóa khỏi hệ thống và không thể hoàn tác.`}
+      />
     </div>
   );
 };

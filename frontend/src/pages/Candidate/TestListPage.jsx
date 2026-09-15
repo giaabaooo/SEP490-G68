@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Filter, Clock, FileText, Lock, ArrowRight, BrainCircuit, Sparkles, CreditCard, Unlock } from 'lucide-react';
 import { toast } from 'react-toastify';
+import ConfirmModal from '../../components/common/ConfirmModal';
 export default function TestListPage() {
     const navigate = useNavigate();
     const [tests, setTests] = useState([]);
@@ -14,6 +15,9 @@ export default function TestListPage() {
     // State Phân trang
     const [currentPage, setCurrentPage] = useState(1);
     const testsPerPage = 6;
+
+    // State Modal nâng cấp gói Pro cho bài test trả phí
+    const [selectedPaidTest, setSelectedPaidTest] = useState(null);
 
     const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -175,8 +179,8 @@ export default function TestListPage() {
                                                         navigate('/login');
                                                         return;
                                                     }
-                                                    if(isPaid) {
-                                                        alert('Chức năng thanh toán sẽ được tích hợp sau!');
+                                                    if (isPaid) {
+                                                        setSelectedPaidTest(test);
                                                     } else {
                                                         navigate(`/practice-test/${test._id}/take`);
                                                     }
@@ -244,6 +248,41 @@ export default function TestListPage() {
                     </div>
                 )}
             </div>
+
+            {/* Modal nâng cấp Pro khi bấm bài luyện tập trả phí */}
+            <ConfirmModal
+                isOpen={!!selectedPaidTest}
+                onClose={() => setSelectedPaidTest(null)}
+                onConfirm={() => {
+                    setSelectedPaidTest(null);
+                    navigate('/upgrade');
+                }}
+                type="warning"
+                title="Chủ đề luyện tập VIP / Pro"
+                confirmText="Nâng cấp tài khoản ngay"
+                cancelText="Để sau"
+                confirmBtnClass="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-amber-500/25"
+                message={
+                    selectedPaidTest ? (
+                        <div className="space-y-3">
+                            <p className="text-slate-600">
+                                Chủ đề <strong className="text-slate-900">"{selectedPaidTest.topicName}"</strong> là nội dung chuyên sâu dành riêng cho thành viên gói Pro.
+                            </p>
+                            <div className="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200 text-amber-900 text-xs text-left space-y-2">
+                                <div className="font-black flex items-center gap-1.5 text-amber-800">
+                                    <Sparkles className="w-4 h-4 text-amber-600" />
+                                    Đặc quyền khi nâng cấp Pro:
+                                </div>
+                                <ul className="list-disc list-inside space-y-1 text-amber-800 font-medium">
+                                    <li>Mở khóa toàn bộ ngân hàng câu hỏi và chủ đề VIP</li>
+                                    <li>Phỏng vấn Voice AI mô phỏng doanh nghiệp không giới hạn</li>
+                                    <li>AI phân tích chi tiết lỗ hổng kiến thức và lộ trình cải thiện</li>
+                                </ul>
+                            </div>
+                        </div>
+                    ) : null
+                }
+            />
         </div>
     );
 }

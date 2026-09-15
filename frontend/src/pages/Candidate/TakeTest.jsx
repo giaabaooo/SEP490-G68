@@ -15,6 +15,7 @@ import {
     LogOut
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 export default function TakeTest() {
     const { id } = useParams();
@@ -71,7 +72,7 @@ export default function TakeTest() {
         if (timeLeft > 0 && !isSubmitting) {
             timerRef.current = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
         } else if (timeLeft === 0 && test && !isSubmitting) {
-            handleSubmitTest(true);
+            executeSubmit(true);
         }
         return () => clearInterval(timerRef.current);
     }, [timeLeft, isSubmitting, test]);
@@ -147,28 +148,20 @@ export default function TakeTest() {
         setAnswers(prev => ({ ...prev, [qIndex]: optionIndex }));
     };
 
+    const [showSubmitModal, setShowSubmitModal] = useState(false);
+
     const handleConfirmExit = () => {
         setIsSubmitting(true);
         setShowExitConfirmModal(false);
         navigate(isPracticeTest ? '/candidate/tests' : '/candidate/applications');
     };
 
-    const handleSubmitTest = async (isAuto = false) => {
-        if (!isAuto && test?.questions) {
-            const answeredCount = test.questions.reduce((acc, _, idx) => (answers[idx] !== undefined && answers[idx] !== null) ? acc + 1 : acc, 0);
-            const totalQ = test.questions.length;
-            if (answeredCount < totalQ) {
-                const unAnswered = totalQ - answeredCount;
-                if (!window.confirm(`Bạn còn ${unAnswered} câu chưa trả lời (đã làm ${answeredCount}/${totalQ}). Bạn có chắc chắn muốn nộp bài ngay không?`)) {
-                    return;
-                }
-            } else {
-                if (!window.confirm(`Bạn đã hoàn thành toàn bộ ${totalQ}/${totalQ} câu hỏi. Bạn có chắc chắn muốn nộp bài thi?`)) {
-                    return;
-                }
-            }
-        }
+    const handlePromptSubmit = () => {
+        setShowSubmitModal(true);
+    };
 
+    const executeSubmit = async (isAuto = false) => {
+        setShowSubmitModal(false);
         setIsSubmitting(true);
         clearInterval(timerRef.current);
         const durationTaken = (test.timeLimit * 60) - timeLeft;
@@ -372,9 +365,9 @@ export default function TakeTest() {
 
                                 {currentQuestion === totalQ - 1 && (
                                     <button 
-                                        onClick={() => handleSubmitTest(false)}
+                                        onClick={handlePromptSubmit}
                                         disabled={isSubmitting}
-                                        className="px-6 sm:px-8 py-3 rounded-xl font-black flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50"
+                                        className="px-6 sm:px-8 py-3 rounded-xl font-black flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50 cursor-pointer"
                                     >
                                         {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
                                         Nộp Bài Thi
@@ -473,7 +466,7 @@ export default function TakeTest() {
                             {/* Nút nộp bài trực tiếp trong Palette */}
                             <div className="mt-5 pt-4 border-t border-slate-100">
                                 <button
-                                    onClick={() => handleSubmitTest(false)}
+                                    onClick={handlePromptSubmit}
                                     disabled={isSubmitting}
                                     className="w-full py-3 px-4 rounded-xl font-bold flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50 cursor-pointer"
                                 >
@@ -576,6 +569,36 @@ export default function TakeTest() {
                     </div>
                 </div>
             )}
+
+            {/* Modal xác nhận nộp bài (khi còn câu chưa làm hoặc đã làm đủ) */}
+            <ConfirmModal
+                isOpen={showSubmitModal}
+                onClose={() => setShowSubmitModal(false)}
+                onConfirm={() => executeSubmit(false)}
+                isLoading={isSubmitting}
+                type={answeredCount < totalQ ? 'warning' : 'success'}
+                title={answeredCount < totalQ ? 'Chưa hoàn thành tất cả câu hỏi' : 'Xác nhận nộp bài thi'}
+                confirmText={answeredCount < totalQ ? 'Nộp bài ngay' : 'Xác nhận nộp bài'}
+                cancelText={answeredCount < totalQ ? 'Tiếp tục làm bài' : 'Kiểm tra lại'}
+                message={
+                    answeredCount < totalQ
+                        ? `Bạn còn ${totalQ - answeredCount} câu chưa trả lời (đã làm ${answeredCount}/${totalQ} câu). Bạn có chắc chắn muốn nộp bài ngay không? Điểm số sẽ chỉ được tính trên các câu đã trả lời.`
+                        : `Bạn đã hoàn thành toàn bộ ${totalQ}/${totalQ} câu hỏi. Bạn có chắc chắn muốn nộp bài thi để hệ thống chấm điểm và lưu kết quả?`
+                }
+            >
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 space-y-2">
+                    <div className="flex justify-between items-center">
+                        <span className="font-semibold text-slate-600">Tiến độ làm bài:</span>
+                        <span className="font-black text-slate-900">{answeredCount}/{totalQ} câu ({progressPercent}%)</span>
+                    </div>
+                    <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                        <div 
+                            className={`h-full transition-all duration-300 rounded-full ${answeredCount === totalQ ? 'bg-emerald-500' : 'bg-amber-500'}`} 
+                            style={{ width: `${progressPercent}%` }}
+                        />
+                    </div>
+                </div>
+            </ConfirmModal>
         </div>
     );
 }

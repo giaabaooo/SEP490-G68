@@ -6,6 +6,7 @@ import {
   Sparkles, X, Loader2, CheckSquare, Plus, ChevronDown, CheckCircle2,
   CreditCard, Check
 } from 'lucide-react';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 // ================= MODAL BÁO HẾT TOKEN =================
 const TokenTopupModal = ({ isOpen, onClose }) => {
@@ -102,6 +103,7 @@ export default function PracticeTopicBuilder() {
   
   const [tokens, setTokens] = useState(0);
   const [showTokenModal, setShowTokenModal] = useState(false);
+  const [showPublishConfirmModal, setShowPublishConfirmModal] = useState(false);
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -193,10 +195,15 @@ export default function PracticeTopicBuilder() {
     if (questions.length === 0) return toast.error("Hãy thêm ít nhất một câu hỏi!");
 
     if (status === 'PUBLISHED' && checkedQuestions < totalQuestions) {
-        if (!window.confirm(`Bạn mới duyệt ${checkedQuestions}/${totalQuestions} câu. Bạn có chắc chắn muốn Xuất bản chủ đề luyện tập này không?`)) {
-            return;
-        }
+      setShowPublishConfirmModal(true);
+      return;
     }
+
+    await executeSave(status);
+  };
+
+  const executeSave = async (status) => {
+    setShowPublishConfirmModal(false);
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
@@ -378,6 +385,30 @@ export default function PracticeTopicBuilder() {
           </div>
         </div>
       </form>
+
+      {/* Modal cảnh báo khi xuất bản chủ đề luyện tập chưa duyệt đủ câu */}
+      <ConfirmModal
+        isOpen={showPublishConfirmModal}
+        onClose={() => setShowPublishConfirmModal(false)}
+        onConfirm={() => executeSave('PUBLISHED')}
+        isLoading={isSaving}
+        type="warning"
+        title="Xuất bản chủ đề chưa duyệt hết câu"
+        confirmText="Vẫn xuất bản ngay"
+        cancelText="Kiểm tra lại"
+        confirmBtnClass="bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25"
+        message={`Bạn mới duyệt ${checkedQuestions}/${totalQuestions} câu hỏi. Bạn có chắc chắn muốn Xuất bản chủ đề luyện tập này lên hệ thống để Ứng viên bắt đầu làm bài không?`}
+      >
+        <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
+          <div className="flex justify-between font-bold">
+            <span>Tiến độ duyệt câu hỏi:</span>
+            <span>{checkedQuestions}/{totalQuestions} câu ({Math.round((checkedQuestions / (totalQuestions || 1)) * 100)}%)</span>
+          </div>
+          <p className="text-amber-800">
+            Còn {totalQuestions - checkedQuestions} câu hỏi chưa được xác nhận nội dung kỹ thuật.
+          </p>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }
