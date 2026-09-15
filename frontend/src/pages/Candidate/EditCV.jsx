@@ -4,6 +4,7 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import html2pdf from 'html2pdf.js';
 import { GripVertical, LayoutTemplate, Type, Palette, AlignLeft, Download, Save, X, Sparkles, CheckCircle2, AlertTriangle, ThumbsUp, ChevronRight, Settings } from 'lucide-react';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 // Component Textarea tự co giãn
 const AutoResizeTextarea = ({ value, onChange, placeholder, style, className, name }) => {
@@ -48,6 +49,8 @@ const EditCV = () => {
   const [savingMode, setSavingMode] = useState(null); // 'draft' | 'exit' | null
   const [cvId, setCvId] = useState(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [showMissingInfoModal, setShowMissingInfoModal] = useState(false);
+  const pendingCvDataRef = useRef(null);
   
   const [aiReview, setAiReview] = useState(null);
   const [design, setDesign] = useState({ font: 'Roboto', color: '#059669', lineSpacing: 1.5, layout: 'classic' });
@@ -221,13 +224,7 @@ const EditCV = () => {
     }
   };
 
-  const handleDownloadPDF = (cvData = data) => {
-    const isMissingInfo = !cvData.personal.fullName || !cvData.personal.email || !cvData.personal.phone;
-    if (isMissingInfo) {
-      const confirmDownload = window.confirm('CV của bạn vẫn còn thông tin liên hệ quan trọng chưa điền. Bạn có chắc chắn muốn tải xuống?');
-      if (!confirmDownload) return;
-    }
-    
+  const startExportPDF = (cvData = data) => {
     toast.info('Đang kết xuất PDF, vui lòng chờ...', { autoClose: 2000 });
     setIsExporting(true);
     
@@ -251,6 +248,16 @@ const EditCV = () => {
         setIsExporting(false);
       });
     }, 1000); 
+  };
+
+  const handleDownloadPDF = (cvData = data) => {
+    const isMissingInfo = !cvData.personal.fullName || !cvData.personal.email || !cvData.personal.phone;
+    if (isMissingInfo) {
+      pendingCvDataRef.current = cvData;
+      setShowMissingInfoModal(true);
+      return;
+    }
+    startExportPDF(cvData);
   };
 
   const renderSection = (key) => {
@@ -651,6 +658,31 @@ const EditCV = () => {
         </div>
 
       </div>
+
+      {/* Modal cảnh báo thiếu thông tin liên hệ khi tải PDF */}
+      <ConfirmModal
+        isOpen={showMissingInfoModal}
+        onClose={() => setShowMissingInfoModal(false)}
+        onConfirm={() => {
+          setShowMissingInfoModal(false);
+          startExportPDF(pendingCvDataRef.current || data);
+        }}
+        type="warning"
+        title="Thiếu thông tin liên hệ quan trọng"
+        confirmText="Vẫn tải xuống"
+        cancelText="Bổ sung thông tin"
+        confirmBtnClass="bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/25"
+        message="CV của bạn hiện chưa điền đầy đủ các thông tin thiết yếu (Họ tên, Email hoặc Số điện thoại). Nhà tuyển dụng có thể gặp khó khăn khi liên hệ phỏng vấn. Bạn có chắc chắn muốn tải xuống ngay không?"
+      >
+        <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1.5">
+          <p className="font-bold text-amber-800">Các mục còn thiếu:</p>
+          <ul className="list-disc list-inside space-y-1 text-amber-800">
+            {!data.personal.fullName && <li>Họ và tên ứng viên</li>}
+            {!data.personal.email && <li>Địa chỉ Email</li>}
+            {!data.personal.phone && <li>Số điện thoại liên hệ</li>}
+          </ul>
+        </div>
+      </ConfirmModal>
     </>
   );
 };

@@ -5,6 +5,7 @@ import {
   ArrowLeft, CheckCircle2, Sparkles, X, PlusCircle, Trash2, Copy, 
   Settings, CheckCircle, Clock, CheckSquare, Loader2
 } from 'lucide-react';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -109,6 +110,7 @@ export default function TestBuilder() {
   
   const [jobQuota, setJobQuota] = useState(0);
   const [showTokenModal, setShowTokenModal] = useState(false);
+  const [showPublishConfirmModal, setShowPublishConfirmModal] = useState(false);
 
   const totalQuestions = parsedQuestions.length;
   const checkedQuestions = parsedQuestions.filter(q => q.isChecked).length;
@@ -185,9 +187,15 @@ export default function TestBuilder() {
     if (!assessmentName || parsedQuestions.length === 0) return toast.error('Vui lòng nhập tên bài thi và thêm câu hỏi!');
     
     if (status === 'PUBLISHED' && checkedQuestions < totalQuestions) {
-        if (!window.confirm(`Bạn mới duyệt ${checkedQuestions}/${totalQuestions} câu. Bạn có chắc chắn muốn Xuất bản bài test này không?`)) return;
+      setShowPublishConfirmModal(true);
+      return;
     }
 
+    await executeSave(status);
+  };
+
+  const executeSave = async (status) => {
+    setShowPublishConfirmModal(false);
     setIsSaving(true);
     const payload = { assessmentName, description, timeLimit, questions: parsedQuestions, status };
     if (!isEditMode && jobId) payload.jobId = jobId;
@@ -327,6 +335,30 @@ export default function TestBuilder() {
         </aside>
 
       </div>
+
+      {/* Modal cảnh báo khi xuất bản bài test chưa duyệt đủ câu */}
+      <ConfirmModal
+        isOpen={showPublishConfirmModal}
+        onClose={() => setShowPublishConfirmModal(false)}
+        onConfirm={() => executeSave('PUBLISHED')}
+        isLoading={isSaving}
+        type="warning"
+        title="Xuất bản bài thi chưa duyệt hết câu"
+        confirmText="Vẫn xuất bản & Gửi HR"
+        cancelText="Kiểm tra lại"
+        confirmBtnClass="bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/25"
+        message={`Bạn mới duyệt ${checkedQuestions}/${totalQuestions} câu hỏi. Bạn có chắc chắn muốn Xuất bản bài test này và chuyển sang trạng thái sẵn sàng cho Doanh nghiệp không? Các câu chưa được duyệt có thể cần rà soát lại nội dung.`}
+      >
+        <div className="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
+          <div className="flex justify-between font-bold">
+            <span>Tiến độ kiểm duyệt câu hỏi:</span>
+            <span>{checkedQuestions}/{totalQuestions} câu ({Math.round((checkedQuestions / (totalQuestions || 1)) * 100)}%)</span>
+          </div>
+          <p className="text-amber-800">
+            Còn {totalQuestions - checkedQuestions} câu hỏi chưa được tích chọn kiểm duyệt nội dung.
+          </p>
+        </div>
+      </ConfirmModal>
     </div>
   );
 }
