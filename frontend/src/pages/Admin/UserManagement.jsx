@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import ConfirmModal from "../../components/common/ConfirmModal";
 
 const API_BASE_URL = `${import.meta.env.VITE_API_BASE_URL || "http://localhost:5000"}/api`;
 
@@ -47,6 +48,19 @@ const UserManagement = () => {
     const [editPlan, setEditPlan] = useState("free");
     const [addTokens, setAddTokens] = useState(0);
     const [modalLoading, setModalLoading] = useState(false);
+
+    // State Modal xác nhận Khóa/Mở khóa hoặc Đổi quyền
+    const [adminConfirmModal, setAdminConfirmModal] = useState({
+        isOpen: false,
+        type: null, // 'status' | 'role'
+        userId: null,
+        nextValue: null,
+        userName: '',
+        title: '',
+        message: '',
+        confirmType: 'warning',
+        confirmText: 'Xác nhận'
+    });
     // ===============================================
 
     const token = localStorage.getItem("token");
@@ -90,38 +104,74 @@ const UserManagement = () => {
 
     const handleResetFilter = () => { setSearch(""); setRole(""); setStatus(""); setPage(1); };
 
-    const handleUpdateStatus = async (userId, nextStatus) => {
-        if (!window.confirm(nextStatus === "banned" ? "Chắc chắn khóa?" : "Chắc chắn mở khóa?")) return;
-        try {
-            setActionLoadingId(userId);
-            const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ status: nextStatus }),
-            });
-            const data = await response.json();
-            if (!response.ok) return toast.error(data.message || "Cập nhật thất bại");
-            
-            toast.success(data.message);
-            setUsers((prev) => prev.map((u) => (u._id === userId ? data.user : u)));
-        } catch { toast.error("Lỗi server"); } finally { setActionLoadingId(""); }
+    const handlePromptStatusChange = (user, nextStatus) => {
+        const isBanning = nextStatus === "banned";
+        const displayName = user.fullName || user.email;
+        setAdminConfirmModal({
+            isOpen: true,
+            type: 'status',
+            userId: user._id,
+            nextValue: nextStatus,
+            userName: displayName,
+            title: isBanning ? "Xác nhận khóa tài khoản" : "Xác nhận mở khóa tài khoản",
+            message: isBanning 
+                ? `Bạn có chắc chắn muốn khóa tài khoản "${displayName}"? Người dùng này sẽ không thể đăng nhập vào hệ thống cho đến khi được mở khóa.`
+                : `Bạn có chắc chắn muốn mở khóa cho tài khoản "${displayName}"? Người dùng sẽ có thể truy cập hệ thống bình thường.`,
+            confirmType: isBanning ? 'danger' : 'success',
+            confirmText: isBanning ? "Khóa tài khoản" : "Mở khóa ngay"
+        });
     };
 
-    const handleUpdateRole = async (userId, nextRole) => {
-        if (!window.confirm(`Đổi quyền thành ${roleLabels[nextRole]}?`)) return;
-        try {
-            setActionLoadingId(userId);
-            const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/role`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ role: nextRole }),
-            });
-            const data = await response.json();
-            if (!response.ok) return toast.error(data.message || "Phân quyền thất bại");
-            
-            toast.success(data.message);
-            setUsers((prev) => prev.map((u) => (u._id === userId ? data.user : u)));
-        } catch { toast.error("Lỗi server"); } finally { setActionLoadingId(""); }
+    const handlePromptRoleChange = (user, nextRole) => {
+        if (user.role === nextRole) return;
+        const displayName = user.fullName || user.email;
+        setAdminConfirmModal({
+            isOpen: true,
+            type: 'role',
+            userId: user._id,
+            nextValue: nextRole,
+            userName: displayName,
+            title: "Xác nhận thay đổi quyền người dùng",
+            message: `Bạn có chắc chắn muốn đổi quyền của "${displayName}" từ "${roleLabels[user.role]}" sang "${roleLabels[nextRole]}"? Quyền hạn truy cập và giao diện của người dùng sẽ thay đổi ngay lập tức.`,
+            confirmType: 'warning',
+            confirmText: "Đổi quyền hạn"
+        });
+    };
+
+    const executeConfirmAction = async () => {
+        const { type, userId, nextValue } = adminConfirmModal;
+        setAdminConfirmModal(prev => ({ ...prev, isOpen: false }));
+        if (!userId || !type) return;
+
+        if (type === 'status') {
+            try {
+                setActionLoadingId(userId);
+                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/status`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ status: nextValue }),
+                });
+                const data = await response.json();
+                if (!response.ok) return toast.error(data.message || "Cập nhật thất bại");
+                
+                toast.success(data.message);
+                setUsers((prev) => prev.map((u) => (u._id === userId ? data.user : u)));
+            } catch { toast.error("Lỗi server"); } finally { setActionLoadingId(""); }
+        } else if (type === 'role') {
+            try {
+                setActionLoadingId(userId);
+                const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/role`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ role: nextValue }),
+                });
+                const data = await response.json();
+                if (!response.ok) return toast.error(data.message || "Phân quyền thất bại");
+                
+                toast.success(data.message);
+                setUsers((prev) => prev.map((u) => (u._id === userId ? data.user : u)));
+            } catch { toast.error("Lỗi server"); } finally { setActionLoadingId(""); }
+        }
     };
 
     // ================= XỬ LÝ LƯU GÓI & TOKEN =================
@@ -344,7 +394,7 @@ const UserManagement = () => {
                                                         className="admin-action-select"
                                                         value={user.role}
                                                         disabled={actionLoadingId === user._id}
-                                                        onChange={(e) => handleUpdateRole(user._id, e.target.value)}
+                                                        onChange={(e) => handlePromptRoleChange(user, e.target.value)}
                                                     >
                                                         <option value="admin">Admin</option>
                                                         <option value="candidate">Candidate</option>
@@ -366,7 +416,7 @@ const UserManagement = () => {
                                                         type="button"
                                                         className={user.status === "banned" ? "admin-btn admin-btn-success" : "admin-btn admin-btn-danger"}
                                                         disabled={actionLoadingId === user._id}
-                                                        onClick={() => handleUpdateStatus(user._id, nextStatus)}
+                                                        onClick={() => handlePromptStatusChange(user, nextStatus)}
                                                     >
                                                         {user.status === "banned" ? "Mở khóa" : "Khóa"}
                                                     </button>
@@ -460,6 +510,18 @@ const UserManagement = () => {
                     </div>
                 </div>
             )}
+
+            {/* Modal xác nhận thao tác Admin (Khóa / Mở khóa / Đổi vai trò) */}
+            <ConfirmModal
+                isOpen={adminConfirmModal.isOpen}
+                onClose={() => setAdminConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={executeConfirmAction}
+                type={adminConfirmModal.confirmType}
+                title={adminConfirmModal.title}
+                message={adminConfirmModal.message}
+                confirmText={adminConfirmModal.confirmText}
+                cancelText="Hủy bỏ"
+            />
         </>
     );
 };

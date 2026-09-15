@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -14,6 +15,15 @@ const Profile = () => {
   
   // Modal states: 'info' | 'about' | 'experience' | 'education' | 'cv' | null
   const [modalType, setModalType] = useState(null);
+  
+  // State xác nhận xóa kinh nghiệm / học vấn bằng Modal
+  const [deleteModalState, setDeleteModalState] = useState({
+    isOpen: false,
+    type: null, // 'experience' | 'education'
+    index: null,
+    title: '',
+    message: ''
+  });
   
   // Forms states
   const [infoForm, setInfoForm] = useState({ fullName: '', title: '', phone: '', address: '', avatar: '' });
@@ -223,10 +233,14 @@ const Profile = () => {
   };
 
   const handleDeleteExp = (index) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa kinh nghiệm này không?')) {
-      const updatedExp = profile.experience.filter((_, idx) => idx !== index);
-      saveProfile({ experience: updatedExp }, 'Đã xóa kinh nghiệm làm việc!');
-    }
+    const exp = profile?.experience?.[index];
+    setDeleteModalState({
+      isOpen: true,
+      type: 'experience',
+      index,
+      title: 'Xóa kinh nghiệm làm việc',
+      message: `Bạn có chắc chắn muốn xóa kinh nghiệm làm việc${exp?.company ? ` tại "${exp.company}"` : ''}? Thao tác này sẽ xóa mục này khỏi hồ sơ của bạn.`
+    });
   };
 
   // Education handlers
@@ -261,10 +275,25 @@ const Profile = () => {
   };
 
   const handleDeleteEdu = (index) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa học vấn này không?')) {
-      const updatedEdu = profile.education.filter((_, idx) => idx !== index);
+    const edu = profile?.education?.[index];
+    setDeleteModalState({
+      isOpen: true,
+      type: 'education',
+      index,
+      title: 'Xóa thông tin học vấn',
+      message: `Bạn có chắc chắn muốn xóa thông tin học vấn${edu?.school ? ` tại "${edu.school}"` : ''}? Dữ liệu sẽ được cập nhật trực tiếp vào hồ sơ của bạn.`
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteModalState.type === 'experience' && deleteModalState.index !== null) {
+      const updatedExp = profile.experience.filter((_, idx) => idx !== deleteModalState.index);
+      saveProfile({ experience: updatedExp }, 'Đã xóa kinh nghiệm làm việc!');
+    } else if (deleteModalState.type === 'education' && deleteModalState.index !== null) {
+      const updatedEdu = profile.education.filter((_, idx) => idx !== deleteModalState.index);
       saveProfile({ education: updatedEdu }, 'Đã xóa học vấn!');
     }
+    setDeleteModalState({ isOpen: false, type: null, index: null, title: '', message: '' });
   };
 
   if (loading) {
@@ -1534,6 +1563,18 @@ const Profile = () => {
           </div>
         </div>
       )}
+
+      {/* Modal xác nhận xóa Kinh nghiệm / Học vấn */}
+      <ConfirmModal
+        isOpen={deleteModalState.isOpen}
+        onClose={() => setDeleteModalState({ isOpen: false, type: null, index: null, title: '', message: '' })}
+        onConfirm={handleConfirmDelete}
+        type="danger"
+        title={deleteModalState.title}
+        message={deleteModalState.message}
+        confirmText="Xác nhận xóa"
+        cancelText="Hủy"
+      />
     </>
   );
 };
