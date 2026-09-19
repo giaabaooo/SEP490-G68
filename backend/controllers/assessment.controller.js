@@ -11,14 +11,27 @@ exports.generateAI = async (req, res) => {
         const { topic, quantity = 10, difficulty = 'Intermediate', jobId } = req.body; 
         
         if (!topic) return res.status(400).json({ message: "Thiếu chủ đề (topic)" });
-        if (!jobId) return res.status(400).json({ message: "Thiếu thông tin jobId để tính phí." });
 
-        // 1. CHỈ CHECK HẠN MỨC (KHÔNG TRỪ NGAY)
-        const currentJob = await Job.findById(jobId);
-        if (!currentJob) return res.status(404).json({ message: "Không tìm thấy Job." });
-        
-        if ((currentJob.aiTokensQuota || 0) < 50) {
-            return res.status(402).json({ message: "Hạn mức Token nội bộ của Job này đã hết. Vui lòng liên hệ Business nạp thêm." });
+        let currentJob = null;
+        let currentUser = null;
+        const tokenCost = quantity * 5;
+
+        // 1. KIỂM TRA HẠN MỨC TOKEN
+        if (jobId) {
+            currentJob = await Job.findById(jobId);
+            if (!currentJob) return res.status(404).json({ message: "Không tìm thấy Job." });
+            
+            if ((currentJob.aiTokensQuota || 0) < 50) {
+                return res.status(402).json({ message: "Hạn mức Token nội bộ của Job này đã hết. Vui lòng liên hệ Business nạp thêm." });
+            }
+        } else {
+            // Trường hợp tạo Practice Topic (không gắn với Job)
+            currentUser = await User.findById(req.user.id);
+            if (!currentUser) return res.status(404).json({ message: "Không tìm thấy người dùng." });
+            
+            if (currentUser.role !== 'admin' && (currentUser.businessCredits?.balance || 0) < tokenCost) {
+                return res.status(402).json({ message: `Số dư Token trong ví không đủ (${tokenCost} Token). Vui lòng nạp thêm!` });
+            }
         }
 
         const prompt = `Vai trò: Chuyên gia tuyển dụng IT. Chủ đề: "${topic}". Trình độ: ${difficulty}. Ngôn ngữ: Tiếng Việt. Số lượng: ${quantity} câu hỏi. Nhiệm vụ: Tạo bộ câu hỏi trắc nghiệm (MCQ) có 4 đáp án, 1 đáp án đúng. Trả về mảng JSON. Cấu trúc bắt buộc: [{"question": "Nội dung...", "options": ["A", "B", "C", "D"], "correctAnswer": 0}]`;
@@ -32,14 +45,20 @@ exports.generateAI = async (req, res) => {
             correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0
         }));
 
-        // 3. NẾU AI THÀNH CÔNG -> MỚI TRỪ TOKEN
-        currentJob.aiTokensQuota -= 50;
-        await currentJob.save();
+        // 3. NẾU AI THÀNH CÔNG -> MỚI TRỪ TOKEN (Admin hoàn toàn miễn phí, không trừ token)
+        if (currentJob) {
+            currentJob.aiTokensQuota = Math.max(0, (currentJob.aiTokensQuota || 0) - 50);
+            await currentJob.save();
+        } else if (currentUser && currentUser.role !== 'admin' && currentUser.businessCredits) {
+            currentUser.businessCredits.balance = Math.max(0, (currentUser.businessCredits.balance || 0) - tokenCost);
+            await currentUser.save();
+        }
 
         res.json({ 
             questions, 
-            message: "Tạo câu hỏi thành công (-50 Token)",
-            remainingJobQuota: currentJob.aiTokensQuota 
+            message: currentUser?.role === 'admin' ? "Tạo câu hỏi thành công (Đặc quyền Admin)" : `Tạo câu hỏi thành công (-${currentJob ? 50 : tokenCost} Token)`,
+            remainingJobQuota: currentJob ? currentJob.aiTokensQuota : undefined,
+            remainingTokens: currentUser?.role === 'admin' ? 999999 : currentUser?.businessCredits?.balance
         });
     } catch (error) {
         console.error("AI Generate Error:", error);

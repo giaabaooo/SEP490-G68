@@ -45,6 +45,15 @@ const Profile = () => {
       navigate('/login');
       return;
     }
+    const user = JSON.parse(localStorage.getItem('user')) || null;
+    if (user?.role === 'admin') {
+      navigate('/admin', { replace: true });
+      return;
+    }
+    if (user?.role === 'business') {
+      navigate('/bussiness/profile', { replace: true });
+      return;
+    }
     fetchProfile();
   }, [token, navigate]);
 

@@ -33,10 +33,16 @@ const TokenTopupModal = ({ isOpen, onClose }) => {
 };
 // =======================================================
 
-const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
-  const [topic, setTopic] = useState('');
+const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading, defaultTopic = '', isAdmin = false }) => {
+  const [topic, setTopic] = useState(defaultTopic);
   const [count, setCount] = useState(10);
   const [difficulty, setDifficulty] = useState('Intermediate');
+
+  useEffect(() => {
+    if (isOpen) {
+      setTopic(defaultTopic || '');
+    }
+  }, [isOpen, defaultTopic]);
 
   if (!isOpen) return null;
 
@@ -71,10 +77,17 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
             </div>
           </div>
           
-          <div className="mt-4 flex justify-between items-center bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-             <span className="text-xs font-bold text-slate-500 uppercase">Chi phí dự kiến</span>
-             <span className="text-sm font-black text-emerald-600">{count * 5} Token</span>
-          </div>
+          {!isAdmin ? (
+            <div className="mt-4 flex justify-between items-center bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+               <span className="text-xs font-bold text-slate-500 uppercase">Chi phí dự kiến</span>
+               <span className="text-sm font-black text-emerald-600">{count * 5} Token</span>
+            </div>
+          ) : (
+            <div className="mt-4 flex justify-between items-center bg-emerald-50/50 p-3 rounded-xl border border-emerald-100">
+               <span className="text-xs font-bold text-slate-600 uppercase flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-emerald-600" /> Đặc quyền Quản trị viên</span>
+               <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">Không giới hạn AI</span>
+            </div>
+          )}
         </div>
         <div className="p-6 pt-2 flex gap-3 border-t border-slate-100">
           <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">Hủy bỏ</button>
@@ -89,6 +102,9 @@ export default function PracticeTopicBuilder() {
   const navigate = useNavigate();
   const { topicId } = useParams();
   const isEditMode = !!topicId;
+
+  const user = JSON.parse(localStorage.getItem('user')) || null;
+  const isAdmin = user?.role === 'admin';
 
   const [loading, setLoading] = useState(isEditMode);
   const [topicName, setTopicName] = useState('');
@@ -111,17 +127,19 @@ export default function PracticeTopicBuilder() {
   const checkedQuestions = questions.filter(q => q.isChecked).length;
 
   useEffect(() => {
-    const fetchUsage = async () => {
-        const token = localStorage.getItem('token');
-        try {
-            const res = await fetch(`${API_BASE}/api/payment/my-usage`, { headers: { 'Authorization': `Bearer ${token}` } });
-            if (res.ok) {
-                const data = await res.json();
-                setTokens(data.businessCredits?.balance || 0);
-            }
-        } catch (e) {}
-    };
-    fetchUsage();
+    if (!isAdmin) {
+      const fetchUsage = async () => {
+          const token = localStorage.getItem('token');
+          try {
+              const res = await fetch(`${API_BASE}/api/payment/my-usage`, { headers: { 'Authorization': `Bearer ${token}` } });
+              if (res.ok) {
+                  const data = await res.json();
+                  setTokens(data.businessCredits?.balance || 0);
+              }
+          } catch (e) {}
+      };
+      fetchUsage();
+    }
 
     if (isEditMode) {
       const fetchTopic = async () => {
@@ -143,7 +161,7 @@ export default function PracticeTopicBuilder() {
       };
       fetchTopic();
     }
-  }, [topicId, isEditMode, navigate, API_BASE]);
+  }, [topicId, isEditMode, navigate, API_BASE, isAdmin]);
 
   const handleAddQuestion = () => {
     setQuestions(prev => [
@@ -167,9 +185,9 @@ export default function PracticeTopicBuilder() {
       });
       const data = await res.json();
       
-      // BẮT LỖI HẾT TOKEN 402/403
+      // BẮT LỖI HẾT TOKEN 402/403 (NẾU KHÔNG PHẢI ADMIN)
       if (!res.ok) {
-          if (res.status === 402 || res.status === 403) {
+          if (!isAdmin && (res.status === 402 || res.status === 403)) {
               setShowAIModal(false);
               setShowTokenModal(true);
               return;
@@ -185,7 +203,9 @@ export default function PracticeTopicBuilder() {
 
       setQuestions(prev => [...prev, ...mapped]);
       setShowAIModal(false);
-      setTokens(prev => Math.max(0, prev - (count * 5))); // Trừ Token UI
+      if (!isAdmin) {
+        setTokens(prev => Math.max(0, prev - (count * 5))); // Trừ Token UI nếu không phải admin
+      }
       toast.success(`Successfully generated ${mapped.length} questions!`);
     } catch (err) { toast.error(err.message); } finally { setIsAILoading(false); }
   };
@@ -234,7 +254,15 @@ export default function PracticeTopicBuilder() {
 
   return (
     <div className="animate-fade-in pb-12 max-w-5xl mx-auto mt-6">
-      <TokenTopupModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} />
+      {!isAdmin && <TokenTopupModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} />}
+      <AIGenerateModal 
+        isOpen={showAIModal} 
+        onClose={() => setShowAIModal(false)} 
+        onGenerate={handleAIGenerate} 
+        loading={isAILoading}
+        defaultTopic={topicName}
+        isAdmin={isAdmin}
+      />
       
       {/* Top Controls */}
       <div className="flex justify-between items-center mb-8">
@@ -249,10 +277,12 @@ export default function PracticeTopicBuilder() {
                 </div>
             )}
 
-            {/* HIỂN THỊ SỐ DƯ TÀI KHOẢN CHO PRACTICE MAKER */}
-            <div className="px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm bg-indigo-50 text-indigo-700 border-indigo-200">
-               <Sparkles className="w-4 h-4" /> Số dư ví: {tokens} Token
-            </div>
+            {/* HIỂN THỊ SỐ DƯ TÀI KHOẢN CHO PRACTICE MAKER NẾU KHÔNG PHẢI ADMIN */}
+            {!isAdmin && (
+              <div className="px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm bg-indigo-50 text-indigo-700 border-indigo-200">
+                 <Sparkles className="w-4 h-4" /> Số dư ví: {tokens} Token
+              </div>
+            )}
         </div>
 
         <button onClick={() => setShowAIModal(true)} className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl text-xs font-black uppercase tracking-wider shadow-lg shadow-emerald-500/10 transition-all cursor-pointer">

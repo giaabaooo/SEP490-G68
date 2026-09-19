@@ -303,14 +303,16 @@ const Navbar = () => {
                 <div
                   className="dropdown-header"
                   onClick={() => {
-                    if (role === 'business') {
+                    if (role === 'admin') {
+                      return; // Admin không cần trang profile
+                    } else if (role === 'business') {
                       navigate('/bussiness/profile');
                     } else {
                       navigate('/profile');
                     }
                   }}
-                  title={role === 'business' ? "Xem hồ sơ doanh nghiệp" : "Xem Hồ sơ cá nhân"}
-                  style={{ cursor: 'pointer' }}
+                  title={role === 'admin' ? "Tài khoản Quản trị viên" : role === 'business' ? "Xem hồ sơ doanh nghiệp" : "Xem Hồ sơ cá nhân"}
+                  style={{ cursor: role === 'admin' ? 'default' : 'pointer' }}
                 >
                   <div className="avatar-circle" style={{ width: '48px', height: '48px', fontSize: '20px' }}><span style={{ color: '#059669', fontWeight: 'bold' }}>{user?.fullName?.charAt(0).toUpperCase() || 'U'}</span></div>
                   <div className="dropdown-header-info">
