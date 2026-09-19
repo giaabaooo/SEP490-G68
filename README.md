@@ -20,7 +20,7 @@
 - [2. Tính năng nổi bật](#2-tính-năng-nổi-bật)
 - [3. Kiến trúc & Công nghệ sử dụng](#3-kiến-trúc--công-nghệ-sử-dụng)
 - [4. Cấu trúc thư mục dự án](#4-cấu-trúc-thư-mục-dự-án)
-- [5. Tài khoản dùng thử (Seeded Test Accounts)](#5-tài-khoản-dùng-thử-seeded-test-accounts)
+- [5. Tài khoản hệ thống được khởi tạo tự động](#5-tài-khoản-hệ-thống-được-khởi-tạo-tự-động)
 - [6. Hướng dẫn cài đặt & Khởi chạy](#6-hướng-dẫn-cài-đặt--khởi-chạy)
 - [7. Biến môi trường (.env)](#7-biến-môi-trường-env)
 - [8. Danh mục RESTful API Endpoints](#8-danh-mục-restful-api-endpoints)
@@ -114,7 +114,7 @@ SEP490-G68/
 │   ├── middleware/          # Xác thực token (auth.js, authOptional.js, authorize.js)
 │   ├── models/              # Mongoose Schemas (User, Job, Application, Assessment, ...)
 │   ├── routes/              # Định nghĩa API routes
-│   ├── scripts/             # Scripts tự động seed dữ liệu mẫu (Admin, HR, Candidate, Moderator)
+│   ├── scripts/             # Scripts tự động khởi tạo tài khoản Admin và Moderator
 │   ├── services/            # Tầng tích hợp AI Service (Gemini & OpenAI TTS)
 │   ├── utils/               # Tiện ích gửi email, tính toán hạn mức, Cloudinary upload
 │   ├── .env.example         # File mẫu cấu hình biến môi trường Backend
@@ -152,16 +152,14 @@ SEP490-G68/
 
 ---
 
-## 5. Tài khoản dùng thử (Seeded Test Accounts)
+## 5. Tài khoản hệ thống được khởi tạo tự động
 
-Hệ thống đã tích hợp sẵn cơ chế **Auto-seeding** khi Backend kết nối Database thành công. Bạn có thể sử dụng trực tiếp các tài khoản kiểm thử sau:
+Khi Backend kết nối Database thành công, hệ thống chỉ tự động quản lý hai tài khoản **Admin** và **Moderator**. Admin được tạo nếu hệ thống chưa có tài khoản Admin; tài khoản Moderator được tạo mới hoặc chuẩn hóa lại mật khẩu, vai trò và trạng thái theo cấu hình seed. Dự án không còn seed dữ liệu hoặc tài khoản mẫu cho Business/HR và Candidate; các tài khoản thuộc hai vai trò này được tạo qua luồng đăng ký hoặc quản trị người dùng.
 
 | Vai trò (Role) | Email | Mật khẩu mặc định | Mục đích kiểm thử |
 | :--- | :--- | :--- | :--- |
 | **Admin** | `admin123@gmail.com` | `123456` | Quản trị người dùng, gán role, duyệt quyền, quản lý giao dịch |
 | **Moderator (SME)** | `moderator@gmail.com` | `123456` | Nhận yêu cầu tạo đề, xây dựng bài test bằng AI/thủ công |
-| **Business / HR** | `hr@test.com` | `123456` | Đăng tin tuyển dụng, xem ATS CV List, mời Moderator |
-| **Candidate** | `candidate@test.com` | `123456` | Ứng tuyển, xem Live CV Match, AI Mock Interview, làm bài test |
 
 ---
 
@@ -205,12 +203,12 @@ cd SEP490-G68
    > Khi khởi động thành công, console sẽ hiển thị:
    > ```text
    > Server running on port 5000
-   > MongoDB Connected
-   > =======> 🎉 Đã khởi tạo tài khoản Admin thành công !
-   > =======> ✅ Đã khởi tạo sẵn tài khoản Moderator: moderator@gmail.com
-   > =======> 🎉 Đã khởi tạo tài khoản Candidate test thành công !
-   > =======> 🎉 Đã khởi tạo tài khoản HR test thành công !
+   > MongoDB Connected Successfully
+   > =======> Admin đã tồn tại, bỏ qua bước seeding.
+   > =======> Tài khoản Moderator (moderator@gmail.com) đã tồn tại và được giữ nguyên quyền kiểm duyệt.
    > ```
+
+   > Ở lần chạy đầu tiên, thông báo sẽ cho biết tài khoản Admin và Moderator vừa được khởi tạo. Backend không tự tạo tài khoản HR hoặc Candidate.
 
 5. *(Tùy chọn)* Khởi tạo bộ câu hỏi luyện tập có sẵn:
    ```bash
