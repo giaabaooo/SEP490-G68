@@ -5,6 +5,10 @@ const Otp = require("../models/Otp");
 const sendEmail = require("../utils/sendEmail");
 const { createNotification } = require("../utils/notificationHelper");
 
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const isValidObjectId = (value) => /^[a-f\d]{24}$/i.test(String(value));
+
 const parseStringArray = (value) => {
   if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean);
   if (typeof value === "string") return value.split(/\n|,|;/).map((item) => item.trim()).filter(Boolean);
@@ -56,13 +60,16 @@ exports.getJobs = async (req, res) => {
     } else { query.status = "active"; }
 
     const { location, type, experience, keyword } = req.query;
-    if (keyword) {
-      const keywordRegex = new RegExp(keyword, "i"); 
+    const normalizedKeyword = String(keyword || "").trim();
+    const normalizedLocation = String(location || "").trim();
+    if (normalizedKeyword) {
+      const escapedKeyword = escapeRegex(normalizedKeyword);
+      const keywordRegex = new RegExp(escapedKeyword, "i");
       const matchingRecruiters = await User.find({ companyName: keywordRegex }).select("_id");
       const recruiterIds = matchingRecruiters.map(r => r._id);
-      query.$or = [{ title: { $regex: keyword, $options: "i" } }, { tags: { $in: [keywordRegex] } }, { recruiterId: { $in: recruiterIds } }];
+      query.$or = [{ title: keywordRegex }, { tags: { $in: [keywordRegex] } }, { recruiterId: { $in: recruiterIds } }];
     }
-    if (location) query.location = { $regex: location, $options: "i" };
+    if (normalizedLocation) query.location = new RegExp(escapeRegex(normalizedLocation), "i");
     if (type) query.type = { $in: type.split(",") };
     if (experience) query.experience = { $in: experience.split(",") };
 
@@ -107,6 +114,10 @@ exports.getJobs = async (req, res) => {
 
 exports.getJobById = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: "ID tin tuyển dụng không hợp lệ" });
+    }
+
     const job = await Job.findById(req.params.id).lean();
     if (!job) return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
 
@@ -119,7 +130,10 @@ exports.getJobById = async (req, res) => {
 
     const formattedJob = await serializeJob(job);
     res.json(formattedJob);
-  } catch (error) { res.status(500).json({ message: error.message }); }
+  } catch (error) {
+    console.error("Get job by ID error:", error);
+    res.status(500).json({ message: "Lỗi server khi lấy thông tin tuyển dụng" });
+  }
 };
 
 exports.createJob = async (req, res) => {
