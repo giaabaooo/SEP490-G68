@@ -1,12 +1,24 @@
 const PracticeTopic = require('../models/PracticeTopic');
 const PracticeResult = require('../models/PracticeResult');
+
+const withoutCorrectAnswers = (topic) => {
+  const safeTopic = typeof topic.toObject === 'function' ? topic.toObject() : { ...topic };
+  safeTopic.questions = (safeTopic.questions || []).map((question) => {
+    const safeQuestion = typeof question.toObject === 'function' ? question.toObject() : { ...question };
+    delete safeQuestion.correctAnswer;
+    return safeQuestion;
+  });
+  return safeTopic;
+};
+
 // GET /api/practice-topics
 exports.list = async (req, res) => {
   try {
     const topics = await PracticeTopic.find({})
       .populate('createdBy', 'fullName email')
-      .sort({ createdAt: -1 });
-    return res.json(topics);
+      .sort({ createdAt: -1 })
+      .lean();
+    return res.json(topics.map(withoutCorrectAnswers));
   } catch (error) {
     console.error('List practice topics error:', error);
     return res.status(500).json({ message: 'Error retrieving practice topics' });
@@ -21,7 +33,11 @@ exports.getById = async (req, res) => {
     if (!topic) {
       return res.status(404).json({ message: 'Practice topic not found' });
     }
-    return res.json(topic);
+    if (req.user.role === 'admin') {
+      return res.json(topic);
+    }
+
+    return res.json(withoutCorrectAnswers(topic));
   } catch (error) {
     console.error('Get practice topic error:', error);
     return res.status(500).json({ message: 'Error retrieving practice topic details' });
