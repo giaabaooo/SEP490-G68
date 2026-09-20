@@ -179,31 +179,9 @@ exports.createApplication = async (req, res) => {
     if (!appliedCvFileUrl) return res.status(400).json({ message: 'Vui lòng cung cấp CV' });
 
     let aiEvaluation = { score: 0, categoryScores: [], reasonToHire: "", reasonToReject: "", advice: "" };
-    
+
     if (job.useAiReview === false) {
-         aiEvaluation.advice = "Nhà tuyển dụng tắt chế độ tự động chấm AI. Hồ sơ sẽ được duyệt thủ công.";
-    } else {
-        try {
-            const businessUser = await User.findById(job.recruiterId);
-            
-            // 1. KIỂM TRA SỐ DƯ DOANH NGHIỆP TRƯỚC
-            if (!businessUser || (businessUser.businessCredits?.balance || 0) < 30) {
-                aiEvaluation.advice = "Nhà tuyển dụng tạm thời hết Token để nhận kết quả AI.";
-            } else {
-                // 2. GỌI AI PHÂN TÍCH CV
-                const cvTextForAI = await extractTextFromCV(req.file, appliedCvId, user, appliedCvFileUrl);
-                aiEvaluation = await aiService.evaluateCVMatch(job, cvTextForAI);
-                
-                // 3. AI CHẠY THÀNH CÔNG -> TRỪ 30 TOKEN CỦA DOANH NGHIỆP
-                if (aiEvaluation.score > 0 || aiEvaluation.verdict !== "Lỗi Server") {
-                    businessUser.businessCredits.balance -= 30;
-                    await businessUser.save();
-                }
-            }
-        } catch (aiErr) {
-            console.error("Lỗi AI khi nộp trực tiếp:", aiErr.message);
-            aiEvaluation.advice = "Hệ thống AI tạm thời đang bận, hồ sơ sẽ được lưu lại.";
-        }
+        aiEvaluation.advice = "Nhà tuyển dụng tắt chế độ tự động chấm AI. Hồ sơ sẽ được duyệt thủ công.";
     }
 
     let hasTest = false;
@@ -214,24 +192,39 @@ exports.createApplication = async (req, res) => {
     } catch (testErr) {}
 
     let populatedApplication;
+    let targetApplicationId;
 
     if (existingApp) {
+        targetApplicationId = existingApp._id;
+        const updateFields = { 
+            appliedCvId: appliedCvId || null, 
+            appliedCvFileUrl: appliedCvFileUrl,
+            aiScore: aiEvaluation.score || 0,
+            aiMatchDetails: { 
+                reasonToHire: aiEvaluation.reasonToHire || '', 
+                reasonToReject: aiEvaluation.reasonToReject || '', 
+                categoryScores: aiEvaluation.categoryScores || [], 
+                verdict: aiEvaluation.verdict || '' 
+            },
+            appliedAt: Date.now(),
+            hasTest: hasTest,
+            assessmentId: assessmentId
+        };
+        if (existingApp.testStatus !== 'Completed') {
+            updateFields.status = 'Applied';
+        }
+
         await Application.findOneAndUpdate(
             { _id: existingApp._id },
             { 
-                $set: { 
-                    appliedCvId: appliedCvId || null, appliedCvFileUrl: appliedCvFileUrl,
-                    aiScore: aiEvaluation.score || 0,
-                    aiMatchDetails: { reasonToHire: aiEvaluation.reasonToHire || '', reasonToReject: aiEvaluation.reasonToReject || '', categoryScores: aiEvaluation.categoryScores || [], verdict: aiEvaluation.verdict || '' },
-                    status: 'Applied', appliedAt: Date.now() 
-                },
+                $set: updateFields,
                 $inc: { applyCount: 1 }
             },
             { strict: false }
         );
         populatedApplication = await Application.findById(existingApp._id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title');
         
-        // Gửi thông báo cho ứng viên & nhà tuyển dụng
+        // Gửi thông báo cho ứng viên
         await createNotification({
             userId,
             title: 'Cập nhật hồ sơ ứng tuyển thành công!',
@@ -240,30 +233,25 @@ exports.createApplication = async (req, res) => {
             link: '/candidate/applications',
             relatedApplicationId: existingApp._id
         });
-        if (job.recruiterId) {
-            const scoreText = aiEvaluation.score !== undefined ? ` (AI Match: ${aiEvaluation.score}%)` : '';
-            const verdictText = aiEvaluation.verdict ? ` [${aiEvaluation.verdict}]` : '';
-            await createNotification({
-                userId: job.recruiterId,
-                title: `Ứng viên cập nhật lại CV: ${user.fullName}${scoreText}`,
-                message: `Ứng viên ${user.fullName} vừa nộp phiên bản CV mới cho vị trí "${job.title}". Điểm AI đánh giá: ${aiEvaluation.score || 0}/100${verdictText}. Bấm để xem chi tiết hồ sơ.`,
-                type: 'application_submitted',
-                link: `/bussiness/candidate/${existingApp._id}`,
-                relatedApplicationId: existingApp._id
-            });
-        }
-
-        return res.status(200).json({ message: 'Đã cập nhật lại hồ sơ thành công', data: populatedApplication, hasTest: hasTest, assessmentId: assessmentId });
     } else {
         const application = await Application.create({
-          jobId, userId, appliedCvId: appliedCvId || null, appliedCvFileUrl, status: 'Applied', aiScore: aiEvaluation.score || 0,
-          aiMatchDetails: { reasonToHire: aiEvaluation.reasonToHire || '', reasonToReject: aiEvaluation.reasonToReject || '', categoryScores: aiEvaluation.categoryScores || [], verdict: aiEvaluation.verdict || '' },
-          hasTest: hasTest, assessmentId: assessmentId 
+          jobId, userId, appliedCvId: appliedCvId || null, appliedCvFileUrl, 
+          status: 'Applied', 
+          aiScore: aiEvaluation.score || 0,
+          aiMatchDetails: { 
+              reasonToHire: aiEvaluation.reasonToHire || '', 
+              reasonToReject: aiEvaluation.reasonToReject || '', 
+              categoryScores: aiEvaluation.categoryScores || [], 
+              verdict: aiEvaluation.verdict || '' 
+          },
+          hasTest: hasTest, assessmentId: assessmentId,
+          testStatus: 'Not_Started'
         });
         await Application.updateOne({ _id: application._id }, { $set: { applyCount: 1 } }, { strict: false });
+        targetApplicationId = application._id;
         populatedApplication = await Application.findById(application._id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title');
 
-        // Gửi thông báo cho ứng viên & nhà tuyển dụng
+        // Gửi thông báo cho ứng viên
         await createNotification({
             userId,
             title: 'Ứng tuyển thành công!',
@@ -272,21 +260,95 @@ exports.createApplication = async (req, res) => {
             link: '/candidate/applications',
             relatedApplicationId: application._id
         });
-        if (job.recruiterId) {
-            const scoreText = aiEvaluation.score !== undefined ? ` (AI Match: ${aiEvaluation.score}%)` : '';
-            const verdictText = aiEvaluation.verdict ? ` [${aiEvaluation.verdict}]` : '';
-            await createNotification({
-                userId: job.recruiterId,
-                title: `Hồ sơ ứng tuyển mới: ${user.fullName}${scoreText}`,
-                message: `Ứng viên ${user.fullName} vừa nộp hồ sơ ứng tuyển vị trí "${job.title}". Điểm AI đánh giá CV: ${aiEvaluation.score || 0}/100${verdictText}. Bấm để xem chi tiết hồ sơ & CV.`,
-                type: 'application_submitted',
-                link: `/bussiness/candidate/${application._id}`,
-                relatedApplicationId: application._id
-            });
-        }
-
-        return res.status(201).json({ message: 'Ứng tuyển thành công', data: populatedApplication, hasTest: hasTest, assessmentId: assessmentId });
     }
+
+    // XỬ LÝ BACKGROUND AI & THÔNG BÁO CHO NHÀ TUYỂN DỤNG (LUÔN PHÂN TÍCH TRÊN CV MỚI NHẤT TRONG NỀN)
+    if (job.useAiReview !== false) {
+        // Chạy AI ngầm trong nền không làm nghẽn phản hồi ứng tuyển, luôn phân tích trên CV vừa nộp
+        const cachedFile = req.file ? { ...req.file, buffer: Buffer.from(req.file.buffer) } : null;
+        setImmediate(async () => {
+            try {
+                const businessUser = await User.findById(job.recruiterId);
+                if (!businessUser || (businessUser.businessCredits?.balance || 0) < 30) {
+                    if (job.recruiterId) {
+                        await createNotification({
+                            userId: job.recruiterId,
+                            title: `Hồ sơ ứng tuyển mới: ${user.fullName}`,
+                            message: `Ứng viên ${user.fullName} vừa nộp hồ sơ vào vị trí "${job.title}". (Số dư Token của bạn không đủ để AI tự động chấm điểm).`,
+                            type: 'application_submitted',
+                            link: `/bussiness/candidate/${targetApplicationId}`,
+                            relatedApplicationId: targetApplicationId
+                        });
+                    }
+                    return;
+                }
+
+                const cvTextForAI = await extractTextFromCV(cachedFile, appliedCvId, user, appliedCvFileUrl);
+                const bgAiEvaluation = await aiService.evaluateCVMatch(job, cvTextForAI);
+
+                if (bgAiEvaluation.score > 0 || bgAiEvaluation.verdict !== "Lỗi Server") {
+                    businessUser.businessCredits.balance -= 30;
+                    await businessUser.save();
+                }
+
+                await Application.findByIdAndUpdate(targetApplicationId, {
+                    $set: {
+                        aiScore: bgAiEvaluation.score || 0,
+                        aiMatchDetails: {
+                            reasonToHire: bgAiEvaluation.reasonToHire || '',
+                            reasonToReject: bgAiEvaluation.reasonToReject || '',
+                            categoryScores: bgAiEvaluation.categoryScores || [],
+                            verdict: bgAiEvaluation.verdict || ''
+                        }
+                    }
+                });
+
+                if (job.recruiterId) {
+                    const scoreText = bgAiEvaluation.score !== undefined ? ` (AI Match: ${bgAiEvaluation.score}%)` : '';
+                    const verdictText = bgAiEvaluation.verdict ? ` [${bgAiEvaluation.verdict}]` : '';
+                    await createNotification({
+                        userId: job.recruiterId,
+                        title: `Hồ sơ ứng tuyển mới: ${user.fullName}${scoreText}`,
+                        message: `Ứng viên ${user.fullName} vừa nộp hồ sơ vào vị trí "${job.title}". Điểm AI đánh giá CV: ${bgAiEvaluation.score || 0}/100${verdictText}. Bấm để xem chi tiết.`,
+                        type: 'application_submitted',
+                        link: `/bussiness/candidate/${targetApplicationId}`,
+                        relatedApplicationId: targetApplicationId
+                    });
+                }
+            } catch (bgErr) {
+                console.error("Lỗi background AI evaluation:", bgErr.message);
+                if (job.recruiterId) {
+                    createNotification({
+                        userId: job.recruiterId,
+                        title: `Hồ sơ ứng tuyển mới: ${user.fullName}`,
+                        message: `Ứng viên ${user.fullName} vừa nộp hồ sơ vào vị trí "${job.title}". Bấm để xem chi tiết.`,
+                        type: 'application_submitted',
+                        link: `/bussiness/candidate/${targetApplicationId}`,
+                        relatedApplicationId: targetApplicationId
+                    }).catch(() => {});
+                }
+            }
+        });
+    } else {
+        // Nhà tuyển dụng tắt AI -> Gửi thông báo trực tiếp
+        if (job.recruiterId) {
+            createNotification({
+                userId: job.recruiterId,
+                title: `Hồ sơ ứng tuyển mới: ${user.fullName}`,
+                message: `Ứng viên ${user.fullName} vừa nộp hồ sơ ứng tuyển vị trí "${job.title}". Bấm để xem chi tiết hồ sơ & CV.`,
+                type: 'application_submitted',
+                link: `/bussiness/candidate/${targetApplicationId}`,
+                relatedApplicationId: targetApplicationId
+            }).catch(e => console.warn("Lỗi gửi notification:", e.message));
+        }
+    }
+
+    return res.status(201).json({ 
+        message: existingApp ? 'Đã cập nhật lại hồ sơ thành công' : 'Ứng tuyển thành công', 
+        data: populatedApplication, 
+        hasTest: hasTest, 
+        assessmentId: assessmentId 
+    });
   } catch (error) { return res.status(500).json({ message: 'Lỗi máy chủ khi ứng tuyển', detail: error.message }); }
 };
 
@@ -318,6 +380,7 @@ exports.list = async (req, res) => {
     const items = await Application.find(q)
       .populate('userId', 'fullName avatar cvUrl email')
       .populate({ path: 'jobId', select: 'title recruitmentDeadline recruiterId requireTest assessmentId', populate: { path: 'recruiterId', select: 'fullName companyName' } })
+      .populate('assessmentId', 'assessmentName timeLimit questions')
       .sort(sort).skip(skip).limit(Number(limit));
 
     // Chuẩn hóa appliedCvFileUrl cho cả các application cũ
@@ -339,7 +402,8 @@ exports.getById = async (req, res) => {
   try {
     const app = await Application.findById(req.params.id)
       .populate('userId', 'fullName avatar cvUrl email')
-      .populate('jobId', 'title description recruiterId requireTest assessmentId');
+      .populate('jobId', 'title description recruiterId requireTest assessmentId')
+      .populate('assessmentId', 'assessmentName timeLimit questions');
     if (!app) return res.status(404).json({ message: 'Application not found' });
     if (req.user?.role === 'business' && app.jobId?.recruiterId?.toString() !== req.user.id.toString()) return res.status(403).json({ message: 'Access denied' });
     

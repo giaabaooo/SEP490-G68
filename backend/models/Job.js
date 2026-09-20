@@ -32,7 +32,8 @@ const jobSchema = new mongoose.Schema(
     moderatorEmail: { type: String, default: "", trim: true, lowercase: true },
     testStatus: { type: String, enum: ["pending", "approved", null], default: null },
     assessmentId: { type: mongoose.Schema.Types.ObjectId, ref: "Assessment", default: null },
-    aiTokensQuota: { type: Number, default: 0 } // Thêm trường Hạn mức Token nội bộ
+    aiTokensQuota: { type: Number, default: 0 }, // Thêm trường Hạn mức Token nội bộ
+    testQuestionsCount: { type: Number, default: 10 } // Số lượng câu hỏi bài test được cấu hình
   },
   { timestamps: true }
 );

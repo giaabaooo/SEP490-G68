@@ -65,9 +65,41 @@ export default function TestResult() {
 
     const isJobExpired = checkJobExpired();
 
+    const targetJobId = app?.jobId?._id || app?.jobId?.id || (typeof app?.jobId === 'string' ? app?.jobId : null) || location.state?.jobId;
+
+    const handleBack = () => {
+        if (!isPractice && targetJobId) {
+            navigate(`/jobs/${targetJobId}`, { replace: true });
+        } else if (isPractice) {
+            navigate('/candidate/tests', { replace: true });
+        } else {
+            navigate('/candidate/applications', { replace: true });
+        }
+    };
+
+    // Chặn nút Back vật lý của trình duyệt không được quay lại màn hình làm bài test
+    useEffect(() => {
+        window.history.pushState(null, '', window.location.href);
+
+        const handlePopState = () => {
+            if (!isPractice && targetJobId) {
+                navigate(`/jobs/${targetJobId}`, { replace: true });
+            } else if (isPractice) {
+                navigate('/candidate/tests', { replace: true });
+            } else {
+                navigate('/candidate/applications', { replace: true });
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, [isPractice, targetJobId, navigate]);
+
     useEffect(() => {
         window.scrollTo(0, 0);
-        if (!app) navigate('/candidate/test-history');
+        if (!app) navigate('/candidate/test-history', { replace: true });
         fetchUsageData();
 
         if (!isPractice && app?.jobId) {
@@ -225,8 +257,9 @@ export default function TestResult() {
 
             <div className="bg-white border-b border-slate-200 pt-10 pb-12 px-4">
                 <div className="max-w-4xl mx-auto">
-                    <button onClick={() => navigate(-1)} className="flex items-center text-black hover:text-blue-600 font-semibold text-sm mb-6 transition-colors w-fit">
-                        <ArrowLeft className="w-4 h-4 mr-2" /> Quay lại lịch sử
+                    <button onClick={handleBack} className="flex items-center text-slate-700 hover:text-blue-600 font-bold text-sm mb-6 transition-colors w-fit group cursor-pointer">
+                        <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> 
+                        {!isPractice && targetJobId ? 'Quay lại Chi tiết tin tuyển dụng (JD)' : 'Quay lại danh sách'}
                     </button>
                     <div className="text-center">
                         <h1 className="text-3xl md:text-4xl font-black text-black mb-3 tracking-tight">{testTitle}</h1>

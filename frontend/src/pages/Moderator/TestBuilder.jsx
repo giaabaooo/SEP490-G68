@@ -3,47 +3,27 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
   ArrowLeft, CheckCircle2, Sparkles, X, PlusCircle, Trash2, Copy, 
-  Settings, CheckCircle, Clock, CheckSquare, Loader2
+  Settings, CheckCircle, Clock, CheckSquare, Loader2, AlertTriangle
 } from 'lucide-react';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-// ================= MODAL BÁO HẾT TOKEN =================
-const TokenTopupModal = ({ isOpen, onClose, isModerator }) => {
-    const navigate = useNavigate();
-    if (!isOpen) return null;
-    return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 p-4 animate-fadeIn">
-            <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden shadow-2xl">
-                <div className="absolute top-0 left-0 w-full h-2 bg-emerald-500"></div>
-                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600"><X className="w-5 h-5"/></button>
-                <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-500">
-                    <Sparkles className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-black text-slate-800 mb-2">Không đủ Hạn mức</h3>
-                <p className="text-sm font-medium text-slate-500 mb-6 leading-relaxed">
-                    {isModerator 
-                        ? "Hạn mức Token nội bộ của Job này không đủ để tạo bộ câu hỏi theo số lượng yêu cầu. Vui lòng liên hệ HR/Business để nạp thêm hoặc phân bổ lại hạn mức!" 
-                        : "Số dư Token AI của bạn không đủ để tạo bộ câu hỏi. Vui lòng nạp thêm để tiếp tục!"}
-                </p>
-                {!isModerator && (
-                    <button onClick={() => navigate('/upgrade')} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg transition-colors">
-                        Nạp Token Ngay
-                    </button>
-                )}
-            </div>
-        </div>
-    )
-};
-// =======================================================
-
-const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
+const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading, jobQuota }) => {
   const [topic, setTopic] = useState('');
-  const [count, setCount] = useState(10);
+  const maxAllowedQuestions = typeof jobQuota === 'number' ? Math.floor(jobQuota / 5) : 10;
+  const [count, setCount] = useState(Math.min(10, Math.max(1, maxAllowedQuestions)));
   const [difficulty, setDifficulty] = useState('Intermediate');
 
+  useEffect(() => {
+    if (maxAllowedQuestions > 0 && count > maxAllowedQuestions) {
+      setCount(maxAllowedQuestions);
+    }
+  }, [maxAllowedQuestions]);
+
   if (!isOpen) return null;
+
+  const isOutOfQuota = maxAllowedQuestions <= 0;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
@@ -52,20 +32,20 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-3xl -translate-y-10 translate-x-10"></div>
           <div className="relative z-10">
             <h3 className="text-xl font-black flex items-center gap-2"><Sparkles className="w-5 h-5 text-yellow-300" /> AI Generator (MCQ)</h3>
-            <p className="text-emerald-100 text-sm mt-1 font-medium">Tạo câu hỏi trắc nghiệm chuyên sâu tức thì</p>
+            <p className="text-emerald-100 text-sm mt-1 font-medium">Tạo câu hỏi trắc nghiệm chuyên sâu tự động</p>
           </div>
           <button onClick={onClose} className="relative z-10 text-white hover:bg-white/20 p-2 rounded-full transition-colors"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-2">Chủ đề cần kiểm tra</label>
-            <input type="text" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-emerald-500 outline-none text-sm font-medium" placeholder="VD: ReactJS Hooks..." value={topic} onChange={(e) => setTopic(e.target.value)} />
+            <input type="text" className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-emerald-500 outline-none text-sm font-medium" placeholder="VD: ReactJS Hooks, Quản lý State..." value={topic} onChange={(e) => setTopic(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Trình độ</label>
               <select className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-emerald-500 outline-none text-sm font-medium" value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-                <option value="Fresher">Cơ bản</option><option value="Intermediate">Trung bình</option><option value="Senior">Khó (Senior)</option>
+                <option value="Fresher">Cơ bản (Fresher)</option><option value="Intermediate">Trung bình (Junior/Mid)</option><option value="Senior">Nâng cao (Senior)</option>
               </select>
             </div>
             <div>
@@ -73,19 +53,52 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading }) => {
                 <label className="text-sm font-bold text-slate-700">Số lượng</label>
                 <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-md">{count} câu</span>
               </div>
-              <input type="range" min="1" max="20" step="1" className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600" value={count} onChange={(e) => setCount(parseInt(e.target.value))} />
+              <input 
+                type="range" 
+                min="1" 
+                max={Math.min(20, Math.max(1, maxAllowedQuestions))} 
+                step="1" 
+                disabled={isOutOfQuota}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600 disabled:opacity-50" 
+                value={count} 
+                onChange={(e) => setCount(parseInt(e.target.value))} 
+              />
             </div>
           </div>
           
-          <div className="mt-4 flex justify-between items-center bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-             <span className="text-xs font-bold text-slate-500 uppercase">Chi phí dự kiến</span>
-             <span className="text-sm font-black text-emerald-600">{count * 5} Token</span>
+          <div className={`mt-4 flex justify-between items-center p-3.5 rounded-xl border ${isOutOfQuota ? 'bg-rose-50 border-rose-200' : 'bg-emerald-50 border-emerald-100'}`}>
+             <div>
+                <span className="text-xs font-bold text-slate-500 uppercase block">Hạn mức AI của bài test</span>
+                <span className={`text-xs font-bold ${isOutOfQuota ? 'text-rose-600' : 'text-slate-600'}`}>
+                  Được tạo tối đa: <strong className="text-emerald-700">{maxAllowedQuestions}</strong> câu
+                </span>
+             </div>
+             <span className={`text-sm font-black ${isOutOfQuota ? 'text-rose-600' : 'text-emerald-700'}`}>
+                {count} / {maxAllowedQuestions} câu
+             </span>
           </div>
+
+          {isOutOfQuota && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>Đã sử dụng hết số câu hỏi AI được cấp phép cho bài test này. Bạn có thể tự soạn thêm câu hỏi bằng tay.</span>
+            </div>
+          )}
         </div>
         <div className="p-6 pt-2 flex gap-3 border-t border-slate-100">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 transition-colors">Hủy bỏ</button>
-          <button onClick={() => topic.trim() ? onGenerate(topic, count, difficulty) : toast.error("Nhập chủ đề!")} disabled={loading} className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all disabled:opacity-70 flex justify-center items-center gap-2">
-            {loading ? 'Đang phân tích...' : <><Sparkles className="w-5 h-5" /> Tạo ngay</>}
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl border border-slate-300 font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer">Hủy bỏ</button>
+          <button 
+            onClick={() => {
+              if (!topic.trim()) return toast.error("Vui lòng nhập chủ đề câu hỏi!");
+              if (isOutOfQuota || count > maxAllowedQuestions) {
+                return toast.error(`Hạn mức chỉ còn tối đa ${maxAllowedQuestions} câu hỏi.`);
+              }
+              onGenerate(topic, count, difficulty);
+            }} 
+            disabled={loading || isOutOfQuota} 
+            className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 cursor-pointer"
+          >
+            {loading ? 'Đang phân tích...' : <><Sparkles className="w-5 h-5" /> {isOutOfQuota ? 'Hết lượt tạo AI' : `Tạo ngay (${count} câu)`}</>}
           </button>
         </div>
       </div>
@@ -109,11 +122,11 @@ export default function TestBuilder() {
   const [isAILoading, setIsAILoading] = useState(false);
   
   const [jobQuota, setJobQuota] = useState(0);
-  const [showTokenModal, setShowTokenModal] = useState(false);
   const [showPublishConfirmModal, setShowPublishConfirmModal] = useState(false);
 
   const totalQuestions = parsedQuestions.length;
   const checkedQuestions = parsedQuestions.filter(q => q.isChecked).length;
+  const remainingAiQuestions = Math.floor(jobQuota / 5);
 
   useEffect(() => {
     if (jobId) {
@@ -164,23 +177,26 @@ export default function TestBuilder() {
       });
       const data = await res.json();
       
-      // BẮT LỖI 402/403 THIẾU TOKEN
       if (!res.ok) {
-          if (res.status === 402 || res.status === 403) {
-              setShowAIModal(false);
-              setShowTokenModal(true);
-              return;
-          }
-          throw new Error(data.message);
+          setShowAIModal(false);
+          toast.error(data.message || "Không thể tạo câu hỏi. Hạn mức AI của bài test có thể đã hết!");
+          return;
       }
 
       const aiQuestions = data.questions.map(q => ({...q, isChecked: false}));
       setParsedQuestions(prev => [...prev, ...aiQuestions]);
       setShowAIModal(false);
-      setJobQuota(prev => Math.max(0, prev - (count * 5))); // Trừ token trên UI
+      if (typeof data.remainingJobQuota === 'number') {
+        setJobQuota(data.remainingJobQuota);
+      } else {
+        setJobQuota(prev => Math.max(0, prev - (count * 5)));
+      }
       toast.success(`Đã tạo ${data.questions.length} câu hỏi thành công!`);
-    } catch (error) { toast.error(error.message); } 
-    finally { setIsAILoading(false); }
+    } catch (error) { 
+      toast.error(error.message); 
+    } finally { 
+      setIsAILoading(false); 
+    }
   };
 
   const handleSave = async (status) => {
@@ -220,8 +236,7 @@ export default function TestBuilder() {
 
   return (
     <div className="bg-slate-50 min-h-screen flex flex-col font-sans">
-      <AIGenerateModal isOpen={showAIModal} onClose={() => setShowAIModal(false)} onGenerate={handleAIGenerate} loading={isAILoading} />
-      <TokenTopupModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} isModerator={true} />
+      <AIGenerateModal isOpen={showAIModal} onClose={() => setShowAIModal(false)} onGenerate={handleAIGenerate} loading={isAILoading} jobQuota={jobQuota} />
 
       <header className="h-[76px] bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-5">
@@ -237,9 +252,10 @@ export default function TestBuilder() {
             </div>
           )}
 
-          {/* HIỂN THỊ HẠN MỨC CHO MODERATOR */}
-          <div className="px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm bg-indigo-50 text-indigo-700 border-indigo-200">
-             <Sparkles className="w-4 h-4" /> Hạn mức Job: {jobQuota} Token
+          {/* HIỂN THỊ HẠN MỨC CÂU HỎI AI CHO MODERATOR (KHÔNG HIỂN THỊ TOKEN) */}
+          <div className="px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm bg-emerald-50 text-emerald-700 border-emerald-200">
+             <Sparkles className="w-4 h-4 text-emerald-600" />
+             {remainingAiQuestions > 0 ? `AI tạo câu hỏi: Còn tối đa ${remainingAiQuestions} câu` : `Đã hết lượt tạo AI`}
           </div>
         </div>
         
@@ -258,7 +274,16 @@ export default function TestBuilder() {
           <div className="max-w-[800px] mx-auto">
 
             <div className="mb-8">
-              <div onClick={() => setShowAIModal(true)} className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-dashed border-emerald-400 rounded-[24px] p-8 flex flex-col items-center justify-center cursor-pointer transition-all hover:border-emerald-600 hover:bg-emerald-100/50 group">
+              <div 
+                onClick={() => {
+                  if (remainingAiQuestions <= 0) {
+                    toast.info("Đã sử dụng hết số câu hỏi AI được cấp phép cho bài test này. Bạn có thể tự soạn thêm câu hỏi bằng tay!");
+                  } else {
+                    setShowAIModal(true);
+                  }
+                }} 
+                className="bg-gradient-to-r from-emerald-50 to-teal-50 border-2 border-dashed border-emerald-400 rounded-[24px] p-8 flex flex-col items-center justify-center cursor-pointer transition-all hover:border-emerald-600 hover:bg-emerald-100/50 group"
+              >
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-md mb-4 group-hover:scale-110 transition-transform">
                   <Sparkles className="w-8 h-8 text-emerald-600" />
                 </div>

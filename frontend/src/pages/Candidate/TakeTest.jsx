@@ -53,14 +53,23 @@ export default function TakeTest() {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 
-                if (!res.ok) throw new Error('Không thể tải đề thi');
+                if (!res.ok) {
+                    const errData = await res.json().catch(() => ({}));
+                    if (errData.isCompleted) {
+                        toast.info(errData.message || 'Bạn đã hoàn thành bài thi này rồi!');
+                        const targetUrl = errData.jobId ? `/jobs/${errData.jobId}` : '/candidate/applications';
+                        navigate(targetUrl, { replace: true });
+                        return;
+                    }
+                    throw new Error(errData.message || 'Không thể tải đề thi');
+                }
                 const data = await res.json();
                 
                 setTest(data);
                 setTimeLeft(data.timeLimit * 60);
             } catch (error) {
                 toast.error(error.message);
-                navigate(isPracticeTest ? '/candidate/tests' : '/candidate/applications');
+                navigate(isPracticeTest ? '/candidate/tests' : '/candidate/applications', { replace: true });
             } finally {
                 setLoading(false);
             }
@@ -181,7 +190,7 @@ export default function TakeTest() {
                 if (!res.ok) throw new Error(data.message);
 
                 toast.success('Nộp bài luyện tập thành công!');
-                navigate('/candidate/test-result', { state: { app: data.result } });
+                navigate('/candidate/test-result', { replace: true, state: { app: data.result, isPractice: true } });
                 
             } else {
                 // XỬ LÝ LƯU DATABASE CHO TEST ỨNG TUYỂN JOB
@@ -195,10 +204,18 @@ export default function TakeTest() {
                 if (!res.ok) throw new Error(data.message);
 
                 toast.success('Nộp bài ứng tuyển thành công!');
+                const targetJobId = test?.jobId?._id || test?.jobId;
                 if (data.application) {
-                    navigate('/candidate/test-result', { state: { app: data.application } });
+                    navigate('/candidate/test-result', { 
+                        replace: true, 
+                        state: { 
+                            app: data.application,
+                            jobId: targetJobId,
+                            fromTestSubmit: true
+                        } 
+                    });
                 } else {
-                    navigate('/candidate/test-history');
+                    navigate(targetJobId ? `/jobs/${targetJobId}` : '/candidate/applications', { replace: true });
                 }
             }
         } catch (error) {
