@@ -241,6 +241,8 @@ const JobDetail = () => {
       if (selectedFile) formData.append('cv', selectedFile);
       else if (selectedCvId) formData.append('appliedCvId', selectedCvId);
       
+      formData.append('useAI', useAI ? 'true' : 'false');
+      
       const response = await fetch(`${API_BASE}/api/applications`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
       });
@@ -259,14 +261,26 @@ const JobDetail = () => {
   };
 
   const handleEditCV = () => {
+      let cvToEdit = null;
       if (selectedCvId) {
-          const cvToEdit = myCVs.find(cv => cv._id === selectedCvId);
-          if (cvToEdit) {
-              navigate('/candidate/cv-builder', { state: { cvData: cvToEdit, aiReviewData: reviewData } });
-              return;
-          }
+          cvToEdit = myCVs.find(cv => String(cv._id) === String(selectedCvId));
+      } else if (myCVs.length > 0) {
+          cvToEdit = myCVs[0];
       }
-      navigate('/candidate/cv-templates', { state: { aiReviewData: reviewData, pendingFile: selectedFile } });
+
+      if (selectedFile) {
+          window.__pendingCvFile = selectedFile;
+      }
+
+      navigate('/candidate/cv-templates', { 
+          state: { 
+              fromAIReview: true,
+              aiReviewData: reviewData, 
+              pendingFile: selectedFile,
+              cvData: cvToEdit,
+              autoFillFromReview: true
+          } 
+      });
   };
 
   const viewHistoryDetail = (historyItem) => {

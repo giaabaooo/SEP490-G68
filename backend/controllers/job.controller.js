@@ -28,9 +28,14 @@ const parseDeadline = (value) => {
   return date;
 };
 
-// ĐÃ SỬA: Thêm `vacancies` vào hàm serializeJob để trả về frontend
+// ĐÃ SỬA: Hỗ trợ recruiterId đã được populate để tránh N+1 database query
 const serializeJob = async (job) => {
-  const recruiter = await User.findById(job.recruiterId).select("fullName companyName companySize website city address avatar").lean();
+  let recruiter = null;
+  if (job.recruiterId && typeof job.recruiterId === 'object' && (job.recruiterId.companyName || job.recruiterId.fullName)) {
+    recruiter = job.recruiterId;
+  } else if (job.recruiterId) {
+    recruiter = await User.findById(job.recruiterId).select("fullName companyName companySize website city address avatar").lean();
+  }
   return {
     _id: job._id, id: job._id.toString(), title: job.title, description: job.description || "",
     requirements: parseLines(job.requirements), location: job.location || recruiter?.address || recruiter?.city || "",
@@ -39,13 +44,14 @@ const serializeJob = async (job) => {
     benefits: Array.isArray(job.benefits) ? job.benefits : parseLines(job.benefits),
     status: job.status === "active" ? "Active" : job.status === "draft" ? "Draft" : "Closed",
     deadline: job.recruitmentDeadline ? job.recruitmentDeadline.toISOString() : null,
-    postedAt: job.createdAt, recruiterId: job.recruiterId,
+    postedAt: job.createdAt, recruiterId: recruiter?._id || job.recruiterId,
     vacancies: job.vacancies || 1, // <<< SỬA Ở ĐÂY
     company: recruiter?.companyName || recruiter?.fullName || "Công ty", companyName: recruiter?.companyName || recruiter?.fullName || "Công ty",
     companySize: recruiter?.companySize || "", website: recruiter?.website || "",
     companyLocation: recruiter?.address || recruiter?.city || job.location || "", companyLogo: recruiter?.avatar || "",
     requireTest: job.requireTest || false, moderatorEmail: job.moderatorEmail || "", testStatus: job.testStatus || null,
     assessmentId: job.assessmentId || null,
+    aiTokensQuota: typeof job.aiTokensQuota === 'number' ? job.aiTokensQuota : 0,
     requirementCategories: job.requirementCategories || [], useAiReview: job.useAiReview !== false,
   };
 };
@@ -73,7 +79,10 @@ exports.getJobs = async (req, res) => {
     if (type) query.type = { $in: type.split(",") };
     if (experience) query.experience = { $in: experience.split(",") };
 
-    const jobs = await Job.find(query).sort({ createdAt: -1 }).lean();
+    const jobs = await Job.find(query)
+      .populate('recruiterId', 'fullName companyName companySize website city address avatar')
+      .sort({ createdAt: -1 })
+      .lean();
     const formattedJobs = await Promise.all(jobs.map((job) => serializeJob(job)));
 
     // Sắp xếp các Job còn hạn lên đầu, Job hết hạn / đã đóng xếp sau
@@ -114,18 +123,20 @@ exports.getJobs = async (req, res) => {
 
 exports.getJobById = async (req, res) => {
   try {
-    if (!isValidObjectId(req.params.id)) {
+    const { id } = req.params;
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ message: "ID tin tuyển dụng không hợp lệ" });
     }
 
-    const job = await Job.findById(req.params.id).lean();
+    const job = await Job.findById(id).populate('recruiterId', 'fullName companyName companySize website city address avatar');
     if (!job) return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
 
-    const isOwner = req.user?.id && String(req.user.id) === String(job.recruiterId);
-    const isModerator = req.user?.subRole === 'moderator';
-
-    if (job.status !== "active" && !isOwner && !isModerator) {
-      return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng (Tin bị ẩn)" });
+    // Cập nhật trạng thái nếu quá hạn
+    if (job.recruitmentDeadline && new Date(job.recruitmentDeadline).getTime() < new Date().getTime()) {
+      if (job.status === "active") {
+        job.status = "closed";
+        await job.save();
+      }
     }
 
     const formattedJob = await serializeJob(job);
@@ -138,7 +149,12 @@ exports.getJobById = async (req, res) => {
 
 exports.createJob = async (req, res) => {
   try {
-    const { title, description, requirements, salary, deadline, location, type, experience, tags, benefits, requireTest, moderatorEmail, requirementCategories, useAiReview, vacancies } = req.body;
+    const { 
+      title, description, requirements, salary, deadline, location, type, 
+      experience, tags, benefits, requireTest, moderatorEmail, requirementCategories, 
+      useAiReview, vacancies, testQuestionsCount 
+    } = req.body;
+    
     if (!title || !description || !requirements || !deadline) return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin" });
 
     const parsedDeadline = parseDeadline(deadline);
@@ -146,17 +162,22 @@ exports.createJob = async (req, res) => {
 
     const normalizedModEmail = moderatorEmail ? moderatorEmail.toLowerCase().trim() : "";
     const finalStatus = requireTest ? "draft" : "active";
+    
+    const questionsCount = Number(testQuestionsCount) > 0 ? Number(testQuestionsCount) : 10;
+    const requiredTokens = questionsCount * 5;
     let aiTokensQuota = 0;
 
-    // 1. TRỪ TOKEN TẠO BÀI TEST NGAY (Do Create là bước Atomic với Database)
+    // 1. TRỪ TOKEN TẠO BÀI TEST THEO SỐ LƯỢNG CÂU HỎI QUY ĐỔI (5 Token / 1 câu)
     if (requireTest) {
       const businessUser = await User.findById(req.user.id);
-      if ((businessUser.businessCredits?.balance || 0) < 200) {
-        return res.status(402).json({ message: "Số dư không đủ 200 Token để tạo bài Test. Vui lòng nạp thêm!" });
+      if ((businessUser.businessCredits?.balance || 0) < requiredTokens) {
+        return res.status(402).json({ 
+          message: `Số dư ví hiện tại không đủ ${requiredTokens} Token để cấp hạn mức bài Test (${questionsCount} câu hỏi). Vui lòng nạp thêm!` 
+        });
       }
-      businessUser.businessCredits.balance -= 200;
+      businessUser.businessCredits.balance -= requiredTokens;
       await businessUser.save();
-      aiTokensQuota = 200; 
+      aiTokensQuota = requiredTokens; 
     }
 
     const job = await Job.create({
@@ -165,58 +186,63 @@ exports.createJob = async (req, res) => {
       salary: salary || "", tags: parseStringArray(tags), benefits: parseLines(benefits),
       recruitmentDeadline: parsedDeadline, status: finalStatus, requireTest: requireTest || false,
       moderatorEmail: normalizedModEmail, testStatus: requireTest ? "pending" : null,
-      vacancies: vacancies || 1, // <<< ĐẢM BẢO LƯU VACANCIES
-      aiTokensQuota: aiTokensQuota, requirementCategories: requirementCategories || [], useAiReview: useAiReview !== false
+      vacancies: vacancies || 1,
+      aiTokensQuota: aiTokensQuota, 
+      testQuestionsCount: questionsCount,
+      requirementCategories: requirementCategories || [], 
+      useAiReview: useAiReview !== false
     });
 
-    // 2. FIX LỖI MODERATOR (GỬI EMAIL THAY VÌ TẠO TRẮNG USER)
+    // 2. GỬI THÔNG BÁO & EMAIL NỀN BẤT ĐỒNG BỘ (KHÔNG CHẶN HTTP RESPONSE ĐỂ TRÁNH TIMEOUT)
     if (requireTest && normalizedModEmail) {
-      const modUser = await User.findOne({ email: normalizedModEmail });
-      const recruiterUser = await User.findById(req.user.id).select("fullName companyName");
-      const companyDisplayName = recruiterUser?.companyName || recruiterUser?.fullName || "Doanh nghiệp";
+      (async () => {
+        try {
+          const modUser = await User.findOne({ email: normalizedModEmail });
+          const recruiterUser = await User.findById(req.user.id).select("fullName companyName");
+          const companyDisplayName = recruiterUser?.companyName || recruiterUser?.fullName || "Doanh nghiệp";
 
-      if (modUser) {
-          // Bỏ qua nếu họ đang là Admin
-          if (modUser.role !== 'admin') {
-              modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save();
+          if (modUser) {
+              if (modUser.role !== 'admin') {
+                  modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save();
+              }
+
+              await createNotification({
+                userId: modUser._id,
+                title: 'Yêu cầu tạo bài Test chuyên môn mới',
+                message: `Bạn được phân công xây dựng bài test (${questionsCount} câu hỏi) cho vị trí "${job.title}" từ ${companyDisplayName}.`,
+                type: 'moderator_request',
+                link: '/moderator/requests'
+              });
+
+              await sendEmail(
+                normalizedModEmail,
+                `[Careerio] Yêu cầu tạo bài Test chuyên môn: ${job.title}`,
+                `<div style="font-family:Arial,sans-serif;padding:20px;color:#333;">
+                  <h2 style="color:#059669;">Yêu cầu tạo bài Test chuyên môn mới</h2>
+                  <p>Xin chào,</p>
+                  <p>Nhà tuyển dụng <strong>${companyDisplayName}</strong> đã chỉ định bạn làm Chuyên gia kiểm duyệt và xây dựng bài test (${questionsCount} câu hỏi) cho vị trí: <strong>${job.title}</strong>.</p>
+                  <p>Vui lòng đăng nhập hệ thống để xem chi tiết JD và tiến hành biên soạn bộ đề.</p>
+                  <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/moderator/requests" style="display:inline-block;background:#059669;color:#fff;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:12px;">Xem yêu cầu tạo Test</a>
+                </div>`
+              );
+          } else {
+              const inviteToken = jwt.sign({ email: normalizedModEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
+              await Otp.create({ email: normalizedModEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
+              const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite-accept?token=${inviteToken}`;
+              
+              await sendEmail(
+                  normalizedModEmail, "Lời mời làm Chuyên gia kiểm duyệt (Moderator) - Careerio",
+                  `<div style="font-family:Arial"><h2>Bạn nhận được lời mời làm Moderator</h2>
+                  <p>Công ty tuyển dụng đã chỉ định bạn làm Chuyên gia kiểm duyệt bài Test (${questionsCount} câu hỏi) trên hệ thống.</p>
+                  <p>Vui lòng click vào nút bên dưới để thiết lập mật khẩu và tạo tài khoản:</p>
+                  <a href="${inviteLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;margin-top:10px;">Chấp nhận lời mời</a>
+                  <p style="margin-top:20px;font-size:12px;color:#666;">Link này có hiệu lực trong 7 ngày.</p></div>`
+              );
           }
-
-          // THÔNG BÁO IN-APP CHO MODERATOR
-          await createNotification({
-            userId: modUser._id,
-            title: 'Yêu cầu tạo bài Test chuyên môn mới',
-            message: `Bạn được phân công xây dựng bài test cho vị trí "${job.title}" từ ${companyDisplayName}.`,
-            type: 'moderator_request',
-            link: '/moderator/requests'
-          });
-
-          // GỬI EMAIL THÔNG BÁO CHO MODERATOR ĐÃ CÓ TÀI KHOẢN
-          await sendEmail(
-            normalizedModEmail,
-            `[Careerio] Yêu cầu tạo bài Test chuyên môn: ${job.title}`,
-            `<div style="font-family:Arial,sans-serif;padding:20px;color:#333;">
-              <h2 style="color:#059669;">Yêu cầu tạo bài Test chuyên môn mới</h2>
-              <p>Xin chào,</p>
-              <p>Nhà tuyển dụng <strong>${companyDisplayName}</strong> đã chỉ định bạn làm Chuyên gia kiểm duyệt và xây dựng bài test cho vị trí: <strong>${job.title}</strong>.</p>
-              <p>Vui lòng đăng nhập hệ thống để xem chi tiết JD và tiến hành biên soạn bộ đề.</p>
-              <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/moderator/requests" style="display:inline-block;background:#059669;color:#fff;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:12px;">Xem yêu cầu tạo Test</a>
-            </div>`
-          );
-      } else {
-          // Tạo Token cho Email Mời
-          const inviteToken = jwt.sign({ email: normalizedModEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
-          await Otp.create({ email: normalizedModEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
-          const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite-accept?token=${inviteToken}`;
-          
-          await sendEmail(
-              normalizedModEmail, "Lời mời làm Chuyên gia kiểm duyệt (Moderator) - Careerio",
-              `<div style="font-family:Arial"><h2>Bạn nhận được lời mời làm Moderator</h2>
-              <p>Công ty tuyển dụng đã chỉ định bạn làm Chuyên gia kiểm duyệt bài Test trên hệ thống.</p>
-              <p>Vui lòng click vào nút bên dưới để thiết lập mật khẩu và tạo tài khoản:</p>
-              <a href="${inviteLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;margin-top:10px;">Chấp nhận lời mời</a>
-              <p style="margin-top:20px;font-size:12px;color:#666;">Link này có hiệu lực trong 7 ngày.</p></div>`
-          );
-      }
+        } catch (modErr) {
+          console.error("[createJob] Background moderator notification error:", modErr.message);
+        }
+      })();
     }
 
     try {
@@ -224,7 +250,7 @@ exports.createJob = async (req, res) => {
         userId: req.user.id,
         title: requireTest ? `Đã tạo tin tuyển dụng (Chờ bài test): ${job.title}` : `Đăng tin tuyển dụng thành công: ${job.title}`,
         message: requireTest 
-          ? `Tin tuyển dụng "${job.title}" đã được tạo. Đang chờ chuyên gia Moderator hoàn thiện đề kiểm tra năng lực trước khi công khai.`
+          ? `Tin tuyển dụng "${job.title}" đã được tạo. Đang chờ chuyên gia Moderator hoàn thiện đề kiểm tra năng lực (${questionsCount} câu hỏi) trước khi công khai.`
           : `Tin tuyển dụng "${job.title}" đã được đăng thành công và sẵn sàng tiếp nhận hồ sơ ứng viên.`,
         type: 'general',
         link: '/bussiness/post-job'
@@ -239,20 +265,29 @@ exports.createJob = async (req, res) => {
 exports.updateJob = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, requirements, salary, deadline, location, type, experience, tags, benefits, status, requireTest, moderatorEmail, requirementCategories, useAiReview, vacancies } = req.body;
+    const { 
+      title, description, requirements, salary, deadline, location, type, 
+      experience, tags, benefits, status, requireTest, moderatorEmail, 
+      requirementCategories, useAiReview, vacancies, testQuestionsCount 
+    } = req.body;
+
     const job = await Job.findById(id);
     if (!job) return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
     if (String(job.recruiterId) !== String(req.user.id)) return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa tin này" });
 
+    const questionsCount = Number(testQuestionsCount) > 0 ? Number(testQuestionsCount) : (job.testQuestionsCount || 10);
+    const requiredTokens = questionsCount * 5;
+
     // CHECK VÀ TRỪ TIỀN NẾU ĐỔI TỪ KHÔNG TEST SANG CÓ TEST
     if (requireTest === true && !job.requireTest) {
         const businessUser = await User.findById(req.user.id);
-        if ((businessUser.businessCredits?.balance || 0) < 200) {
-            return res.status(402).json({ message: "Không đủ 200 Token để kích hoạt bài Test. Vui lòng nạp thêm!" });
+        if ((businessUser.businessCredits?.balance || 0) < requiredTokens) {
+            return res.status(402).json({ message: `Không đủ ${requiredTokens} Token để kích hoạt bài Test (${questionsCount} câu hỏi). Vui lòng nạp thêm!` });
         }
-        businessUser.businessCredits.balance -= 200;
+        businessUser.businessCredits.balance -= requiredTokens;
         await businessUser.save();
-        job.aiTokensQuota = (job.aiTokensQuota || 0) + 200;
+        job.aiTokensQuota = (job.aiTokensQuota || 0) + requiredTokens;
+        job.testQuestionsCount = questionsCount;
     }
 
     let parsedDeadline = job.recruitmentDeadline;
@@ -267,29 +302,36 @@ exports.updateJob = async (req, res) => {
     if (tags) job.tags = parseStringArray(tags); if (benefits) job.benefits = parseLines(benefits);
     if (requirementCategories) job.requirementCategories = requirementCategories; if (useAiReview !== undefined) job.useAiReview = useAiReview;
     if (requireTest !== undefined) job.requireTest = requireTest;
-    if (vacancies !== undefined) job.vacancies = vacancies; // <<< ĐẢM BẢO LƯU VACANCIES CẬP NHẬT
+    if (vacancies !== undefined) job.vacancies = vacancies;
+    if (testQuestionsCount !== undefined) job.testQuestionsCount = questionsCount;
     if (moderatorEmail !== undefined) job.moderatorEmail = moderatorEmail.toLowerCase().trim();
 
     if (job.requireTest) {
       if (job.testStatus !== 'approved') { job.testStatus = 'pending'; job.status = 'draft'; }
       if (job.moderatorEmail) {
-          const modUser = await User.findOne({ email: job.moderatorEmail });
-          if (modUser) {
-              if (modUser.role !== 'admin') { modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save(); }
-              // THÔNG BÁO CHO MODERATOR
-              await createNotification({
-                userId: modUser._id,
-                title: 'Yêu cầu tạo bài Test chuyên môn',
-                message: `Bạn được phân công xây dựng bài test cho vị trí "${job.title}".`,
-                type: 'moderator_request',
-                link: '/moderator/requests'
-              });
-          } else {
-              const inviteToken = jwt.sign({ email: job.moderatorEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
-              await Otp.create({ email: job.moderatorEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
-              const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite-accept?token=${inviteToken}`;
-              await sendEmail(job.moderatorEmail, "Lời mời làm Chuyên gia kiểm duyệt (Moderator) - Careerio", `<div style="font-family:Arial"><h2>Bạn nhận được lời mời làm Moderator</h2><p>Công ty tuyển dụng đã chỉ định bạn làm Chuyên gia kiểm duyệt.</p><a href="${inviteLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;margin-top:10px;">Chấp nhận lời mời</a></div>`);
+        (async () => {
+          try {
+            const modUser = await User.findOne({ email: job.moderatorEmail });
+            if (modUser) {
+                if (modUser.role !== 'admin') { modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save(); }
+                // THÔNG BÁO CHO MODERATOR
+                await createNotification({
+                  userId: modUser._id,
+                  title: 'Yêu cầu tạo bài Test chuyên môn',
+                  message: `Bạn được phân công xây dựng bài test cho vị trí "${job.title}".`,
+                  type: 'moderator_request',
+                  link: '/moderator/requests'
+                });
+            } else {
+                const inviteToken = jwt.sign({ email: job.moderatorEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
+                await Otp.create({ email: job.moderatorEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
+                const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite-accept?token=${inviteToken}`;
+                await sendEmail(job.moderatorEmail, "Lời mời làm Chuyên gia kiểm duyệt (Moderator) - Careerio", `<div style="font-family:Arial"><h2>Bạn nhận được lời mời làm Moderator</h2><p>Công ty tuyển dụng đã chỉ định bạn làm Chuyên gia kiểm duyệt.</p><a href="${inviteLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;margin-top:10px;">Chấp nhận lời mời</a></div>`);
+            }
+          } catch (err) {
+            console.error("[updateJob] Background moderator notification error:", err.message);
           }
+        })();
       }
     } else {
       job.testStatus = null; job.moderatorEmail = "";

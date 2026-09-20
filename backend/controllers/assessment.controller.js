@@ -21,8 +21,10 @@ exports.generateAI = async (req, res) => {
             currentJob = await Job.findById(jobId);
             if (!currentJob) return res.status(404).json({ message: "Không tìm thấy Job." });
             
-            if ((currentJob.aiTokensQuota || 0) < 50) {
-                return res.status(402).json({ message: "Hạn mức Token nội bộ của Job này đã hết. Vui lòng liên hệ Business nạp thêm." });
+            if ((currentJob.aiTokensQuota || 0) < tokenCost) {
+                return res.status(402).json({ 
+                    message: `Hạn mức Token nội bộ của Job này không đủ (Cần ${tokenCost} Token, hiện có ${currentJob.aiTokensQuota || 0} Token). Vui lòng liên hệ Business nạp thêm.` 
+                });
             }
         } else {
             // Trường hợp tạo Practice Topic (không gắn với Job)
@@ -47,7 +49,7 @@ exports.generateAI = async (req, res) => {
 
         // 3. NẾU AI THÀNH CÔNG -> MỚI TRỪ TOKEN (Admin hoàn toàn miễn phí, không trừ token)
         if (currentJob) {
-            currentJob.aiTokensQuota = Math.max(0, (currentJob.aiTokensQuota || 0) - 50);
+            currentJob.aiTokensQuota = Math.max(0, (currentJob.aiTokensQuota || 0) - tokenCost);
             await currentJob.save();
         } else if (currentUser && currentUser.role !== 'admin' && currentUser.businessCredits) {
             currentUser.businessCredits.balance = Math.max(0, (currentUser.businessCredits.balance || 0) - tokenCost);
@@ -56,7 +58,7 @@ exports.generateAI = async (req, res) => {
 
         res.json({ 
             questions, 
-            message: currentUser?.role === 'admin' ? "Tạo câu hỏi thành công (Đặc quyền Admin)" : `Tạo câu hỏi thành công (-${currentJob ? 50 : tokenCost} Token)`,
+            message: currentUser?.role === 'admin' ? "Tạo câu hỏi thành công (Đặc quyền Admin)" : `Tạo câu hỏi thành công (-${tokenCost} Token)`,
             remainingJobQuota: currentJob ? currentJob.aiTokensQuota : undefined,
             remainingTokens: currentUser?.role === 'admin' ? 999999 : currentUser?.businessCredits?.balance
         });
@@ -176,6 +178,34 @@ exports.getTestForCandidate = async (req, res) => {
     try {
         const test = await Assessment.findById(req.params.id).populate('jobId', 'title companyName companyLogo');
         if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
+
+        // Tự động ghi nhận thời gian bắt đầu làm bài và kiểm tra trạng thái
+        if (req.user?.id && test.jobId) {
+            try {
+                const jobId = test.jobId?._id || test.jobId;
+                const application = await Application.findOne({ userId: req.user.id, jobId }).sort({ createdAt: -1 });
+                
+                // NẾU ĐÃ HOÀN THÀNH BÀI THI -> CHẶN KHÔNG CHO VÀO LÀM LẠI
+                if (application && application.testStatus === 'Completed') {
+                    return res.status(400).json({ 
+                        message: "Bạn đã hoàn thành bài Test này rồi. Không thể làm lại!", 
+                        isCompleted: true,
+                        jobId: jobId,
+                        applicationId: application._id
+                    });
+                }
+
+                if (application && application.testStatus === 'Not_Started') {
+                    application.testStatus = 'In_Progress';
+                    if (!application.testStartedAt) application.testStartedAt = new Date();
+                    if (application.status === 'Applied') application.status = 'Testing';
+                    await application.save();
+                }
+            } catch (appErr) {
+                console.warn("Lỗi cập nhật testStatus In_Progress:", appErr.message);
+            }
+        }
+
         const safeTest = test.toObject();
         safeTest.questions = safeTest.questions.map(q => { delete q.correctAnswer; return q; });
         res.json(safeTest);
@@ -210,6 +240,9 @@ exports.submitTest = async (req, res) => {
         application.testDuration = duration || 0;
         application.tabSwitches = typeof tabSwitches === 'number' ? tabSwitches : (Number(tabSwitches) || 0);
         application.testSubmittedAt = new Date();
+        if (application.status === 'Applied') {
+            application.status = 'Testing';
+        }
         await application.save();
 
         const populatedApp = await Application.findById(application._id)

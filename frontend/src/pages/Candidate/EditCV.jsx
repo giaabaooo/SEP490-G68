@@ -63,18 +63,37 @@ const EditCV = () => {
   const [sectionOrder, setSectionOrder] = useState(defaultOrder);
   const [draggedItemIndex, setDraggedItemIndex] = useState(null);
 
-  const [data, setData] = useState({
-    personal: { fullName: '', jobTitle: '', email: '', phone: '', dob: '', gender: '', address: '', link: '', avatar: '' },
-    sectionTitles: {
-      objective: 'MỤC TIÊU NGHỀ NGHIỆP', education: 'HỌC VẤN', experience: 'KINH NGHIỆM LÀM VIỆC',
-      activities: 'HOẠT ĐỘNG', certificates: 'CHỨNG CHỈ', skills: 'KỸ NĂNG CHUYÊN MÔN', hobbies: 'SỞ THÍCH'
-    },
-    objective: '',
-    education: [{ school: '', major: '', time: '', description: '' }],
-    experience: [{ company: '', position: '', time: '', description: '' }],
-    activities: [{ organization: '', role: '', time: '', description: '' }],
-    certificates: [{ name: '', time: '' }],
-    skills: '', hobbies: ''
+  const [data, setData] = useState(() => {
+    let personalDefaults = { fullName: '', jobTitle: '', email: '', phone: '', dob: '', gender: '', address: '', link: '', avatar: '' };
+    try {
+      const u = JSON.parse(localStorage.getItem('user'));
+      if (u) {
+        personalDefaults = {
+          fullName: u.fullName || '',
+          jobTitle: u.targetPosition || '',
+          email: u.email || '',
+          phone: u.phone || '',
+          dob: '',
+          gender: '',
+          address: u.address || u.city || '',
+          link: '',
+          avatar: u.avatar || ''
+        };
+      }
+    } catch {}
+    return {
+      personal: personalDefaults,
+      sectionTitles: {
+        objective: 'MỤC TIÊU NGHỀ NGHIỆP', education: 'HỌC VẤN', experience: 'KINH NGHIỆM LÀM VIỆC',
+        activities: 'HOẠT ĐỘNG', certificates: 'CHỨNG CHỈ', skills: 'KỸ NĂNG CHUYÊN MÔN', hobbies: 'SỞ THÍCH'
+      },
+      objective: '',
+      education: [{ school: '', major: '', time: '', description: '' }],
+      experience: [{ company: '', position: '', time: '', description: '' }],
+      activities: [{ organization: '', role: '', time: '', description: '' }],
+      certificates: [{ name: '', time: '' }],
+      skills: '', hobbies: ''
+    };
   });
 
   // LOGIC AUTO-SCALE KHI CO KÉO MÀN HÌNH HOẶC ĐÓNG/MỞ MENU
@@ -116,7 +135,15 @@ const EditCV = () => {
     if (location.state?.cvData) {
       const dbCV = location.state.cvData;
       setCvId(dbCV._id);
-      setDesign(prev => ({ ...prev, ...dbCV.design }));
+      setDesign(prev => ({
+        ...prev, 
+        ...dbCV.design,
+        ...(location.state?.dynamicConfig ? {
+          color: location.state.dynamicConfig.primaryColor || dbCV.design?.color || prev.color,
+          font: location.state.dynamicConfig.fontFamily || dbCV.design?.font || prev.font,
+          layout: location.state.dynamicConfig.layout || dbCV.design?.layout || prev.layout
+        } : {})
+      }));
       setData(dbCV.data);
       if (dbCV.sectionOrder) setSectionOrder(dbCV.sectionOrder);
       
@@ -137,7 +164,13 @@ const EditCV = () => {
         certificates: aiData.certificates?.length ? aiData.certificates : prev.certificates,
         skills: aiData.skills || '', hobbies: aiData.hobbies || ''
       }));
-      toast.success('Dữ liệu đã trích xuất thành công!');
+      toast.success('AI đã tự động điền dữ liệu CV của bạn vào mẫu thành công!');
+    }
+    else if (location.state?.initialPersonal) {
+      setData(prev => ({
+        ...prev,
+        personal: { ...prev.personal, ...location.state.initialPersonal }
+      }));
     }
   }, [location]);
 

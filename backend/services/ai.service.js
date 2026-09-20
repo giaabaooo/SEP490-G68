@@ -13,12 +13,11 @@ const openai = new OpenAI({
 // Hàm gọi AI tích hợp "Smart Fallback"
 async function generateWithFallback(prompt, isJson = true, temp = null) {
     const modelsToTry = [
-        "gemini-2.5-pro",
         "gemini-2.0-flash",       
-        "gemini-1.5-pro-latest",
-        "gemini-1.5-flash-latest",
-        "gemini-1.5-pro",
         "gemini-1.5-flash",
+        "gemini-1.5-flash-latest",
+        "gemini-2.0-flash-lite",
+        "gemini-1.5-pro",
         "gemini-pro"
     ]; 
     
