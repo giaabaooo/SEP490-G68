@@ -13,12 +13,11 @@ const openai = new OpenAI({
 // Hàm gọi AI tích hợp "Smart Fallback"
 async function generateWithFallback(prompt, isJson = true, temp = null) {
     const modelsToTry = [
-        "gemini-2.0-flash",       
-        "gemini-1.5-flash",
-        "gemini-1.5-flash-latest",
-        "gemini-2.0-flash-lite",
-        "gemini-1.5-pro",
-        "gemini-pro"
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-pro"
     ]; 
     
     let lastError;
@@ -28,7 +27,7 @@ async function generateWithFallback(prompt, isJson = true, temp = null) {
             let temperature = temp !== null ? temp : (isJson ? 0.2 : 0.7); // Giảm temp xuống 0.2 để AI bớt "sáng tạo" format
             const generationConfig = { temperature: temperature };
                 
-            if (isJson && (modelName.includes("1.5") || modelName.includes("2.0") || modelName.includes("2.5"))) {
+            if (isJson) {
                 generationConfig.responseMimeType = "application/json";
             }
 
