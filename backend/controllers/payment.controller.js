@@ -3,40 +3,82 @@ const Transaction = require("../models/Transaction");
 const User = require("../models/User");
 const { createNotification } = require('../utils/notificationHelper');
 
-// Khai báo Key dự phòng. Nếu file .env lỗi, hệ thống vẫn dùng Key này để chạy.
-const CLIENT_ID = process.env.PAYOS_CLIENT_ID || "fed8fcd9-c101-475b-a168-c6fd357a04c2";
-const API_KEY = process.env.PAYOS_API_KEY || "79255c09-107a-4fb4-a4a2-41499132fa14";
-const CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY || "ff824e14c8657f3d1a04378b32ad94f6c865c6cea78f9a56893228116a9b9828";
+// Cấu hình PayOS qua biến môi trường (KHÔNG để fallback hardcode trong source)
+const CLIENT_ID = process.env.PAYOS_CLIENT_ID;
+const API_KEY = process.env.PAYOS_API_KEY;
+const CHECKSUM_KEY = process.env.PAYOS_CHECKSUM_KEY;
 
-// Khởi tạo SDK PayOS duy nhất 1 lần (Bản 1.0.10 hoạt động hoàn hảo với cú pháp này)
-const payos = new PayOS(CLIENT_ID, API_KEY, CHECKSUM_KEY);
+// Khởi tạo SDK PayOS nếu có đủ biến môi trường
+let payos = null;
+if (CLIENT_ID && API_KEY && CHECKSUM_KEY) {
+  try {
+    payos = new PayOS(CLIENT_ID, API_KEY, CHECKSUM_KEY);
+  } catch (err) {
+    console.error("❌ Lỗi khởi tạo PayOS SDK:", err.message);
+  }
+} else {
+  console.warn("⚠️ Cảnh báo: Chưa cấu hình biến môi trường PayOS (PAYOS_CLIENT_ID, PAYOS_API_KEY, PAYOS_CHECKSUM_KEY).");
+}
 
 // 1. Tạo Link Thanh Toán
 exports.createPaymentLink = async (req, res) => {
   try {
+    if (!payos) {
+      return res.status(500).json({ 
+        message: "Hệ thống thanh toán PayOS chưa được cấu hình biến môi trường trên server." 
+      });
+    }
+
     const userId = req.user.id || req.user._id;
     const { planType, amount, tokens } = req.body;
 
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: "Không tìm thấy người dùng." });
 
+    // Xác thực và chuẩn hóa giá trị gói nạp server-side (Chống giả mạo số tiền/token từ phía client)
+    let finalAmount = Number(amount);
+    let finalTokens = 0;
+    let planDescription = "";
+    let itemName = "";
+
+    if (planType === "CANDIDATE_PRO") {
+      finalAmount = 59000;
+      finalTokens = 0;
+      planDescription = "Nang cap Pro";
+      itemName = "Goi Pro Candidate";
+    } else if (planType === "BUSINESS_TOPUP") {
+      const allowedBusinessPackages = {
+        100000: 1000,
+        200000: 2200,
+        500000: 6000
+      };
+      if (!allowedBusinessPackages[finalAmount]) {
+        return res.status(400).json({ message: "Gói nạp Token Doanh nghiệp không hợp lệ." });
+      }
+      finalTokens = allowedBusinessPackages[finalAmount];
+      planDescription = `Nap ${finalTokens} Token`;
+      itemName = `Goi ${finalTokens} Token AI`;
+    } else {
+      return res.status(400).json({ message: "Gói dịch vụ không hợp lệ." });
+    }
+
     // Tạo orderCode ngẫu nhiên dạng số (Yêu cầu bắt buộc của PayOS)
     const orderCode = Number(String(Date.now()).slice(-6) + Math.floor(Math.random() * 899 + 100));
-    
-    let description = planType === "CANDIDATE_PRO" ? "Nang cap Pro" : `Nap ${tokens || 0} Token`;
 
-    const returnUrl = `http://localhost:5173/payment/success?orderCode=${orderCode}`;
-    const cancelUrl = `http://localhost:5173/upgrade`;
+    // Cấu hình URL trả về linh hoạt theo môi trường (Production / Localhost)
+    const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || "http://localhost:5173").replace(/\/+$/, "");
+    const returnUrl = `${frontendUrl}/payment/success?orderCode=${orderCode}`;
+    const cancelUrl = `${frontendUrl}/upgrade`;
 
     const body = {
       orderCode,
-      amount: Number(amount),
-      description: description.substring(0, 25), // PayOS giới hạn độ dài description 25 ký tự
+      amount: finalAmount,
+      description: planDescription.substring(0, 25), // PayOS giới hạn độ dài description 25 ký tự
       items: [
         {
-          name: planType === "CANDIDATE_PRO" ? "Goi Pro Candidate" : `Goi ${tokens} Token AI`,
+          name: itemName,
           quantity: 1,
-          price: Number(amount),
+          price: finalAmount,
         },
       ],
       returnUrl,
@@ -50,10 +92,10 @@ exports.createPaymentLink = async (req, res) => {
     await Transaction.create({
       userId,
       orderCode,
-      amount: Number(amount),
-      description,
+      amount: finalAmount,
+      description: planDescription,
       planType,
-      tokensAdded: tokens || 0,
+      tokensAdded: finalTokens,
       paymentLinkId: paymentLinkData.paymentLinkId,
       status: "PENDING",
     });
@@ -68,6 +110,10 @@ exports.createPaymentLink = async (req, res) => {
 // 2. Webhook / Callback xử lý khi PayOS chuyển khoản thành công
 exports.handleWebhook = async (req, res) => {
   try {
+    if (!payos) {
+      return res.status(500).json({ success: false, message: "Hệ thống PayOS chưa được cấu hình trên server." });
+    }
+
     const webhookData = payos.verifyPaymentWebhookData(req.body);
 
     if (webhookData && webhookData.code === "00") {
@@ -151,6 +197,10 @@ exports.checkPaymentStatus = async (req, res) => {
       return res.json({ status: "PAID", message: "Giao dịch đã thanh toán thành công." });
     }
 
+    if (!payos) {
+      return res.status(500).json({ message: "Hệ thống PayOS chưa được cấu hình trên server." });
+    }
+
     // Double check với server PayOS nếu Webhook chưa kịp chạy
     const paymentInfo = await payos.getPaymentLinkInformation(currentTx.orderCode);
 
@@ -229,10 +279,28 @@ exports.getUserUsageInfo = async (req, res) => {
 
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    // Kiểm tra hết hạn gói Candidate Pro
-    if (user.role === "candidate" && user.subscription.plan === "pro") {
-      if (user.subscription.endDate && new Date() > new Date(user.subscription.endDate)) {
+    // Kiểm tra hết hạn gói Candidate Pro & Chu kỳ reset 30 ngày
+    if (user.role === "candidate") {
+      let shouldSave = false;
+      const now = new Date();
+
+      if (user.subscription?.plan === "pro" && user.subscription.endDate && now > new Date(user.subscription.endDate)) {
         user.subscription.plan = "free";
+        shouldSave = true;
+      }
+
+      // Chu kỳ reset hạn mức 30 ngày
+      const lastReset = new Date(user.subscription?.usage?.lastResetDate || now);
+      if (now - lastReset > 30 * 24 * 60 * 60 * 1000) {
+        if (!user.subscription.usage) user.subscription.usage = {};
+        user.subscription.usage.cvReviewCount = 0;
+        user.subscription.usage.mockInterviewMinutes = 0;
+        user.subscription.usage.roadmapCount = 0;
+        user.subscription.usage.lastResetDate = now;
+        shouldSave = true;
+      }
+
+      if (shouldSave) {
         await user.save();
       }
     }

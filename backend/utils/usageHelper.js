@@ -9,8 +9,17 @@ exports.checkCandidateLimit = async (userId, feature) => {
     if (user.role !== 'candidate') return true;
 
     const now = new Date();
-    const lastReset = new Date(user.subscription?.usage?.lastResetDate || now);
-    
+    if (!user.subscription) user.subscription = { plan: 'free' };
+    if (!user.subscription.usage) {
+        user.subscription.usage = {
+            cvReviewCount: 0,
+            mockInterviewMinutes: 0,
+            roadmapCount: 0,
+            lastResetDate: now
+        };
+    }
+
+    const lastReset = new Date(user.subscription.usage.lastResetDate || now);
     if (now - lastReset > 30 * 24 * 60 * 60 * 1000) {
         user.subscription.usage.cvReviewCount = 0;
         user.subscription.usage.mockInterviewMinutes = 0;
@@ -18,22 +27,22 @@ exports.checkCandidateLimit = async (userId, feature) => {
         user.subscription.usage.lastResetDate = now;
     }
 
-    const isPro = user.subscription.plan === 'pro' && user.subscription.endDate > now;
+    const isPro = user.subscription.plan === 'pro' && user.subscription.endDate && new Date(user.subscription.endDate) > now;
 
     if (feature === 'cv_review') {
         const limit = isPro ? 50 : 2;
-        if (user.subscription.usage.cvReviewCount >= limit) throw new Error('LIMIT_EXCEEDED');
-        user.subscription.usage.cvReviewCount += 1;
+        if ((user.subscription.usage.cvReviewCount || 0) >= limit) throw new Error('LIMIT_EXCEEDED');
+        user.subscription.usage.cvReviewCount = (user.subscription.usage.cvReviewCount || 0) + 1;
     } 
     else if (feature === 'interview') {
         const limit = isPro ? 180 : 15;
-        if (user.subscription.usage.mockInterviewMinutes >= limit) throw new Error('LIMIT_EXCEEDED');
-        user.subscription.usage.mockInterviewMinutes += 1; 
+        if ((user.subscription.usage.mockInterviewMinutes || 0) >= limit) throw new Error('LIMIT_EXCEEDED');
+        user.subscription.usage.mockInterviewMinutes = (user.subscription.usage.mockInterviewMinutes || 0) + 1; 
     } 
     else if (feature === 'roadmap') {
         const limit = isPro ? 20 : 1;
-        if (user.subscription.usage.roadmapCount >= limit) throw new Error('LIMIT_EXCEEDED');
-        user.subscription.usage.roadmapCount += 1;
+        if ((user.subscription.usage.roadmapCount || 0) >= limit) throw new Error('LIMIT_EXCEEDED');
+        user.subscription.usage.roadmapCount = (user.subscription.usage.roadmapCount || 0) + 1;
     }
 
     await user.save();

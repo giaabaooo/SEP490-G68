@@ -48,6 +48,7 @@ app.use(
         allowedOrigins.includes(origin) ||
         origin.endsWith(".vercel.app") ||
         (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) ||
+        (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) ||
         process.env.NODE_ENV !== "production";
       if (isAllowed) {
         callback(null, true);

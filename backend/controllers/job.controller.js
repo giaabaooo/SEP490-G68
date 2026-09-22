@@ -201,6 +201,8 @@ exports.createJob = async (req, res) => {
           const recruiterUser = await User.findById(req.user.id).select("fullName companyName");
           const companyDisplayName = recruiterUser?.companyName || recruiterUser?.fullName || "Doanh nghiệp";
 
+          const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, "");
+
           if (modUser) {
               if (modUser.role !== 'admin') {
                   modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save();
@@ -222,13 +224,13 @@ exports.createJob = async (req, res) => {
                   <p>Xin chào,</p>
                   <p>Nhà tuyển dụng <strong>${companyDisplayName}</strong> đã chỉ định bạn làm Chuyên gia kiểm duyệt và xây dựng bài test (${questionsCount} câu hỏi) cho vị trí: <strong>${job.title}</strong>.</p>
                   <p>Vui lòng đăng nhập hệ thống để xem chi tiết JD và tiến hành biên soạn bộ đề.</p>
-                  <a href="${process.env.CLIENT_URL || 'http://localhost:5173'}/moderator/requests" style="display:inline-block;background:#059669;color:#fff;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:12px;">Xem yêu cầu tạo Test</a>
+                  <a href="${frontendUrl}/moderator/requests" style="display:inline-block;background:#059669;color:#fff;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:12px;">Xem yêu cầu tạo Test</a>
                 </div>`
               );
           } else {
               const inviteToken = jwt.sign({ email: normalizedModEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
               await Otp.create({ email: normalizedModEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
-              const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite-accept?token=${inviteToken}`;
+              const inviteLink = `${frontendUrl}/invite-accept?token=${inviteToken}`;
               
               await sendEmail(
                   normalizedModEmail, "Lời mời làm Chuyên gia kiểm duyệt (Moderator) - Careerio",
