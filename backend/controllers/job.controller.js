@@ -42,7 +42,7 @@ const serializeJob = async (job) => {
     type: job.type || "Full-time", experience: job.experience || "Không yêu cầu kinh nghiệm",
     salary: job.salary || "", tags: Array.isArray(job.tags) ? job.tags : parseStringArray(job.tags),
     benefits: Array.isArray(job.benefits) ? job.benefits : parseLines(job.benefits),
-    status: job.status === "active" ? "Active" : job.status === "draft" ? "Draft" : "Closed",
+    status: job.status === "active" ? "Active" : job.status === "pending" ? "Pending" : job.status === "draft" ? "Draft" : "Closed",
     deadline: job.recruitmentDeadline ? job.recruitmentDeadline.toISOString() : null,
     postedAt: job.createdAt, recruiterId: recruiter?._id || job.recruiterId,
     vacancies: job.vacancies || 1, // <<< SỬA Ở ĐÂY
@@ -151,50 +151,96 @@ exports.createJob = async (req, res) => {
   try {
     const { 
       title, description, requirements, salary, deadline, location, type, 
-      experience, tags, benefits, requireTest, moderatorEmail, requirementCategories, 
+      experience, tags, benefits, status, isDraft: isDraftReq, requireTest, moderatorEmail, requirementCategories, 
       useAiReview, vacancies, testQuestionsCount 
     } = req.body;
     
-    if (!title || !description || !requirements || !deadline) return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin" });
+    const isDraft = status === 'draft' || isDraftReq === true;
 
-    const parsedDeadline = parseDeadline(deadline);
-    if (!parsedDeadline) return res.status(400).json({ message: "Ngày hết hạn không hợp lệ" });
+    if (!title?.trim()) {
+      return res.status(400).json({ message: "Vui lòng nhập tiêu đề công việc" });
+    }
+
+    if (!isDraft) {
+      if (!description?.trim() || !requirements?.trim() || !deadline) {
+        return res.status(400).json({ message: "Vui lòng nhập đầy đủ thông tin (*)" });
+      }
+    }
+
+    const parsedDeadline = deadline ? parseDeadline(deadline) : null;
+    if (!isDraft && !parsedDeadline) {
+      return res.status(400).json({ message: "Ngày hết hạn không hợp lệ" });
+    }
+
+    const safeDescription = description?.trim() || "Bản nháp đang soạn thảo...";
+    const safeRequirements = requirements?.trim() || "- Đang cập nhật yêu cầu...";
+    const safeDeadline = parsedDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const normalizedModEmail = moderatorEmail ? moderatorEmail.toLowerCase().trim() : "";
-    const finalStatus = requireTest ? "draft" : "active";
-    
     const questionsCount = Number(testQuestionsCount) > 0 ? Number(testQuestionsCount) : 10;
     const requiredTokens = questionsCount * 5;
+
+    let finalStatus = "active";
+    let finalTestStatus = null;
     let aiTokensQuota = 0;
 
-    // 1. TRỪ TOKEN TẠO BÀI TEST THEO SỐ LƯỢNG CÂU HỎI QUY ĐỔI (5 Token / 1 câu)
-    if (requireTest) {
-      const businessUser = await User.findById(req.user.id);
-      if ((businessUser.businessCredits?.balance || 0) < requiredTokens) {
-        return res.status(402).json({ 
-          message: `Số dư ví hiện tại không đủ ${requiredTokens} Token để cấp hạn mức bài Test (${questionsCount} câu hỏi). Vui lòng nạp thêm!` 
-        });
+    if (isDraft) {
+      // 1. KHI LƯU NHÁP:
+      // - Luôn đặt status = "draft"
+      // - testStatus = null (chưa gửi yêu cầu duyệt tới moderator)
+      // - KHÔNG trừ Token trong ví HR
+      // - KHÔNG gửi email/thông báo cho Moderator
+      finalStatus = "draft";
+      finalTestStatus = null;
+      aiTokensQuota = 0;
+    } else {
+      // 2. KHI ĐĂNG JOB THẬT SỰ HOẶC GỬI YÊU CẦU TEST:
+      if (requireTest) {
+        finalStatus = "pending"; // Chờ moderator duyệt test trước khi active
+        finalTestStatus = "pending";
+
+        // Kiểm tra và trừ Token
+        const businessUser = await User.findById(req.user.id);
+        if ((businessUser.businessCredits?.balance || 0) < requiredTokens) {
+          return res.status(402).json({ 
+            message: `Số dư ví hiện tại không đủ ${requiredTokens} Token để cấp hạn mức bài Test (${questionsCount} câu hỏi). Vui lòng nạp thêm!` 
+          });
+        }
+        businessUser.businessCredits.balance -= requiredTokens;
+        await businessUser.save();
+        aiTokensQuota = requiredTokens;
+      } else {
+        finalStatus = "active";
+        finalTestStatus = null;
+        aiTokensQuota = 0;
       }
-      businessUser.businessCredits.balance -= requiredTokens;
-      await businessUser.save();
-      aiTokensQuota = requiredTokens; 
     }
 
     const job = await Job.create({
-      recruiterId: req.user.id, title, description, requirements, location: location || "",
-      type: type || "Full-time", experience: experience || "Không yêu cầu kinh nghiệm",
-      salary: salary || "", tags: parseStringArray(tags), benefits: parseLines(benefits),
-      recruitmentDeadline: parsedDeadline, status: finalStatus, requireTest: requireTest || false,
-      moderatorEmail: normalizedModEmail, testStatus: requireTest ? "pending" : null,
+      recruiterId: req.user.id,
+      title: title.trim(),
+      description: safeDescription,
+      requirements: safeRequirements,
+      location: location || "",
+      type: type || "Full-time",
+      experience: experience || "Không yêu cầu kinh nghiệm",
+      salary: salary || "",
+      tags: parseStringArray(tags),
+      benefits: parseLines(benefits),
+      recruitmentDeadline: safeDeadline,
+      status: finalStatus,
+      requireTest: requireTest || false,
+      moderatorEmail: normalizedModEmail,
+      testStatus: finalTestStatus,
       vacancies: vacancies || 1,
-      aiTokensQuota: aiTokensQuota, 
+      aiTokensQuota: aiTokensQuota,
       testQuestionsCount: questionsCount,
-      requirementCategories: requirementCategories || [], 
+      requirementCategories: requirementCategories || [],
       useAiReview: useAiReview !== false
     });
 
-    // 2. GỬI THÔNG BÁO & EMAIL NỀN BẤT ĐỒNG BỘ (KHÔNG CHẶN HTTP RESPONSE ĐỂ TRÁNH TIMEOUT)
-    if (requireTest && normalizedModEmail) {
+    // CHỈ GỬI EMAIL & THÔNG BÁO CHO MODERATOR NẾU KHÔNG PHẢI LÀ BẢN NHÁP VÀ CÓ YÊU CẦU TEST
+    if (!isDraft && requireTest && normalizedModEmail) {
       (async () => {
         try {
           const modUser = await User.findOne({ email: normalizedModEmail });
@@ -250,18 +296,27 @@ exports.createJob = async (req, res) => {
     try {
       await createNotification({
         userId: req.user.id,
-        title: requireTest ? `Đã tạo công việc (Chờ bài test): ${job.title}` : `Tạo công việc thành công: ${job.title}`,
-        message: requireTest 
-          ? `Công việc "${job.title}" đã được tạo. Đang chờ chuyên gia Moderator hoàn thiện đề kiểm tra năng lực (${questionsCount} câu hỏi) trước khi công khai.`
-          : `Công việc "${job.title}" đã được đăng thành công và sẵn sàng tiếp nhận hồ sơ ứng viên.`,
+        title: isDraft 
+          ? `Đã lưu bản nháp: ${job.title}`
+          : (requireTest ? `Đã gửi yêu cầu tạo bài test: ${job.title}` : `Đăng công việc thành công: ${job.title}`),
+        message: isDraft
+          ? `Bản nháp công việc "${job.title}" đã được lưu thành công. Bạn có thể quay lại chỉnh sửa và xuất bản bất kỳ lúc nào.`
+          : (requireTest 
+              ? `Công việc "${job.title}" đã được tạo. Đang chờ chuyên gia Moderator hoàn thiện đề kiểm tra năng lực (${questionsCount} câu hỏi) trước khi công khai.`
+              : `Công việc "${job.title}" đã được đăng thành công và sẵn sàng tiếp nhận hồ sơ ứng viên.`),
         type: 'general',
         link: '/bussiness/post-job'
       });
     } catch (notifErr) {}
 
     const formattedJob = await serializeJob(job);
-    res.status(201).json({ message: "Tạo công việc thành công", job: formattedJob });
-  } catch (error) { res.status(500).json({ message: error.message }); }
+    res.status(201).json({ 
+      message: isDraft ? "Đã lưu bản nháp thành công" : "Tạo công việc thành công", 
+      job: formattedJob 
+    });
+  } catch (error) { 
+    res.status(500).json({ message: error.message }); 
+  }
 };
 
 exports.updateJob = async (req, res) => {
@@ -269,7 +324,7 @@ exports.updateJob = async (req, res) => {
     const { id } = req.params;
     const { 
       title, description, requirements, salary, deadline, location, type, 
-      experience, tags, benefits, status, requireTest, moderatorEmail, 
+      experience, tags, benefits, status, isDraft: isDraftReq, requireTest, moderatorEmail, 
       requirementCategories, useAiReview, vacancies, testQuestionsCount 
     } = req.body;
 
@@ -277,20 +332,9 @@ exports.updateJob = async (req, res) => {
     if (!job) return res.status(404).json({ message: "Không tìm thấy công việc" });
     if (String(job.recruiterId) !== String(req.user.id)) return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa tin này" });
 
+    const isDraft = status === 'draft' || isDraftReq === true;
     const questionsCount = Number(testQuestionsCount) > 0 ? Number(testQuestionsCount) : (job.testQuestionsCount || 10);
     const requiredTokens = questionsCount * 5;
-
-    // CHECK VÀ TRỪ TIỀN NẾU ĐỔI TỪ KHÔNG TEST SANG CÓ TEST
-    if (requireTest === true && !job.requireTest) {
-        const businessUser = await User.findById(req.user.id);
-        if ((businessUser.businessCredits?.balance || 0) < requiredTokens) {
-            return res.status(402).json({ message: `Không đủ ${requiredTokens} Token để kích hoạt bài Test (${questionsCount} câu hỏi). Vui lòng nạp thêm!` });
-        }
-        businessUser.businessCredits.balance -= requiredTokens;
-        await businessUser.save();
-        job.aiTokensQuota = (job.aiTokensQuota || 0) + requiredTokens;
-        job.testQuestionsCount = questionsCount;
-    }
 
     let parsedDeadline = job.recruitmentDeadline;
     if (deadline) {
@@ -298,56 +342,101 @@ exports.updateJob = async (req, res) => {
       if (!parsedDeadline) return res.status(400).json({ message: "Ngày hết hạn không hợp lệ" });
     }
 
-    job.title = title || job.title; job.description = description || job.description; job.requirements = requirements || job.requirements; 
-    job.location = location || job.location; job.type = type || job.type; job.experience = experience || job.experience;
-    job.salary = salary || job.salary; job.recruitmentDeadline = parsedDeadline;
-    if (tags) job.tags = parseStringArray(tags); if (benefits) job.benefits = parseLines(benefits);
-    if (requirementCategories) job.requirementCategories = requirementCategories; if (useAiReview !== undefined) job.useAiReview = useAiReview;
-    if (requireTest !== undefined) job.requireTest = requireTest;
+    job.title = title !== undefined ? title : job.title;
+    job.description = description !== undefined ? description : job.description;
+    job.requirements = requirements !== undefined ? requirements : job.requirements;
+    job.location = location !== undefined ? location : job.location;
+    job.type = type !== undefined ? type : job.type;
+    job.experience = experience !== undefined ? experience : job.experience;
+    job.salary = salary !== undefined ? salary : job.salary;
+    job.recruitmentDeadline = parsedDeadline;
+    if (tags !== undefined) job.tags = parseStringArray(tags);
+    if (benefits !== undefined) job.benefits = parseLines(benefits);
+    if (requirementCategories !== undefined) job.requirementCategories = requirementCategories;
+    if (useAiReview !== undefined) job.useAiReview = useAiReview;
     if (vacancies !== undefined) job.vacancies = vacancies;
     if (testQuestionsCount !== undefined) job.testQuestionsCount = questionsCount;
     if (moderatorEmail !== undefined) job.moderatorEmail = moderatorEmail.toLowerCase().trim();
 
-    if (job.requireTest) {
-      if (job.testStatus !== 'approved') { job.testStatus = 'pending'; job.status = 'draft'; }
-      if (job.moderatorEmail) {
-        (async () => {
-          try {
-            const modUser = await User.findOne({ email: job.moderatorEmail });
-            if (modUser) {
-                if (modUser.role !== 'admin') { modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save(); }
-                // THÔNG BÁO CHO MODERATOR
-                await createNotification({
-                  userId: modUser._id,
-                  title: 'Yêu cầu tạo bài Test chuyên môn',
-                  message: `Bạn được phân công xây dựng bài test cho vị trí "${job.title}".`,
-                  type: 'moderator_request',
-                  link: '/moderator/requests'
-                });
-            } else {
-                const inviteToken = jwt.sign({ email: job.moderatorEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
-                await Otp.create({ email: job.moderatorEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
-                const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite-accept?token=${inviteToken}`;
-                await sendEmail(job.moderatorEmail, "Lời mời làm Chuyên gia kiểm duyệt (Moderator) - Careerio", `<div style="font-family:Arial"><h2>Bạn nhận được lời mời làm Moderator</h2><p>Công ty tuyển dụng đã chỉ định bạn làm Chuyên gia kiểm duyệt.</p><a href="${inviteLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;margin-top:10px;">Chấp nhận lời mời</a></div>`);
-            }
-          } catch (err) {
-            console.error("[updateJob] Background moderator notification error:", err.message);
-          }
-        })();
+    const targetRequireTest = requireTest !== undefined ? requireTest : job.requireTest;
+    job.requireTest = targetRequireTest;
+
+    if (!targetRequireTest) {
+      job.testStatus = null;
+      job.moderatorEmail = "";
+      if (isDraft || status === 'draft') {
+        job.status = 'draft';
+      } else if (status) {
+        job.status = status;
+      } else if (job.status === 'draft' || job.status === 'pending') {
+        job.status = 'active'; // Nếu chuyển từ draft/pending sang đăng job
       }
     } else {
-      job.testStatus = null; job.moderatorEmail = "";
+      // CÓ YÊU CẦU TEST:
+      if (isDraft || status === 'draft') {
+        // Lưu nháp: giữ status = 'draft', testStatus = null (nếu chưa được duyệt)
+        job.status = 'draft';
+        if (job.testStatus !== 'approved') {
+          job.testStatus = null;
+        }
+      } else {
+        // KHÔNG PHẢI LƯU NHÁP -> Người dùng bấm "Lưu & Gửi Yêu CẦU Test" hoặc "Xuất bản":
+        if (job.testStatus !== 'approved') {
+          // Cần gửi yêu cầu tới moderator
+          const needsTokens = (job.aiTokensQuota || 0) < requiredTokens;
+          if (needsTokens) {
+            const tokensToDeduct = requiredTokens - (job.aiTokensQuota || 0);
+            const businessUser = await User.findById(req.user.id);
+            if ((businessUser.businessCredits?.balance || 0) < tokensToDeduct) {
+              return res.status(402).json({ 
+                message: `Số dư ví không đủ ${tokensToDeduct} Token để kích hoạt bài Test (${questionsCount} câu hỏi). Vui lòng nạp thêm!` 
+              });
+            }
+            businessUser.businessCredits.balance -= tokensToDeduct;
+            await businessUser.save();
+            job.aiTokensQuota = requiredTokens;
+          }
+
+          const wasPending = job.testStatus === 'pending';
+          job.testStatus = 'pending';
+          job.status = 'pending'; // Đang chờ SME duyệt test
+
+          // Gửi thông báo/email cho moderator nếu chưa từng gửi hoặc moderator thay đổi
+          if (job.moderatorEmail && !wasPending) {
+            (async () => {
+              try {
+                const modUser = await User.findOne({ email: job.moderatorEmail });
+                if (modUser) {
+                  if (modUser.role !== 'admin') { modUser.role = "business"; modUser.subRole = "moderator"; await modUser.save(); }
+                  await createNotification({
+                    userId: modUser._id,
+                    title: 'Yêu cầu tạo bài Test chuyên môn',
+                    message: `Bạn được phân công xây dựng bài test (${questionsCount} câu hỏi) cho vị trí "${job.title}".`,
+                    type: 'moderator_request',
+                    link: '/moderator/requests'
+                  });
+                } else {
+                  const inviteToken = jwt.sign({ email: job.moderatorEmail, role: 'business', subRole: 'moderator' }, process.env.JWT_SECRET, { expiresIn: '7d' });
+                  await Otp.create({ email: job.moderatorEmail, otp: 'INVITE', data: { purpose: 'moderator-invite', token: inviteToken } });
+                  const inviteLink = `${process.env.CLIENT_URL || 'http://localhost:5173'}/invite-accept?token=${inviteToken}`;
+                  await sendEmail(job.moderatorEmail, "Lời mời làm Chuyên gia kiểm duyệt (Moderator) - Careerio", `<div style="font-family:Arial"><h2>Bạn nhận được lời mời làm Moderator</h2><p>Công ty tuyển dụng đã chỉ định bạn làm Chuyên gia kiểm duyệt.</p><a href="${inviteLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;text-decoration:none;border-radius:5px;margin-top:10px;">Chấp nhận lời mời</a></div>`);
+                }
+              } catch (err) {
+                console.error("[updateJob] Background moderator notification error:", err.message);
+              }
+            })();
+          }
+        } else {
+          // Bài test đã approved, có thể active
+          job.status = status || 'active';
+        }
+      }
     }
 
-    if (status && ["active", "draft", "closed"].includes(status)) {
-      if (job.requireTest && job.testStatus !== 'approved') {
-        job.status = status === 'closed' ? 'closed' : 'draft';
-      } else {
-        job.status = status;
-      }
-
+    if (status === 'closed') {
+      job.status = 'closed';
       // THÔNG BÁO CHO MODERATOR NẾU TIN TUYỂN DỤNG ĐÓNG
-      if (status === 'closed' && job.moderatorEmail) {
+      if (job.moderatorEmail) {
         const modUser = await User.findOne({ email: job.moderatorEmail });
         if (modUser) {
           await createNotification({
@@ -363,8 +452,13 @@ exports.updateJob = async (req, res) => {
 
     await job.save();
     const formattedJob = await serializeJob(job);
-    res.status(200).json({ message: "Cập nhật công việc thành công", job: formattedJob });
-  } catch (error) { res.status(500).json({ message: error.message }); }
+    res.status(200).json({ 
+      message: isDraft ? "Đã lưu bản nháp thành công" : "Cập nhật công việc thành công", 
+      job: formattedJob 
+    });
+  } catch (error) { 
+    res.status(500).json({ message: error.message }); 
+  }
 };
 
 exports.getModeratorRequests = async (req, res) => {
@@ -375,6 +469,7 @@ exports.getModeratorRequests = async (req, res) => {
     const normalizedEmail = currentUser.email ? currentUser.email.toLowerCase().trim() : "";
     const jobs = await Job.find({ 
       requireTest: true, 
+      testStatus: { $in: ["pending", "approved"] },
       moderatorEmail: { $regex: new RegExp(`^${normalizedEmail}$`, 'i') } 
     })
       .populate("recruiterId", "fullName email companyName")

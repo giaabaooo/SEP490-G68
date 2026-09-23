@@ -194,23 +194,31 @@ const PostJob = () => {
                         <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center bg-red-100 text-red-600">
                           <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500"></span> Hết hạn
                         </span>
-                      ) : job.requireTest ? (
-                        job.testStatus === 'pending' ? (
-                          <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center bg-amber-100 text-amber-700">
-                            <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-amber-500 animate-pulse"></span> Đang chờ SME
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center bg-emerald-100 text-emerald-700">
-                            <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-emerald-500"></span> Đã Duyệt
-                          </span>
-                        )
                       ) : (
                         <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${
                           jobStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : 
-                          jobStatus === 'draft' ? 'bg-slate-100 text-black' : 'bg-red-100 text-red-600'
+                          jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                            ? 'bg-amber-100 text-amber-700'
+                            : jobStatus === 'draft'
+                            ? 'bg-slate-100 text-slate-700'
+                            : 'bg-red-100 text-red-600'
                         }`}>
-                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${jobStatus === 'active' ? 'bg-emerald-500' : jobStatus === 'draft' ? 'bg-slate-400' : 'bg-red-500'}`}></span>
-                          {jobStatus === 'active' ? 'Hoạt động' : jobStatus === 'draft' ? 'Bản nháp' : 'Đã đóng'}
+                          <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                            jobStatus === 'active' ? 'bg-emerald-500' : 
+                            jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                              ? 'bg-amber-500 animate-pulse'
+                              : jobStatus === 'draft'
+                              ? 'bg-slate-400'
+                              : 'bg-red-500'
+                          }`}></span>
+                          {
+                            jobStatus === 'active' ? (job.requireTest ? 'Đã duyệt test' : 'Hoạt động') : 
+                            jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                              ? 'Đang chờ SME'
+                              : jobStatus === 'draft'
+                              ? 'Bản nháp'
+                              : 'Đã đóng'
+                          }
                         </span>
                       )}
                     </td>

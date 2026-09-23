@@ -149,62 +149,66 @@ const EditJob = () => {
   const handleSubmit = async (e, isDraft = false) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    // 0. KIỂM TRA HẠN MỨC TOKEN ĐẦU TIÊN NẾU BẬT YÊU CẦU TEST
-    if (formData.requireTest && !hasEnoughTokens) {
+    // 0. CHỈ KIỂM TRA HẠN MỨC TOKEN NẾU GỬI YÊU CẦU TEST CHÍNH THỨC (KHÔNG PHẢI LƯU NHÁP)
+    if (!isDraft && formData.requireTest && !hasEnoughTokens) {
       setShowTokenModal(true);
       return toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để lưu yêu cầu Test!`);
     }
 
-    // 1. VALIDATE THÔNG TIN CƠ BẢN
+    // 1. TIÊU ĐỀ LÀ BẮT BUỘC (KỂ CẢ KHI LƯU NHÁP)
     if (!formData.title?.trim()) return toast.error('Vui lòng nhập tiêu đề công việc (*)');
-    if (!formData.vacancies || Number(formData.vacancies) <= 0) return toast.error('Số lượng tuyển dụng phải lớn hơn 0 (*)');
-    if (!formData.deadline) return toast.error('Vui lòng chọn hạn nộp hồ sơ (*)');
 
-    const deadlineDate = new Date(formData.deadline);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (deadlineDate < today) {
-      return toast.error('Hạn nộp hồ sơ không được là ngày trong quá khứ (*)');
-    }
+    // NẾU KHÔNG PHẢI LƯU NHÁP, BẮT BUỘC ĐIỀN ĐỦ TOÀN BỘ CÁC MỤC
+    if (!isDraft) {
+      if (!formData.vacancies || Number(formData.vacancies) <= 0) return toast.error('Số lượng tuyển dụng phải lớn hơn 0 (*)');
+      if (!formData.deadline) return toast.error('Vui lòng chọn hạn nộp hồ sơ (*)');
 
-    if (!formData.salary?.trim()) return toast.error('Vui lòng nhập mức lương (*)');
-    if (!formData.type) return toast.error('Vui lòng chọn loại hình làm việc (*)');
-    if (!formData.location) return toast.error('Vui lòng chọn địa điểm làm việc (*)');
-    if (!formData.experience) return toast.error('Vui lòng chọn yêu cầu kinh nghiệm (*)');
-    if (!formData.tags?.trim()) return toast.error('Vui lòng nhập từ khóa kỹ năng (Tags) (*)');
-
-    // 2. VALIDATE CHI TIẾT & CHUYÊN MÔN
-    if (!formData.description?.trim()) return toast.error('Vui lòng nhập mô tả công việc (JD) (*)');
-    if (!formData.benefits?.trim()) return toast.error('Vui lòng nhập quyền lợi & đãi ngộ (*)');
-
-    // 3. VALIDATE TIÊU CHÍ CHUYÊN MÔN (BANDS)
-    if (!categories || categories.length === 0) {
-      return toast.error('Vui lòng thiết lập ít nhất một tiêu chí chuyên môn (Bands) (*)');
-    }
-    if (categories.some(c => !c.name?.trim())) {
-      return toast.error('Tên các tiêu chí chuyên môn không được để trống (*)');
-    }
-    if (categories.some(c => Number(c.weight) <= 0)) {
-      return toast.error('Trọng số của mỗi tiêu chí phải lớn hơn 0% (*)');
-    }
-    if (totalWeight > 100) {
-      return toast.error(`Tổng trọng số các tiêu chí đã vượt quá 100% (Hiện tại: ${totalWeight}%). Vui lòng giảm bớt!`);
-    }
-    if (totalWeight < 100) {
-      return toast.error(`Tổng trọng số các tiêu chí chưa đủ 100% (Hiện tại: ${totalWeight}%). Vui lòng phân bổ thêm ${100 - totalWeight}%!`);
-    }
-
-    // 4. VALIDATE BÀI TEST & MODERATOR NẾU BẬT
-    if (formData.requireTest) {
-      if (!formData.moderatorEmail?.trim()) {
-        return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test (*)');
+      const deadlineDate = new Date(formData.deadline);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (deadlineDate < today) {
+        return toast.error('Hạn nộp hồ sơ không được là ngày trong quá khứ (*)');
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.moderatorEmail.trim())) {
-        return toast.error('Email người kiểm duyệt không đúng định dạng (*)');
+
+      if (!formData.salary?.trim()) return toast.error('Vui lòng nhập mức lương (*)');
+      if (!formData.type) return toast.error('Vui lòng chọn loại hình làm việc (*)');
+      if (!formData.location) return toast.error('Vui lòng chọn địa điểm làm việc (*)');
+      if (!formData.experience) return toast.error('Vui lòng chọn yêu cầu kinh nghiệm (*)');
+      if (!formData.tags?.trim()) return toast.error('Vui lòng nhập từ khóa kỹ năng (Tags) (*)');
+
+      // 2. VALIDATE CHI TIẾT & CHUYÊN MÔN
+      if (!formData.description?.trim()) return toast.error('Vui lòng nhập mô tả công việc (JD) (*)');
+      if (!formData.benefits?.trim()) return toast.error('Vui lòng nhập quyền lợi & đãi ngộ (*)');
+
+      // 3. VALIDATE TIÊU CHÍ CHUYÊN MÔN (BANDS)
+      if (!categories || categories.length === 0) {
+        return toast.error('Vui lòng thiết lập ít nhất một tiêu chí chuyên môn (Bands) (*)');
       }
-      if (questionsCount < 5 || questionsCount > 50) {
-        return toast.error('Số lượng câu hỏi bài test phải từ 5 đến 50 câu (*)');
+      if (categories.some(c => !c.name?.trim())) {
+        return toast.error('Tên các tiêu chí chuyên môn không được để trống (*)');
+      }
+      if (categories.some(c => Number(c.weight) <= 0)) {
+        return toast.error('Trọng số của mỗi tiêu chí phải lớn hơn 0% (*)');
+      }
+      if (totalWeight > 100) {
+        return toast.error(`Tổng trọng số các tiêu chí đã vượt quá 100% (Hiện tại: ${totalWeight}%). Vui lòng giảm bớt!`);
+      }
+      if (totalWeight < 100) {
+        return toast.error(`Tổng trọng số các tiêu chí chưa đủ 100% (Hiện tại: ${totalWeight}%). Vui lòng phân bổ thêm ${100 - totalWeight}%!`);
+      }
+
+      // 4. VALIDATE BÀI TEST & MODERATOR NẾU BẬT
+      if (formData.requireTest) {
+        if (!formData.moderatorEmail?.trim()) {
+          return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test (*)');
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.moderatorEmail.trim())) {
+          return toast.error('Email người kiểm duyệt không đúng định dạng (*)');
+        }
+        if (questionsCount < 5 || questionsCount > 50) {
+          return toast.error('Số lượng câu hỏi bài test phải từ 5 đến 50 câu (*)');
+        }
       }
     }
 
@@ -214,13 +218,19 @@ const EditJob = () => {
     try {
       const requirementsText = categories.map(c => `- ${c.name} (${c.weight}%${c.isKey ? ' - Trọng điểm' : ''})`).join('\n');
 
+      const isDraftAction = isDraft || formData.status === 'draft';
+      const resolvedStatus = isDraftAction 
+        ? 'draft' 
+        : (formData.requireTest ? 'pending' : (formData.status || 'active'));
+
       const payload = { 
           ...formData, 
           testQuestionsCount: questionsCount,
-          tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''), 
+          tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '') : formData.tags, 
           requirements: formData.requirements || requirementsText,
           requirementCategories: categories,
-          ...(isDraft !== undefined && !id ? { status: isDraft ? 'draft' : 'active' } : {}) 
+          status: resolvedStatus,
+          isDraft: isDraftAction
       };
 
       const endpoint = id ? `${API_BASE}/api/jobs/${id}` : `${API_BASE}/api/jobs`;
@@ -236,7 +246,7 @@ const EditJob = () => {
           throw new Error(data.message || 'Thao tác thất bại');
       }
 
-      toast.success(id ? 'Cập nhật công việc thành công!' : 'Tạo công việc thành công!');
+      toast.success(isDraft ? 'Đã lưu Bản Nháp thành công!' : (formData.requireTest ? 'Đã gửi yêu cầu tạo bài test tới Moderator!' : 'Cập nhật công việc thành công!'));
       setTimeout(() => navigate('/bussiness/post-job'), 1000);
     } catch (error) { toast.error(error.message); } finally { setSubmitting(false); }
   };
@@ -272,9 +282,10 @@ const EditJob = () => {
                   <label className="block text-[13px] font-bold text-slate-700 mb-2">Trạng thái công việc</label>
                   <select 
                     name="status" value={formData.status} onChange={handleChange} 
-                    className={`w-full p-3 font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 ${formData.status === 'active' ? 'text-emerald-700 bg-emerald-50' : formData.status === 'closed' ? 'text-red-700 bg-red-50' : 'text-slate-700 bg-slate-50'}`}
+                    className={`w-full p-3 font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 ${formData.status === 'active' ? 'text-emerald-700 bg-emerald-50' : formData.status === 'closed' ? 'text-red-700 bg-red-50' : formData.status === 'pending' ? 'text-amber-700 bg-amber-50' : 'text-slate-700 bg-slate-50'}`}
                   >
                     <option value="active">🟢 Đang mở tuyển (Active)</option>
+                    {formData.requireTest && <option value="pending">🟠 Đang chờ SME duyệt test (Pending)</option>}
                     <option value="draft">🟡 Bản nháp (Draft)</option>
                     <option value="closed">🔴 Đã đóng (Closed)</option>
                   </select>
@@ -561,8 +572,17 @@ const EditJob = () => {
           </div>
 
           <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
-            <button type="button" className="px-6 py-3 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors" onClick={() => navigate('/bussiness/post-job')}>Hủy bỏ</button>
-            {!id && <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={loading} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Lưu Nháp</button>}
+            <button type="button" className="px-6 py-3 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate('/bussiness/post-job')}>Hủy bỏ</button>
+            {(formData.status === 'draft' || !id) && (
+              <button 
+                type="button" 
+                onClick={(e) => handleSubmit(e, true)} 
+                disabled={submitting} 
+                className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                <Save className="w-4 h-4" /> Lưu Nháp
+              </button>
+            )}
             <button 
               type="submit" 
               disabled={submitting} 
@@ -575,7 +595,13 @@ const EditJob = () => {
               }}
               className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
             >
-              {submitting ? 'Đang xử lý...' : id ? <><Save className="w-4 h-4" /> Cập nhật Job</> : (formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job</>)}
+              {submitting ? 'Đang xử lý...' : (
+                formData.status === 'draft' ? (
+                  formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job Ngay</>
+                ) : (
+                  <><Save className="w-4 h-4" /> Cập nhật Job</>
+                )
+              )}
             </button>
           </div>
         </form>

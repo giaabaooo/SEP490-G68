@@ -14,7 +14,7 @@ const jobSchema = new mongoose.Schema(
     benefits: { type: [String], default: [] },
     status: {
       type: String,
-      enum: ["active", "draft", "closed"],
+      enum: ["active", "draft", "closed", "pending"],
       default: "active",
     },
     recruitmentDeadline: { type: Date, default: null },

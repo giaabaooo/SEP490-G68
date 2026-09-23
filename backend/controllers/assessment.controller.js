@@ -101,7 +101,7 @@ exports.createAssessment = async (req, res) => {
                     $set: {
                         assessmentId: savedTest._id,
                         testStatus: isPublished ? 'approved' : 'pending',
-                        status: isPublished ? 'active' : 'draft'
+                        status: isPublished ? 'active' : 'pending'
                     }
                 }, 
                 { new: true }
@@ -205,7 +205,7 @@ exports.updateAssessment = async (req, res) => {
             const jobUpdate = {
                 assessmentId: savedTest._id,
                 testStatus: isPublished ? 'approved' : 'pending',
-                status: isPublished ? 'active' : 'draft'
+                status: isPublished ? 'active' : 'pending'
             };
             const updatedJob = await Job.findByIdAndUpdate(targetJobId, { $set: jobUpdate }, { new: true });
 

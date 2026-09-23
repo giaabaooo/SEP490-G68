@@ -134,9 +134,13 @@ const BusinessDashboard = () => {
     });
   }, [jobs]);
 
-  const toggleJobStatus = async (jobId, currentStatus) => {
-    // FIX TOGGLE: Ép currentStatus về chữ thường, nếu đang active thì chuyển thành closed
+  const toggleJobStatus = async (jobId, currentStatus, job) => {
     const statusLower = (currentStatus || '').toLowerCase();
+    if (statusLower === 'pending' || (job?.requireTest && job?.testStatus === 'pending' && statusLower !== 'draft')) {
+      toast.error('Công việc đang chờ SME kiểm duyệt bài test, chưa thể thay đổi trạng thái!');
+      return;
+    }
+    // FIX TOGGLE: Ép currentStatus về chữ thường, nếu đang active thì chuyển thành closed
     const newStatus = statusLower === 'active' ? 'closed' : 'active';
 
     try {
@@ -338,13 +342,37 @@ const BusinessDashboard = () => {
                           </button>
                         </td>
                         <td className="p-5 text-center">
-                          <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${isExpired ? 'bg-red-100 text-red-600' :
-                              jobStatus === 'active' ? 'bg-emerald-100 text-emerald-700' :
-                                jobStatus === 'closed' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-600'
+                          {isExpired ? (
+                            <span className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center bg-red-100 text-red-600">
+                              <span className="w-1.5 h-1.5 rounded-full mr-1.5 bg-red-500"></span> Hết hạn
+                            </span>
+                          ) : (
+                            <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${
+                              jobStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : 
+                              jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                                ? 'bg-amber-100 text-amber-700'
+                                : jobStatus === 'draft'
+                                ? 'bg-slate-100 text-slate-700'
+                                : 'bg-red-100 text-red-600'
                             }`}>
-                            <span className={`w-1.5 h-1.5 rounded-full mr-2 ${isExpired ? 'bg-red-500' : jobStatus === 'active' ? 'bg-emerald-500' : jobStatus === 'closed' ? 'bg-red-500' : 'bg-slate-400'}`}></span>
-                            {isExpired ? 'Hết hạn' : jobStatus === 'active' ? 'Hoạt động' : jobStatus === 'closed' ? 'Đã đóng' : 'Bản nháp'}
-                          </span>
+                              <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                jobStatus === 'active' ? 'bg-emerald-500' : 
+                                jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                                  ? 'bg-amber-500 animate-pulse'
+                                  : jobStatus === 'draft'
+                                  ? 'bg-slate-400'
+                                  : 'bg-red-500'
+                              }`}></span>
+                              {
+                                jobStatus === 'active' ? (job.requireTest ? 'Đã duyệt test' : 'Hoạt động') : 
+                                jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                                  ? 'Đang chờ SME'
+                                  : jobStatus === 'draft'
+                                  ? 'Bản nháp'
+                                  : 'Đã đóng'
+                              }
+                            </span>
+                          )}
                         </td>
                         <td className="p-5 text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -365,10 +393,22 @@ const BusinessDashboard = () => {
                             </button>
 
                             <button
-                              onClick={() => toggleJobStatus(job._id || job.id, jobStatus)}
-                              title={jobStatus === 'active' ? 'Đóng tin này' : 'Mở lại tin'}
-                              className={`p-2 rounded-xl transition-colors cursor-pointer ${jobStatus === 'active' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
-                                }`}
+                              onClick={() => toggleJobStatus(job._id || job.id, jobStatus, job)}
+                              disabled={jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')}
+                              title={
+                                jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                                  ? 'Đang chờ SME duyệt bài test, chưa thể thay đổi'
+                                  : jobStatus === 'active'
+                                  ? 'Đóng tin này'
+                                  : 'Mở lại tin'
+                              }
+                              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                                jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
+                                  ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
+                                  : jobStatus === 'active'
+                                  ? 'bg-red-50 text-red-600 hover:bg-red-100'
+                                  : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                              }`}
                             >
                               <Power className="w-4 h-4" />
                             </button>

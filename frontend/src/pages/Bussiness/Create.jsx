@@ -120,62 +120,66 @@ const Create = () => {
   const handleSubmit = async (e, isDraft = false) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    // 0. KIỂM TRA HẠN MỨC TOKEN ĐẦU TIÊN NẾU BẬT YÊU CẦU TEST
-    if (formData.requireTest && !hasEnoughTokens) {
+    // 0. CHỈ KIỂM TRA HẠN MỨC TOKEN NẾU GỬI YÊU CẦU TEST CHÍNH THỨC (KHÔNG PHẢI LƯU NHÁP)
+    if (!isDraft && formData.requireTest && !hasEnoughTokens) {
       setShowTokenModal(true);
       return toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để gửi yêu cầu Test!`);
     }
 
-    // 1. VALIDATE THÔNG TIN CƠ BẢN
+    // 1. TIÊU ĐỀ LÀ BẮT BUỘC (KỂ CẢ KHI LƯU NHÁP)
     if (!formData.title?.trim()) return toast.error('Vui lòng nhập tiêu đề công việc (*)');
-    if (!formData.vacancies || Number(formData.vacancies) <= 0) return toast.error('Số lượng tuyển dụng phải lớn hơn 0 (*)');
-    if (!formData.deadline) return toast.error('Vui lòng chọn hạn nộp hồ sơ (*)');
 
-    const deadlineDate = new Date(formData.deadline);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (deadlineDate < today) {
-      return toast.error('Hạn nộp hồ sơ không được là ngày trong quá khứ (*)');
-    }
+    // NẾU KHÔNG PHẢI LƯU NHÁP, BẮT BUỘC ĐIỀN ĐỦ TOÀN BỘ CÁC MỤC
+    if (!isDraft) {
+      if (!formData.vacancies || Number(formData.vacancies) <= 0) return toast.error('Số lượng tuyển dụng phải lớn hơn 0 (*)');
+      if (!formData.deadline) return toast.error('Vui lòng chọn hạn nộp hồ sơ (*)');
 
-    if (!formData.salary?.trim()) return toast.error('Vui lòng nhập mức lương (*)');
-    if (!formData.type) return toast.error('Vui lòng chọn loại hình làm việc (*)');
-    if (!formData.location) return toast.error('Vui lòng chọn địa điểm làm việc (*)');
-    if (!formData.experience) return toast.error('Vui lòng chọn yêu cầu kinh nghiệm (*)');
-    if (!formData.tags?.trim()) return toast.error('Vui lòng nhập từ khóa kỹ năng (Tags) (*)');
-
-    // 2. VALIDATE CHI TIẾT & CHUYÊN MÔN
-    if (!formData.description?.trim()) return toast.error('Vui lòng nhập mô tả công việc (JD) (*)');
-    if (!formData.benefits?.trim()) return toast.error('Vui lòng nhập quyền lợi & đãi ngộ (*)');
-
-    // 3. VALIDATE YÊU CẦU CHUYÊN MÔN (BANDS)
-    if (!categories || categories.length === 0) {
-      return toast.error('Vui lòng thiết lập ít nhất một tiêu chí chuyên môn (Bands) (*)');
-    }
-    if (categories.some(c => !c.name?.trim())) {
-      return toast.error('Vui lòng nhập đầy đủ tên cho tất cả các tiêu chí chuyên môn (*)');
-    }
-    if (categories.some(c => Number(c.weight) <= 0)) {
-      return toast.error('Trọng số của mỗi tiêu chí phải lớn hơn 0% (*)');
-    }
-    if (totalWeight > 100) {
-      return toast.error(`Tổng trọng số các tiêu chí đã vượt quá 100% (Hiện tại: ${totalWeight}%). Vui lòng giảm bớt!`);
-    }
-    if (totalWeight < 100) {
-      return toast.error(`Tổng trọng số các tiêu chí chưa đủ 100% (Hiện tại: ${totalWeight}%). Vui lòng phân bổ thêm ${100 - totalWeight}%!`);
-    }
-
-    // 4. VALIDATE BÀI TEST & MODERATOR NẾU BẬT
-    if (formData.requireTest) {
-      if (!formData.moderatorEmail?.trim()) {
-        return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test (*)');
+      const deadlineDate = new Date(formData.deadline);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (deadlineDate < today) {
+        return toast.error('Hạn nộp hồ sơ không được là ngày trong quá khứ (*)');
       }
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(formData.moderatorEmail.trim())) {
-        return toast.error('Email người kiểm duyệt không đúng định dạng (*)');
+
+      if (!formData.salary?.trim()) return toast.error('Vui lòng nhập mức lương (*)');
+      if (!formData.type) return toast.error('Vui lòng chọn loại hình làm việc (*)');
+      if (!formData.location) return toast.error('Vui lòng chọn địa điểm làm việc (*)');
+      if (!formData.experience) return toast.error('Vui lòng chọn yêu cầu kinh nghiệm (*)');
+      if (!formData.tags?.trim()) return toast.error('Vui lòng nhập từ khóa kỹ năng (Tags) (*)');
+
+      // 2. VALIDATE CHI TIẾT & CHUYÊN MÔN
+      if (!formData.description?.trim()) return toast.error('Vui lòng nhập mô tả công việc (JD) (*)');
+      if (!formData.benefits?.trim()) return toast.error('Vui lòng nhập quyền lợi & đãi ngộ (*)');
+
+      // 3. VALIDATE YÊU CẦU CHUYÊN MÔN (BANDS)
+      if (!categories || categories.length === 0) {
+        return toast.error('Vui lòng thiết lập ít nhất một tiêu chí chuyên môn (Bands) (*)');
       }
-      if (questionsCount < 5 || questionsCount > 50) {
-        return toast.error('Số lượng câu hỏi bài test phải từ 5 đến 50 câu (*)');
+      if (categories.some(c => !c.name?.trim())) {
+        return toast.error('Vui lòng nhập đầy đủ tên cho tất cả các tiêu chí chuyên môn (*)');
+      }
+      if (categories.some(c => Number(c.weight) <= 0)) {
+        return toast.error('Trọng số của mỗi tiêu chí phải lớn hơn 0% (*)');
+      }
+      if (totalWeight > 100) {
+        return toast.error(`Tổng trọng số các tiêu chí đã vượt quá 100% (Hiện tại: ${totalWeight}%). Vui lòng giảm bớt!`);
+      }
+      if (totalWeight < 100) {
+        return toast.error(`Tổng trọng số các tiêu chí chưa đủ 100% (Hiện tại: ${totalWeight}%). Vui lòng phân bổ thêm ${100 - totalWeight}%!`);
+      }
+
+      // 4. VALIDATE BÀI TEST & MODERATOR NẾU BẬT
+      if (formData.requireTest) {
+        if (!formData.moderatorEmail?.trim()) {
+          return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test (*)');
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.moderatorEmail.trim())) {
+          return toast.error('Email người kiểm duyệt không đúng định dạng (*)');
+        }
+        if (questionsCount < 5 || questionsCount > 50) {
+          return toast.error('Số lượng câu hỏi bài test phải từ 5 đến 50 câu (*)');
+        }
       }
     }
 
@@ -188,8 +192,9 @@ const Create = () => {
       const payload = { 
           ...formData, 
           testQuestionsCount: questionsCount,
-          tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== ''), 
-          status: isDraft ? 'draft' : 'active',
+          tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag !== '') : [], 
+          status: isDraft ? 'draft' : (formData.requireTest ? 'pending' : 'active'),
+          isDraft: isDraft,
           requirements: requirementsText, 
           requirementCategories: categories 
       };
@@ -209,7 +214,7 @@ const Create = () => {
           throw new Error(data.message || 'Tạo công việc thất bại');
       }
 
-      toast.success(isDraft ? 'Đã lưu Bản Nháp thành công!' : 'Tạo công việc thành công!');
+      toast.success(isDraft ? 'Đã lưu Bản Nháp thành công!' : (formData.requireTest ? 'Đã gửi yêu cầu tạo bài test tới Moderator!' : 'Tạo công việc thành công!'));
       setTimeout(() => navigate('/bussiness/post-job'), 1000);
     } catch (error) { 
       toast.error(error.message); 
