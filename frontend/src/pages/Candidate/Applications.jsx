@@ -293,6 +293,11 @@ const Applications = () => {
                             📅 Đang trong vòng Phỏng vấn
                           </div>
                         )}
+                        {app.status === 'Testing' && app.testStatus === 'Completed' && (
+                          <div className="mt-3 inline-block px-3 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-black uppercase tracking-wider rounded-lg border border-emerald-100">
+                            ✓ Đã hoàn thành bài test ({app.testScore}/100đ) - Chờ NTD xét duyệt kết quả
+                          </div>
+                        )}
                       </div>
                     </div>
 

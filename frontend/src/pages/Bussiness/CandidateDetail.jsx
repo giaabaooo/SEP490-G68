@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, ShieldCheck, ShieldAlert, Mail, Send, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 export default function CandidateDetail() {
   const { id } = useParams(); // id của Application
@@ -10,8 +11,38 @@ export default function CandidateDetail() {
   const [loading, setLoading] = useState(true);
   const [testDetails, setTestDetails] = useState(null);
   const [error, setError] = useState(null);
+
+  // Trạng thái modal gửi email / thông báo
+  const [isNotifyModalOpen, setIsNotifyModalOpen] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailContent, setEmailContent] = useState('');
+  const [emailType, setEmailType] = useState('Pass');
   
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+  const templates = {
+    test: {
+      subject: 'Mời bạn thực hiện Bài kiểm tra năng lực (Online Assessment)',
+      content: (name, job) => `Xin chào ${name},\n\nChúng tôi rất ấn tượng với hồ sơ của bạn cho vị trí ${job}.\nĐể tiếp tục quy trình tuyển dụng, trân trọng mời bạn tham gia bài kiểm tra đánh giá năng lực chuyên môn trực tuyến trên hệ thống Careerio.\n\nVui lòng đăng nhập tài khoản và hoàn thành bài thi trong vòng 48 giờ tới.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+    },
+    testReminder: {
+      subject: 'Nhắc nhở: Bạn có Bài kiểm tra năng lực chưa hoàn thành',
+      content: (name, job) => `Xin chào ${name},\n\nNhà tuyển dụng xin nhắc bạn về bài kiểm tra chuyên môn cho vị trí ${job}.\nVui lòng sắp xếp thời gian làm bài sớm trước thời hạn để hồ sơ của bạn được xem xét ở vòng tiếp theo.\n\nTrân trọng!`
+    },
+    interview: {
+      subject: 'Thư mời phỏng vấn - Cơ hội nghề nghiệp tại công ty',
+      content: (name, job) => `Xin chào ${name},\n\nChúc mừng bạn đã vượt qua bài đánh giá chuyên môn cho vị trí ${job} với kết quả xuất sắc!\nChúng tôi trân trọng mời bạn tham gia buổi phỏng vấn trực tiếp với bộ phận chuyên môn.\nThời gian và hình thức phỏng vấn chi tiết sẽ được gửi kèm trong email tiếp theo.\n\nTrân trọng!`
+    },
+    offer: {
+      subject: 'Chúc mừng! Thư mời nhận việc (Offer Letter)',
+      content: (name, job) => `Xin chào ${name},\n\nChúng tôi rất vui mừng thông báo bạn đã trúng tuyển vị trí ${job}!\nThông tin chi tiết về mức lương, chế độ đãi ngộ và ngày bắt đầu nhận việc đã được phê duyệt.\n\nChúc mừng bạn đã gia nhập đội ngũ!`
+    },
+    reject: {
+      subject: 'Thông báo về kết quả ứng tuyển',
+      content: (name, job) => `Xin chào ${name},\n\nCảm ơn bạn đã dành thời gian tham gia bài kiểm tra năng lực cho vị trí ${job}.\nSau khi xem xét kỹ lưỡng, rất tiếc kết quả chưa hoàn toàn phù hợp với yêu cầu hiện tại của vị trí này. Chúng tôi sẽ lưu hồ sơ của bạn cho các cơ hội tiếp theo.\n\nChúc bạn luôn thành công!`
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,41 +66,48 @@ export default function CandidateDetail() {
           name: appData.userId?.fullName || 'N/A',
           email: appData.userId?.email || 'N/A',
           position: appData.jobId?.title || 'N/A',
-          // Sử dụng field lưu kết quả từ Backend (đổi tên biến nếu BE của bạn dùng tên khác)
-          score: appData.testScore || 0, 
-          answers: appData.testAnswers || [], // Ví dụ: [0, 2, 1, 3] (index đáp án ứng viên chọn)
+          score: appData.testScore !== null && appData.testScore !== undefined ? appData.testScore : 0, 
+          answers: appData.testAnswers || {}, 
           status: appData.status,
+          testStatus: appData.testStatus,
           startedAt: appData.testStartedAt || appData.appliedAt,
           submittedAt: appData.testSubmittedAt || appData.appliedAt,
-          duration: appData.testDuration || 0, // Tính bằng giây
-          tabSwitches: appData.tabSwitches || 0, // Số lần cảnh báo rời tab
+          duration: appData.testDuration || 0,
+          tabSwitches: appData.tabSwitches || 0,
         });
 
         // 2. LẤY DỮ LIỆU BÀI TEST TỪ API ASSESSMENTS THẬT
-        // Giả định Application lưu assessmentId, nếu không có lấy qua Job
-        const testIdToFetch = appData.assessmentId || appData.jobId?.assessmentId; 
-
-        if (testIdToFetch) {
-          const testRes = await fetch(`${API_URL}/api/assessments/${testIdToFetch}`, { 
-            headers: { 'Authorization': `Bearer ${token}` } 
-          });
-          
-          if (testRes.ok) {
-              const testData = await testRes.json();
-              setTestDetails(testData);
-          } else {
-              console.warn("Không tải được đề thi gốc.");
-          }
+        // Nếu appData.assessmentId đã được populate sẵn đầy đủ questions
+        if (appData.assessmentId && typeof appData.assessmentId === 'object' && Array.isArray(appData.assessmentId.questions) && appData.assessmentId.questions.length > 0) {
+          setTestDetails(appData.assessmentId);
         } else {
-            // Nếu chưa có testId, thử tìm kiếm assessment theo JobId qua API list (Fallback)
-            const fallbackRes = await fetch(`${API_URL}/api/assessments/my-tests`, {
-                 headers: { 'Authorization': `Bearer ${token}` } 
+          // Trích xuất ID dạng string an toàn (tránh [object Object])
+          const testIdToFetch = (typeof appData.assessmentId === 'object' ? appData.assessmentId?._id : appData.assessmentId) || 
+                                (typeof appData.jobId?.assessmentId === 'object' ? appData.jobId?.assessmentId?._id : appData.jobId?.assessmentId); 
+
+          if (testIdToFetch && testIdToFetch !== '[object Object]') {
+            const testRes = await fetch(`${API_URL}/api/assessments/${testIdToFetch}`, { 
+              headers: { 'Authorization': `Bearer ${token}` } 
             });
-            if (fallbackRes.ok) {
-                const allTests = await fallbackRes.json();
-                const matchedTest = allTests.find(t => t.jobId?._id === appData.jobId?._id || t.jobId === appData.jobId?._id);
-                if (matchedTest) setTestDetails(matchedTest);
+            
+            if (testRes.ok) {
+                const testData = await testRes.json();
+                setTestDetails(testData);
+            } else {
+                console.warn("Không tải được đề thi gốc.");
             }
+          } else {
+              // Fallback tìm theo JobId
+              const jId = appData.jobId?._id || appData.jobId;
+              const fallbackRes = await fetch(`${API_URL}/api/assessments/my-tests`, {
+                   headers: { 'Authorization': `Bearer ${token}` } 
+              });
+              if (fallbackRes.ok) {
+                  const allTests = await fallbackRes.json();
+                  const matchedTest = allTests.find(t => (t.jobId?._id || t.jobId) === jId);
+                  if (matchedTest) setTestDetails(matchedTest);
+              }
+          }
         }
       } catch (err) {
         console.error("Lỗi fetch dữ liệu:", err);
@@ -81,6 +119,29 @@ export default function CandidateDetail() {
     
     if (id) fetchData();
   }, [id, API_URL, navigate]);
+
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
+    if (!id || !candidate) return;
+    try {
+      setSendingEmail(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/applications/${id}/notify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ subject: emailSubject, content: emailContent, type: emailType })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Lỗi gửi thông báo');
+      toast.success(data.message || 'Gửi thông báo thành công!');
+      setIsNotifyModalOpen(false);
+      setCandidate(prev => ({ ...prev, mailSentStatus: data.mailSentStatus }));
+    } catch (err) {
+      toast.error(err.message || 'Không thể gửi thông báo');
+    } finally {
+      setSendingEmail(false);
+    }
+  };
 
   const formatDuration = (seconds) => {
     if (!seconds) return '---';
@@ -101,13 +162,38 @@ export default function CandidateDetail() {
     <div className="font-sans text-slate-800 bg-slate-50 min-h-screen pb-12">
       
       {/* Header Điều hướng */}
-      <div className="bg-white border-b border-slate-200 px-8 py-4 flex items-center gap-4 mb-6 shadow-sm sticky top-0 z-40">
-         <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors cursor-pointer">
-            <ArrowLeft className="w-5 h-5" />
-         </button>
-         <div>
-            <h1 className="text-xl font-black text-slate-900 leading-tight">Chi tiết bài kiểm tra</h1>
-            <p className="text-sm font-medium text-slate-500">Ứng viên: <span className="text-blue-600 font-bold">{candidate.name}</span></p>
+      <div className="bg-white border-b border-slate-200 px-8 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shadow-sm sticky top-0 z-40">
+         <div className="flex items-center gap-4">
+           <button onClick={() => navigate(-1)} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition-colors cursor-pointer">
+              <ArrowLeft className="w-5 h-5" />
+           </button>
+           <div>
+              <h1 className="text-xl font-black text-slate-900 leading-tight">Chi tiết bài kiểm tra</h1>
+              <p className="text-sm font-medium text-slate-500">Ứng viên: <span className="text-blue-600 font-bold">{candidate.name}</span> <span className="text-slate-400">({candidate.email})</span></p>
+           </div>
+         </div>
+
+         <div className="flex items-center gap-3">
+           {candidate.mailSentStatus && candidate.mailSentStatus !== 'Pending' && (
+             <span className={`text-xs font-bold px-3 py-1.5 rounded-lg border ${
+               candidate.mailSentStatus === 'Sent_Pass' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+             }`}>
+               {candidate.mailSentStatus === 'Sent_Pass' ? '✓ Đã gửi thư mời/đạt' : '✗ Đã gửi thư từ chối'}
+             </span>
+           )}
+           <button
+             type="button"
+             onClick={() => {
+               setEmailSubject(templates.interview.subject);
+               setEmailContent(templates.interview.content(candidate.name || 'Ứng viên', candidate.position || 'Vị trí ứng tuyển'));
+               setEmailType('Pass');
+               setIsNotifyModalOpen(true);
+             }}
+             className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm shadow-md shadow-blue-100 transition-all cursor-pointer"
+           >
+             <Mail className="w-4 h-4" />
+             <span>Gửi Email / Thông báo</span>
+           </button>
          </div>
       </div>
 
@@ -296,6 +382,116 @@ export default function CandidateDetail() {
         </div>
 
       </div>
+
+      {/* Modal gửi thông báo cho ứng viên */}
+      {isNotifyModalOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4"
+          onClick={() => setIsNotifyModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-3xl w-full max-w-xl p-6 sm:p-8 border border-slate-200 shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-blue-600" /> Gửi thông báo cho ứng viên
+              </h3>
+              <button 
+                type="button"
+                className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 transition-colors text-lg font-bold cursor-pointer" 
+                onClick={() => setIsNotifyModalOpen(false)}
+              >
+                &times;
+              </button>
+            </div>
+            
+            <div className="mb-4 p-4 bg-slate-50 rounded-2xl border border-slate-200 text-sm">
+              <p className="text-slate-700 mb-1">Ứng viên: <strong className="text-slate-900">{candidate.name}</strong> ({candidate.email})</p>
+              <p className="text-slate-700">Vị trí: <strong className="text-slate-900">{candidate.position}</strong></p>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-xs font-black text-slate-600 uppercase tracking-wider block mb-2">Chọn mẫu nhanh</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { key: 'interview', label: 'Mời phỏng vấn' }, 
+                  { key: 'test', label: 'Mời làm test' }, 
+                  { key: 'testReminder', label: 'Nhắc làm test' },
+                  { key: 'offer', label: 'Mời nhận việc' }, 
+                  { key: 'reject', label: 'Thư từ chối' }
+                ].map((t) => (
+                  <button
+                    key={t.key} 
+                    type="button"
+                    onClick={() => {
+                      setEmailSubject(templates[t.key].subject);
+                      setEmailContent(templates[t.key].content(candidate.name || 'Ứng viên', candidate.position || 'Vị trí ứng tuyển'));
+                      setEmailType(t.key === 'reject' ? 'Reject' : 'Pass');
+                    }}
+                    className="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-xl text-xs font-bold text-slate-700 transition-all border border-slate-200 cursor-pointer text-center"
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form onSubmit={handleSendNotification} className="space-y-4">
+              <div>
+                <label className="text-xs font-black text-slate-700 uppercase tracking-wider block mb-1">Loại thông báo</label>
+                <select 
+                  value={emailType} 
+                  onChange={(e) => setEmailType(e.target.value)} 
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-bold"
+                >
+                  <option value="Pass">Đạt / Mời tiếp tục (Xanh)</option>
+                  <option value="Reject">Từ chối / Chưa phù hợp (Đỏ)</option>
+                  <option value="Info">Thông tin chung</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-black text-slate-700 uppercase tracking-wider block mb-1">Tiêu đề Email</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={emailSubject} 
+                  onChange={(e) => setEmailSubject(e.target.value)} 
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-bold text-slate-900" 
+                />
+              </div>
+              <div>
+                <label className="text-xs font-black text-slate-700 uppercase tracking-wider block mb-1">Nội dung thông báo / Email</label>
+                <textarea 
+                  required 
+                  rows="6" 
+                  value={emailContent} 
+                  onChange={(e) => setEmailContent(e.target.value)} 
+                  className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:border-blue-500 font-medium text-slate-900 leading-relaxed"
+                ></textarea>
+              </div>
+              <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-all cursor-pointer" 
+                  onClick={() => setIsNotifyModalOpen(false)}
+                >
+                  Hủy
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={sendingEmail} 
+                  className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-100 transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                  {sendingEmail ? 'Đang gửi...' : 'Gửi Email Thông Báo'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

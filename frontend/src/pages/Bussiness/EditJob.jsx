@@ -75,7 +75,7 @@ const EditJob = () => {
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(`${API_BASE}/api/jobs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) throw new Error('Không thể tải thông tin tin tuyển dụng');
+        if (!res.ok) throw new Error('Không thể tải thông tin công việc');
         const data = await res.json();
         
         setFormData({
@@ -104,6 +104,27 @@ const EditJob = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (name === 'requireTest') {
+      const isChecking = checked;
+      setFormData(prev => ({ ...prev, requireTest: isChecking }));
+      const currentCount = Number(formData.testQuestionsCount) > 0 ? Number(formData.testQuestionsCount) : 10;
+      const currentNeeded = currentCount * 5;
+      if (isChecking && recruiterBalance < currentNeeded) {
+        setShowTokenModal(true);
+        toast.warning(`Số dư ví chỉ còn ${recruiterBalance} Token, không đủ ${currentNeeded} Token để tạo bài Test (${currentCount} câu hỏi). Vui lòng nạp thêm!`);
+      }
+      return;
+    }
+    if (name === 'testQuestionsCount') {
+      const count = Number(value) > 0 ? Number(value) : 10;
+      const needed = count * 5;
+      setFormData(prev => ({ ...prev, testQuestionsCount: value }));
+      if (formData.requireTest && recruiterBalance < needed) {
+        setShowTokenModal(true);
+        toast.warning(`Cần ${needed} Token cho ${count} câu hỏi, nhưng ví chỉ có ${recruiterBalance} Token. Vui lòng nạp thêm!`);
+      }
+      return;
+    }
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
@@ -126,7 +147,13 @@ const EditJob = () => {
   const hasEnoughTokens = recruiterBalance >= testTokensNeeded;
 
   const handleSubmit = async (e, isDraft = false) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+
+    // 0. KIỂM TRA HẠN MỨC TOKEN ĐẦU TIÊN NẾU BẬT YÊU CẦU TEST
+    if (formData.requireTest && !hasEnoughTokens) {
+      setShowTokenModal(true);
+      return toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để lưu yêu cầu Test!`);
+    }
 
     // 1. VALIDATE THÔNG TIN CƠ BẢN
     if (!formData.title?.trim()) return toast.error('Vui lòng nhập tiêu đề công việc (*)');
@@ -179,10 +206,6 @@ const EditJob = () => {
       if (questionsCount < 5 || questionsCount > 50) {
         return toast.error('Số lượng câu hỏi bài test phải từ 5 đến 50 câu (*)');
       }
-      if (!hasEnoughTokens) {
-        setShowTokenModal(true);
-        return toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm!`);
-      }
     }
 
     setSubmitting(true);
@@ -213,7 +236,7 @@ const EditJob = () => {
           throw new Error(data.message || 'Thao tác thất bại');
       }
 
-      toast.success(id ? 'Cập nhật tin tuyển dụng thành công!' : 'Đăng tin tuyển dụng thành công!');
+      toast.success(id ? 'Cập nhật công việc thành công!' : 'Tạo công việc thành công!');
       setTimeout(() => navigate('/bussiness/post-job'), 1000);
     } catch (error) { toast.error(error.message); } finally { setSubmitting(false); }
   };
@@ -230,7 +253,7 @@ const EditJob = () => {
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Quay lại Danh sách
         </button>
 
-        <form onSubmit={(e) => handleSubmit(e)}>
+        <form onSubmit={(e) => handleSubmit(e)} noValidate>
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-6">
             
             {/* CỘT TRÁI */}
@@ -246,7 +269,7 @@ const EditJob = () => {
                 </div>
 
                 <div className="mb-4">
-                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Trạng thái tin tuyển dụng</label>
+                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Trạng thái công việc</label>
                   <select 
                     name="status" value={formData.status} onChange={handleChange} 
                     className={`w-full p-3 font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 ${formData.status === 'active' ? 'text-emerald-700 bg-emerald-50' : formData.status === 'closed' ? 'text-red-700 bg-red-50' : 'text-slate-700 bg-slate-50'}`}
@@ -354,7 +377,7 @@ const EditJob = () => {
                         <div>
                           <span className="text-sm font-bold text-slate-700 block">Yêu cầu tạo Test & Kiểm duyệt</span>
                           {isDeadlineExpired && (
-                            <span className="text-[11px] font-bold text-red-500 block mt-0.5">⚠️ Tin tuyển dụng đã quá hạn, không thể tạo hoặc cập nhật bài test.</span>
+                            <span className="text-[11px] font-bold text-red-500 block mt-0.5">⚠️ Công việc đã quá hạn, không thể tạo hoặc cập nhật bài test.</span>
                           )}
                         </div>
                       </label>
@@ -540,7 +563,18 @@ const EditJob = () => {
           <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
             <button type="button" className="px-6 py-3 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors" onClick={() => navigate('/bussiness/post-job')}>Hủy bỏ</button>
             {!id && <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={loading} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2"><Save className="w-4 h-4" /> Lưu Nháp</button>}
-            <button type="submit" disabled={submitting} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2">
+            <button 
+              type="submit" 
+              disabled={submitting} 
+              onClick={(e) => {
+                if (formData.requireTest && !hasEnoughTokens) {
+                  e.preventDefault();
+                  setShowTokenModal(true);
+                  toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để lưu yêu cầu Test!`);
+                }
+              }}
+              className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
+            >
               {submitting ? 'Đang xử lý...' : id ? <><Save className="w-4 h-4" /> Cập nhật Job</> : (formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job</>)}
             </button>
           </div>

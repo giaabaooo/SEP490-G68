@@ -301,7 +301,7 @@ const ModeratorRequests = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="text-xs uppercase tracking-wider text-slate-900 bg-slate-100 font-black border-b border-slate-300">
-                  <th className="py-4 px-6 min-w-[280px]">Tin tuyển dụng</th>
+                  <th className="py-4 px-6 min-w-[280px]">Tiêu đề công việc</th>
                   <th className="py-4 px-6 min-w-[200px]">HR Yêu cầu</th>
                   <th className="py-4 px-6 min-w-[160px]">Hạn chót Job</th>
                   <th className="py-4 px-6 min-w-[160px]">Trạng thái Test</th>

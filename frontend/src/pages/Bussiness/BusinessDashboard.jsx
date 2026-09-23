@@ -163,7 +163,7 @@ const BusinessDashboard = () => {
       candidateName: app.userId?.fullName || 'Ứng viên',
       candidateEmail: app.userId?.email || '',
       candidateAvatar: app.userId?.avatar,
-      jobTitle: app.jobId?.title || 'Tin tuyển dụng',
+      jobTitle: app.jobId?.title || 'Công việc',
       jobId: app.jobId?._id || app.jobId,
       aiScore: app.aiScore,
       status: app.status,
@@ -285,7 +285,7 @@ const BusinessDashboard = () => {
             <table className="w-full text-left">
               <thead>
                 <tr className="text-xs uppercase tracking-wider text-slate-900 font-black border-b border-slate-200 bg-slate-50/80">
-                  <th className="p-5 font-black text-slate-900">Tin tuyển dụng</th>
+                  <th className="p-5 font-black text-slate-900">Tiêu đề công việc</th>
                   <th className="p-5 text-center font-black text-slate-900">Lượng ứng tuyển</th>
                   <th className="p-5 text-center font-black text-slate-900">Trạng thái</th>
                   <th className="p-5 text-right font-black text-slate-900">Thao tác</th>

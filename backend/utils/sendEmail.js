@@ -7,9 +7,9 @@ const getTransporter = () => {
       user: process.env.EMAIL_USER,
       pass: (process.env.EMAIL_PASS || "").replace(/\s+/g, "")
     },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 8000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000
   });
 };
 
@@ -17,17 +17,20 @@ const sendEmail = async (to, subject, html) => {
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.warn("sendEmail: Email credentials not configured, skipping send to", to);
-      return;
+      return false;
     }
     const transporter = getTransporter();
-    await transporter.sendMail({
-      from: `"Careerio Support" <${process.env.EMAIL_USER}>`,
+    const info = await transporter.sendMail({
+      from: `"Careerio Tuyển Dụng" <${process.env.EMAIL_USER}>`,
       to,
       subject,
       html
     });
+    console.log(`[sendEmail] Đã gửi email thành công tới ${to} (MessageId: ${info.messageId})`);
+    return true;
   } catch (err) {
     console.error(`[sendEmail error] Failed to send email to ${to}:`, err.message);
+    throw err;
   }
 };
 

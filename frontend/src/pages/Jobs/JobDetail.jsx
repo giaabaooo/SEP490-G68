@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { MapPin, DollarSign, Briefcase, Clock, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle, Sparkles, ThumbsUp, AlertTriangle, ArrowRight, History, Users, Tag, Mic, Bot } from 'lucide-react';
+import { MapPin, DollarSign, Briefcase, Clock, Bookmark, ArrowLeft, CheckCircle2, Loader2, UploadCloud, X, FileText, CheckCircle, Sparkles, ThumbsUp, AlertTriangle, ArrowRight, History, Users, Tag, Mic, Bot, Eye } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getSavedJobs, toggleSavedJob } from '../../utils/savedJobs';
 
@@ -38,6 +38,7 @@ const JobDetail = () => {
   
   const [applyCount, setApplyCount] = useState(0);
   const [myLatestStatus, setMyLatestStatus] = useState(null);
+  const [myApplication, setMyApplication] = useState(null);
   const [savedJobs, setSavedJobs] = useState([]);
   
   const [modalOpen, setModalOpen] = useState(false);
@@ -93,6 +94,7 @@ const JobDetail = () => {
             const appRecord = dataApp.data[0];
             setApplyCount(appRecord.applyCount || 1);
             setMyLatestStatus(appRecord.status); 
+            setMyApplication(appRecord);
         }
 
         const resHist = await fetch(`${API_BASE}/api/applications/review-history/${id}`, { headers: { Authorization: `Bearer ${token}` } });
@@ -251,7 +253,10 @@ const JobDetail = () => {
       if (!response.ok) throw new Error(data.message || 'Ứng tuyển thất bại.');
 
       setApplyCount(prev => prev + 1);
-      
+      if (data.data) {
+        setMyApplication(data.data);
+        setMyLatestStatus(data.data.status || 'Applied');
+      }
       if (data.hasTest) setAssessmentData({ hasTest: true, assessmentId: data.assessmentId });
       setModalStage('success');
     } catch (error) {
@@ -294,6 +299,15 @@ const JobDetail = () => {
 
   const isSaved = Boolean(job && savedJobs.some(saved => String(saved._id || saved.id) === String(job._id || job.id)));
 
+  const targetTestId = 
+    (job?.assessmentId && typeof job.assessmentId === 'object' ? job.assessmentId._id : job?.assessmentId) || 
+    (myApplication?.assessmentId && typeof myApplication.assessmentId === 'object' ? myApplication.assessmentId._id : myApplication?.assessmentId) || 
+    assessmentData?.assessmentId;
+
+  const hasSubmittedTest = myApplication?.testStatus === 'Completed';
+  const hasApplied = applyCount > 0 || Boolean(myApplication);
+  const needsToTakeTest = Boolean(targetTestId && hasApplied && !hasSubmittedTest);
+
   if (loading) return <div className="min-h-screen flex flex-col justify-center items-center bg-[#f8fafc]"><Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" /><p className="text-slate-500 font-bold">Đang tải...</p></div>;
   if (!job) return null;
 
@@ -326,16 +340,28 @@ const JobDetail = () => {
                 <div className="flex items-center gap-1.5 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 text-emerald-700"><DollarSign className="w-4 h-4" /> {job.salary || 'Thỏa thuận'}</div>
                 <div className="flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100"><Briefcase className="w-4 h-4 text-amber-500" /> {job.experience}</div>
                 
-                {/* ĐÃ THÊM: Loại hình và Số lượng tuyển dụng */}
+                {/* Loại hình và Số lượng tuyển dụng */}
                 <div className="flex items-center gap-1.5 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-100 text-purple-700"><Tag className="w-4 h-4" /> {job.type || 'Chưa cập nhật'}</div>
                 <div className="flex items-center gap-1.5 bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100 text-orange-700"><Users className="w-4 h-4" /> {job.vacancies ? `${job.vacancies} người` : 'Chưa cập nhật'}</div>
+                
+                {(job.requireTest || assessmentData.hasTest || targetTestId) && (
+                  <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 text-indigo-700 font-bold">
+                    <FileText className="w-4 h-4 text-indigo-600" /> Có bài test năng lực
+                  </div>
+                )}
               </div>
 
               {myLatestStatus && (
-                 <div className="mt-4">
+                 <div className="mt-4 flex flex-wrap items-center gap-2.5">
                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-bold shadow-sm ${
-                         myLatestStatus === 'Applied' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                         myLatestStatus === 'Testing' ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                         myLatestStatus === 'Applied' ? (
+                             needsToTakeTest ? 'bg-indigo-50 text-indigo-700 border-indigo-200' : 'bg-blue-50 text-blue-700 border-blue-200'
+                         ) :
+                         myLatestStatus === 'Testing' ? (
+                             myApplication?.testStatus === 'Completed' 
+                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                                 : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                         ) :
                          myLatestStatus === 'Interviewing' ? 'bg-amber-50 text-amber-700 border-amber-200' :
                          myLatestStatus === 'Offered' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                          myLatestStatus === 'Rejected' ? 'bg-rose-50 text-rose-700 border-rose-200' :
@@ -343,25 +369,87 @@ const JobDetail = () => {
                      }`}>
                          <CheckCircle2 className="w-4 h-4" />
                          Trạng thái hồ sơ: {
-                             myLatestStatus === 'Applied' ? 'Hồ sơ ứng tuyển' :
-                             myLatestStatus === 'Testing' ? 'Làm bài kiểm tra' :
-                             myLatestStatus === 'Interviewing' ? 'Đang phỏng vấn' :
-                             myLatestStatus === 'Offered' ? 'Đề nghị (Offer)' :
-                             myLatestStatus === 'Rejected' ? 'Đã từ từ chối' : myLatestStatus
+                             myLatestStatus === 'Applied' ? (
+                                 needsToTakeTest 
+                                     ? 'Đã nộp CV - Cần làm bài test' 
+                                     : 'Hồ sơ đã nộp'
+                             ) :
+                             myLatestStatus === 'Testing' ? (
+                                 myApplication?.testStatus === 'Completed' 
+                                     ? `Đã hoàn thành bài test (${myApplication?.testScore ?? 0}/100đ) - Chờ kết quả` 
+                                     : 'Cần làm bài kiểm tra năng lực'
+                             ) :
+                             myLatestStatus === 'Interviewing' ? 'Đang trong vòng phỏng vấn' :
+                             myLatestStatus === 'Offered' ? 'Đề nghị nhận việc (Offer)' :
+                             myLatestStatus === 'Rejected' ? 'Đã từ chối' : myLatestStatus
                          }
                      </span>
+
+                     {hasSubmittedTest && (
+                       <Link
+                         to="/candidate/applications"
+                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-blue-600 shadow-2xs transition-colors"
+                       >
+                         <Eye className="w-3.5 h-3.5 text-blue-600" />
+                         <span>Xem tiến trình tuyển dụng</span>
+                       </Link>
+                     )}
+
+                     {needsToTakeTest && (
+                       <Link
+                         to={`/assessments/${targetTestId}/take`}
+                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors"
+                       >
+                         <FileText className="w-3.5 h-3.5" />
+                         <span>Làm bài Test ngay</span>
+                         <ArrowRight className="w-3.5 h-3.5" />
+                       </Link>
+                     )}
                  </div>
               )}
             </div>
 
             <div className="flex flex-col gap-3 w-full md:w-auto mt-4 md:mt-0">
-              <button 
-                onClick={() => handleOpenWizard('apply')} 
-                disabled={applyCount >= 3 || isClosed}
-                className={`w-full md:w-56 font-bold py-3.5 px-6 rounded-xl transition-all text-sm tracking-wide cursor-pointer ${isClosed ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : applyCount >= 3 ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'}`}
-              >
-                {isClosed ? 'ĐÃ ĐÓNG / HẾT HẠN' : applyCount >= 3 ? 'ĐÃ ĐẠT GIỚI HẠN NỘP (3/3)' : applyCount > 0 ? `NỘP LẠI CV (${applyCount}/3)` : 'ỨNG TUYỂN NGAY'}
-              </button>
+              {/* NÚT LÀM BÀI TEST DÀNH CHO ỨNG VIÊN ĐÃ NỘP CV MÀ CHƯA HOÀN THÀNH TEST */}
+              {needsToTakeTest && (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/assessments/${targetTestId}/take`)}
+                  className="w-full md:w-56 flex justify-center items-center py-3.5 px-6 rounded-xl font-black transition-all bg-gradient-to-r from-indigo-600 via-indigo-700 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white text-sm gap-2 shadow-lg shadow-indigo-600/30 ring-2 ring-indigo-400 ring-offset-2 animate-pulse cursor-pointer"
+                >
+                  <FileText className="w-4 h-4 shrink-0" />
+                  <span>LÀM BÀI TEST NGAY</span>
+                  <ArrowRight className="w-4 h-4 shrink-0" />
+                </button>
+              )}
+
+              {/* NÚT NỘP CV VỚI PHẦN GIỚI HẠN INLINE Ở DƯỚI */}
+              <div className="w-full md:w-56">
+                <button 
+                  onClick={() => handleOpenWizard('apply')} 
+                  disabled={applyCount >= 3 || isClosed}
+                  className={`w-full font-bold py-3.5 px-6 rounded-xl transition-all text-sm tracking-wide cursor-pointer ${isClosed ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : applyCount >= 3 ? 'bg-slate-100 text-slate-500 border border-slate-200 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md'}`}
+                >
+                  {isClosed ? 'ĐÃ ĐÓNG / HẾT HẠN' : applyCount >= 3 ? 'ĐÃ ĐẠT GIỚI HẠN NỘP' : applyCount > 0 ? 'NỘP LẠI CV' : 'ỨNG TUYỂN NGAY'}
+                </button>
+
+                {/* Phần giới hạn để thành inline ở dưới button nộp CV */}
+                <div className="text-center mt-2 px-1">
+                  {applyCount > 0 && applyCount < 3 ? (
+                    <span className="text-[12px] font-medium text-slate-500">
+                      Đã nộp: <strong className="text-blue-600 font-bold">{applyCount}/3 lần</strong> (Còn {3 - applyCount} lượt)
+                    </span>
+                  ) : applyCount >= 3 ? (
+                    <span className="text-[12px] font-semibold text-amber-600">
+                      Đã dùng hết 3/3 lượt nộp hồ sơ
+                    </span>
+                  ) : (
+                    <span className="text-[12px] font-medium text-slate-400">
+                      Tối đa 3 lượt nộp hồ sơ
+                    </span>
+                  )}
+                </div>
+              </div>
 
               <button 
                 type="button" 
@@ -388,6 +476,34 @@ const JobDetail = () => {
 
       <div className="max-w-6xl mx-auto px-4 mt-8 flex flex-col lg:flex-row gap-8">
          <div className="w-full lg:w-2/3 space-y-6">
+            {/* BANNER NHẮC LÀM BÀI TEST NGAY TRÊN ĐẦU NẾU ỨNG VIÊN ĐÃ NỘP CV MÀ CHƯA LÀM TEST */}
+            {needsToTakeTest && (
+              <div className="bg-gradient-to-r from-indigo-50 via-blue-50 to-indigo-50 border-2 border-indigo-200 rounded-3xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-indigo-600/20">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-black text-indigo-950">Yêu cầu hoàn thành bài kiểm tra năng lực</h3>
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-600 text-white px-2.5 py-0.5 rounded-full">Bắt buộc</span>
+                    </div>
+                    <p className="text-xs sm:text-sm text-indigo-900/80 mt-1 font-medium leading-relaxed">
+                      Bạn đã nộp hồ sơ cho vị trí này. Vui lòng hoàn thành bài test chuyên môn trực tuyến để nhà tuyển dụng đánh giá toàn diện hồ sơ của bạn.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/assessments/${targetTestId}/take`)}
+                  className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm font-black rounded-xl flex items-center justify-center gap-2 shrink-0 shadow-md transition-all cursor-pointer whitespace-nowrap"
+                >
+                  <span>Bắt đầu làm bài</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
             <div className="mb-10">
                 <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2"><div className="w-1.5 h-6 bg-blue-500 rounded-full"></div> Mô tả công việc</h2>

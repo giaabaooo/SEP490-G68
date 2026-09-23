@@ -125,11 +125,11 @@ exports.getJobById = async (req, res) => {
   try {
     const { id } = req.params;
     if (!isValidObjectId(id)) {
-      return res.status(400).json({ message: "ID tin tuyển dụng không hợp lệ" });
+      return res.status(400).json({ message: "ID công việc không hợp lệ" });
     }
 
     const job = await Job.findById(id).populate('recruiterId', 'fullName companyName companySize website city address avatar');
-    if (!job) return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
+    if (!job) return res.status(404).json({ message: "Không tìm thấy công việc" });
 
     // Cập nhật trạng thái nếu quá hạn
     if (job.recruitmentDeadline && new Date(job.recruitmentDeadline).getTime() < new Date().getTime()) {
@@ -250,17 +250,17 @@ exports.createJob = async (req, res) => {
     try {
       await createNotification({
         userId: req.user.id,
-        title: requireTest ? `Đã tạo tin tuyển dụng (Chờ bài test): ${job.title}` : `Đăng tin tuyển dụng thành công: ${job.title}`,
+        title: requireTest ? `Đã tạo công việc (Chờ bài test): ${job.title}` : `Tạo công việc thành công: ${job.title}`,
         message: requireTest 
-          ? `Tin tuyển dụng "${job.title}" đã được tạo. Đang chờ chuyên gia Moderator hoàn thiện đề kiểm tra năng lực (${questionsCount} câu hỏi) trước khi công khai.`
-          : `Tin tuyển dụng "${job.title}" đã được đăng thành công và sẵn sàng tiếp nhận hồ sơ ứng viên.`,
+          ? `Công việc "${job.title}" đã được tạo. Đang chờ chuyên gia Moderator hoàn thiện đề kiểm tra năng lực (${questionsCount} câu hỏi) trước khi công khai.`
+          : `Công việc "${job.title}" đã được đăng thành công và sẵn sàng tiếp nhận hồ sơ ứng viên.`,
         type: 'general',
         link: '/bussiness/post-job'
       });
     } catch (notifErr) {}
 
     const formattedJob = await serializeJob(job);
-    res.status(201).json({ message: "Đăng tin tuyển dụng thành công", job: formattedJob });
+    res.status(201).json({ message: "Tạo công việc thành công", job: formattedJob });
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
 
@@ -274,7 +274,7 @@ exports.updateJob = async (req, res) => {
     } = req.body;
 
     const job = await Job.findById(id);
-    if (!job) return res.status(404).json({ message: "Không tìm thấy tin tuyển dụng" });
+    if (!job) return res.status(404).json({ message: "Không tìm thấy công việc" });
     if (String(job.recruiterId) !== String(req.user.id)) return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa tin này" });
 
     const questionsCount = Number(testQuestionsCount) > 0 ? Number(testQuestionsCount) : (job.testQuestionsCount || 10);
@@ -340,7 +340,11 @@ exports.updateJob = async (req, res) => {
     }
 
     if (status && ["active", "draft", "closed"].includes(status)) {
-      if (!(job.requireTest && job.testStatus === 'pending')) job.status = status;
+      if (job.requireTest && job.testStatus !== 'approved') {
+        job.status = status === 'closed' ? 'closed' : 'draft';
+      } else {
+        job.status = status;
+      }
 
       // THÔNG BÁO CHO MODERATOR NẾU TIN TUYỂN DỤNG ĐÓNG
       if (status === 'closed' && job.moderatorEmail) {
@@ -359,7 +363,7 @@ exports.updateJob = async (req, res) => {
 
     await job.save();
     const formattedJob = await serializeJob(job);
-    res.status(200).json({ message: "Cập nhật tin tuyển dụng thành công", job: formattedJob });
+    res.status(200).json({ message: "Cập nhật công việc thành công", job: formattedJob });
   } catch (error) { res.status(500).json({ message: error.message }); }
 };
 

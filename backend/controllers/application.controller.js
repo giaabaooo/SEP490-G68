@@ -383,9 +383,12 @@ exports.list = async (req, res) => {
       .populate('assessmentId', 'assessmentName timeLimit questions')
       .sort(sort).skip(skip).limit(Number(limit));
 
-    // Chuẩn hóa appliedCvFileUrl cho cả các application cũ
+    // Chuẩn hóa appliedCvFileUrl cho cả các application cũ và đồng bộ bài test mới nhất nếu chưa nộp
     const formattedItems = items.map(app => {
       const doc = app.toObject();
+      if (doc.jobId && doc.jobId.assessmentId && doc.testStatus !== 'Completed') {
+        doc.assessmentId = doc.jobId.assessmentId;
+      }
       if (doc.appliedCvId && (!doc.appliedCvFileUrl || !doc.appliedCvFileUrl.includes('/'))) {
         doc.appliedCvFileUrl = `/api/cv/view/${doc.appliedCvId}`;
       } else if (doc.appliedCvFileUrl && /^[0-9a-fA-F]{24}$/.test(doc.appliedCvFileUrl)) {
@@ -417,6 +420,61 @@ exports.getById = async (req, res) => {
   } catch (error) { res.status(500).json({ message: 'Server error' }); }
 };
 
+const generateCandidateEmailHtml = ({ candidateName, jobTitle, companyName, title, message, actionUrl, actionText, type }) => {
+  const isReject = type === 'Reject' || type === 'reject';
+  const headerColor = isReject ? '#dc2626' : '#2563eb';
+  const buttonColor = isReject ? '#64748b' : '#2563eb';
+
+  return `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+  </head>
+  <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+      <tr>
+        <td style="background-color: ${headerColor}; padding: 28px 32px; text-align: left;">
+          <div style="color: #ffffff; font-size: 20px; font-weight: 800; letter-spacing: -0.5px;">CAREERIO</div>
+          <div style="color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 500; margin-top: 4px;">Hệ thống Tuyển dụng & Đánh giá Năng lực</div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 32px;">
+          <h2 style="margin: 0 0 16px 0; color: #0f172a; font-size: 18px; font-weight: 700;">${title}</h2>
+          <p style="margin: 0 0 16px 0; font-size: 15px; color: #334155; line-height: 1.6;">
+            Xin chào <strong>${candidateName || 'Ứng viên'}</strong>,
+          </p>
+          <div style="background-color: #f1f5f9; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;">
+            <p style="margin: 0; font-size: 14px; color: #475569;">
+              Vị trí ứng tuyển: <strong style="color: #0f172a;">${jobTitle || 'Vị trí đã nộp'}</strong>
+              ${companyName ? `<br/>Đơn vị tuyển dụng: <strong style="color: #0f172a;">${companyName}</strong>` : ''}
+            </p>
+          </div>
+          <div style="font-size: 15px; line-height: 1.7; color: #334155; margin-bottom: 28px;">
+            ${message}
+          </div>
+          ${actionUrl ? `
+          <div style="text-align: center; margin: 32px 0 16px 0;">
+            <a href="${actionUrl}" style="background-color: ${buttonColor}; color: #ffffff; text-decoration: none; padding: 13px 28px; border-radius: 10px; font-weight: 700; font-size: 14px; display: inline-block;">
+              ${actionText || 'Xem chi tiết'}
+            </a>
+          </div>
+          ` : ''}
+          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 28px 0 20px 0;" />
+          <p style="margin: 0; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+            Đây là email tự động từ hệ thống Careerio gửi tới bạn. Chúc bạn có trải nghiệm tuyệt vời cùng nhà tuyển dụng!
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+  </html>
+  `;
+};
+
 exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -428,7 +486,9 @@ exports.updateStatus = async (req, res) => {
     if (req.user?.role === 'business' && app.jobId?.recruiterId?.toString() !== req.user.id.toString()) return res.status(403).json({ message: 'Không có quyền' });
 
     app.status = status; await app.save();
-    const updatedApp = await Application.findById(id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title');
+    const updatedApp = await Application.findById(id).populate('userId', 'fullName avatar cvUrl email').populate('jobId', 'title recruiterId');
+
+    const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
     try {
       const statusNamesVi = { 
@@ -439,20 +499,42 @@ exports.updateStatus = async (req, res) => {
         Rejected: 'Đã từ chối' 
       };
       const statusDetailMsg = {
-        Testing: `Hồ sơ cho vị trí "${app.jobId?.title}" đã được duyệt để làm bài test chuyên môn.`,
-        Interviewing: `Chúc mừng! Hồ sơ của bạn cho vị trí "${app.jobId?.title}" đã được mời vào vòng Phỏng vấn. Nhà tuyển dụng sẽ sớm liên hệ lịch hẹn.`,
-        Offered: `Chúc mừng! Bạn đã nhận được lời mời nhận việc (Offer) cho vị trí "${app.jobId?.title}".`,
-        Rejected: `Cảm ơn bạn đã ứng tuyển vị trí "${app.jobId?.title}". Hồ sơ hiện chưa phù hợp với đợt tuyển dụng này.`
+        Testing: `Hồ sơ của bạn cho vị trí "${updatedApp.jobId?.title}" đã được duyệt để làm bài test chuyên môn. Vui lòng truy cập hệ thống để làm bài kiểm tra.`,
+        Interviewing: `Chúc mừng! Hồ sơ của bạn cho vị trí "${updatedApp.jobId?.title}" đã được chọn vào vòng Phỏng vấn. Nhà tuyển dụng sẽ sớm liên hệ lịch hẹn chi tiết với bạn.`,
+        Offered: `Chúc mừng! Bạn đã nhận được lời mời nhận việc (Offer) cho vị trí "${updatedApp.jobId?.title}". Vui lòng đăng nhập hệ thống để xem chi tiết thông tin.`,
+        Rejected: `Cảm ơn bạn đã quan tâm và ứng tuyển vị trí "${updatedApp.jobId?.title}". Sau khi cân nhắc kỹ lưỡng, hồ sơ của bạn chưa phù hợp với tiêu chí tuyển dụng trong đợt này. Chúc bạn sớm tìm được cơ hội phù hợp!`
       };
+
       await createNotification({ 
-        userId: app.userId, 
+        userId: updatedApp.userId?._id || updatedApp.userId, 
         title: `Cập nhật trạng thái: ${statusNamesVi[status] || status}`, 
-        message: statusDetailMsg[status] || `Hồ sơ cho vị trí "${app.jobId?.title}" đã chuyển sang trạng thái: ${statusNamesVi[status] || status}.`, 
+        message: statusDetailMsg[status] || `Hồ sơ cho vị trí "${updatedApp.jobId?.title}" đã chuyển sang trạng thái: ${statusNamesVi[status] || status}.`, 
         type: 'status_change', 
         link: '/candidate/applications', 
-        relatedApplicationId: app._id 
+        relatedApplicationId: updatedApp._id 
       });
-    } catch (notifErr) {}
+
+      if (updatedApp.userId?.email && ['Testing', 'Interviewing', 'Offered', 'Rejected'].includes(status)) {
+        const actionUrl = status === 'Testing' && updatedApp.assessmentId 
+          ? `${frontendUrl}/candidate/test/${updatedApp.assessmentId}`
+          : `${frontendUrl}/candidate/applications`;
+        const actionText = status === 'Testing' ? 'Vào làm bài Test ngay' : (status === 'Offered' ? 'Xem thư mời nhận việc' : 'Xem chi tiết hồ sơ');
+        const emailHtml = generateCandidateEmailHtml({
+          candidateName: updatedApp.userId?.fullName,
+          jobTitle: updatedApp.jobId?.title,
+          title: `Cập nhật trạng thái ứng tuyển: ${statusNamesVi[status]}`,
+          message: `<p style="margin: 0;">${statusDetailMsg[status]}</p>`,
+          actionUrl,
+          actionText,
+          type: status === 'Rejected' ? 'Reject' : 'Pass'
+        });
+        sendEmail(updatedApp.userId.email, `[Careerio] Thông báo hồ sơ: ${statusNamesVi[status]} - ${updatedApp.jobId?.title}`, emailHtml).catch(err => {
+          console.error('[updateStatus email error]', err.message);
+        });
+      }
+    } catch (notifErr) {
+      console.error('[updateStatus notif error]', notifErr.message);
+    }
 
     return res.json({ message: 'Cập nhật thành công', data: updatedApp });
   } catch (error) { res.status(500).json({ message: 'Lỗi máy chủ' }); }
@@ -467,9 +549,29 @@ exports.sendNotification = async (req, res) => {
     const app = await Application.findById(id).populate('userId').populate('jobId');
     if (!app) return res.status(404).json({ message: 'Không tìm thấy' });
     if (req.user?.role === 'business' && app.jobId?.recruiterId?.toString() !== req.user.id.toString()) return res.status(403).json({ message: 'Không có quyền' });
-    if (!app.userId?.email) return res.status(400).json({ message: 'Không có email' });
+    if (!app.userId?.email) return res.status(400).json({ message: 'Ứng viên không có địa chỉ email' });
 
-    try { await sendEmail(app.userId.email, subject, `<div style="padding: 24px;">${content.replace(/\n/g, '<br/>')}</div>`); } catch (err) {}
+    const frontendUrl = (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/+$/, '');
+
+    const emailHtml = generateCandidateEmailHtml({
+      candidateName: app.userId?.fullName,
+      jobTitle: app.jobId?.title,
+      title: subject,
+      message: content.replace(/\n/g, '<br/>'),
+      actionUrl: `${frontendUrl}/candidate/applications`,
+      actionText: 'Xem chi tiết ứng tuyển',
+      type: type || (app.status === 'Rejected' ? 'Reject' : 'Pass')
+    });
+
+    let emailSent = false;
+    let emailErrorMsg = '';
+    try {
+      await sendEmail(app.userId.email, subject, emailHtml);
+      emailSent = true;
+    } catch (err) {
+      console.error(`[sendNotification] Gửi email thất bại cho ${app.userId.email}:`, err.message);
+      emailErrorMsg = err.message;
+    }
 
     app.mailSentStatus = type === 'Pass' ? 'Sent_Pass' : type === 'Reject' ? 'Sent_Reject' : (app.status === 'Rejected' ? 'Sent_Reject' : 'Sent_Pass');
     await app.save();
@@ -495,8 +597,19 @@ exports.sendNotification = async (req, res) => {
       }
     } catch (err) {}
 
-    return res.json({ message: 'Gửi thành công', mailSentStatus: app.mailSentStatus });
-  } catch (error) { res.status(500).json({ message: 'Lỗi' }); }
+    if (!emailSent && emailErrorMsg) {
+      return res.status(200).json({ 
+        message: `Đã lưu thông báo nhưng gửi email thất bại: ${emailErrorMsg}. Vui lòng thử lại.`, 
+        mailSentStatus: app.mailSentStatus,
+        emailSent: false 
+      });
+    }
+
+    return res.json({ message: 'Gửi thông báo và email thành công!', mailSentStatus: app.mailSentStatus, emailSent: true });
+  } catch (error) { 
+    console.error('[sendNotification error]:', error);
+    res.status(500).json({ message: error.message || 'Lỗi gửi thông báo' }); 
+  }
 };
 
 exports.getStatsSummary = async (req, res) => {

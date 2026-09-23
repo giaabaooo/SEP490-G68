@@ -133,7 +133,7 @@ const PostJob = () => {
           <table className="w-full text-left">
             <thead>
               <tr className="text-xs uppercase tracking-wider text-slate-900 font-black border-b border-slate-200 bg-slate-50/80">
-                <th className="p-5 font-black text-slate-900">Tin tuyển dụng</th>
+                <th className="p-5 font-black text-slate-900">Tiêu đề công việc</th>
                 <th className="p-5 font-black text-slate-900">Mức lương</th>
                 <th className="p-5 font-black text-slate-900">Hạn chót</th>
                 {activeTab === 'test' && <th className="p-5 font-black text-slate-900">SME Phụ trách</th>}
@@ -238,7 +238,7 @@ const PostJob = () => {
           totalPages={totalPages}
           totalItems={sortedJobs.length}
           pageSize={pageSize}
-          itemName="tin tuyển dụng"
+          itemName="công việc"
           onPageChange={setCurrentPage}
         />
       </div>

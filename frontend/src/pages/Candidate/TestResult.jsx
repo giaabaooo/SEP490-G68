@@ -259,7 +259,7 @@ export default function TestResult() {
                 <div className="max-w-4xl mx-auto">
                     <button onClick={handleBack} className="flex items-center text-slate-700 hover:text-blue-600 font-bold text-sm mb-6 transition-colors w-fit group cursor-pointer">
                         <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> 
-                        {!isPractice && targetJobId ? 'Quay lại Chi tiết tin tuyển dụng (JD)' : 'Quay lại danh sách'}
+                        {!isPractice && targetJobId ? 'Quay lại Chi tiết công việc (JD)' : 'Quay lại danh sách'}
                     </button>
                     <div className="text-center">
                         <h1 className="text-3xl md:text-4xl font-black text-black mb-3 tracking-tight">{testTitle}</h1>

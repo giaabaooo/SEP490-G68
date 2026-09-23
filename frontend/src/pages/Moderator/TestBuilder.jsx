@@ -3,27 +3,21 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { 
   ArrowLeft, CheckCircle2, Sparkles, X, PlusCircle, Trash2, Copy, 
-  Settings, CheckCircle, Clock, CheckSquare, Loader2, AlertTriangle
+  Settings, CheckCircle, Clock, CheckSquare, Loader2, AlertTriangle, CheckCheck
 } from 'lucide-react';
 import ConfirmModal from '../../components/common/ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
-const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading, jobQuota }) => {
+const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading, jobQuota, fixedQuestionsCount }) => {
   const [topic, setTopic] = useState('');
+  const targetCount = fixedQuestionsCount || 10;
   const maxAllowedQuestions = typeof jobQuota === 'number' ? Math.floor(jobQuota / 5) : 10;
-  const [count, setCount] = useState(Math.min(10, Math.max(1, maxAllowedQuestions)));
   const [difficulty, setDifficulty] = useState('Intermediate');
-
-  useEffect(() => {
-    if (maxAllowedQuestions > 0 && count > maxAllowedQuestions) {
-      setCount(maxAllowedQuestions);
-    }
-  }, [maxAllowedQuestions]);
 
   if (!isOpen) return null;
 
-  const isOutOfQuota = maxAllowedQuestions <= 0;
+  const isOutOfQuota = maxAllowedQuestions < targetCount;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
@@ -49,20 +43,12 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading, jobQuota }) => 
               </select>
             </div>
             <div>
-              <div className="flex justify-between items-center mb-3">
-                <label className="text-sm font-bold text-slate-700">Số lượng</label>
-                <span className="text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-md">{count} câu</span>
+              <label className="block text-sm font-bold text-slate-700 mb-2">Số lượng câu hỏi</label>
+              <div className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-black text-slate-800 flex items-center justify-between">
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> {targetCount} câu</span>
+                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">Cố định theo Job</span>
               </div>
-              <input 
-                type="range" 
-                min="1" 
-                max={Math.min(20, Math.max(1, maxAllowedQuestions))} 
-                step="1" 
-                disabled={isOutOfQuota}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-emerald-600 disabled:opacity-50" 
-                value={count} 
-                onChange={(e) => setCount(parseInt(e.target.value))} 
-              />
+              <p className="text-[10px] text-slate-500 font-bold mt-1">Cố định theo yêu cầu của HR</p>
             </div>
           </div>
           
@@ -70,18 +56,18 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading, jobQuota }) => 
              <div>
                 <span className="text-xs font-bold text-slate-500 uppercase block">Hạn mức AI của bài test</span>
                 <span className={`text-xs font-bold ${isOutOfQuota ? 'text-rose-600' : 'text-slate-600'}`}>
-                  Được tạo tối đa: <strong className="text-emerald-700">{maxAllowedQuestions}</strong> câu
+                  Được tạo tối đa: <strong className="text-emerald-700">{maxAllowedQuestions}</strong> câu ({jobQuota || 0} Token)
                 </span>
              </div>
              <span className={`text-sm font-black ${isOutOfQuota ? 'text-rose-600' : 'text-emerald-700'}`}>
-                {count} / {maxAllowedQuestions} câu
+                Cần tạo: {targetCount} câu
              </span>
           </div>
 
           {isOutOfQuota && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
-              <span>Đã sử dụng hết số câu hỏi AI được cấp phép cho bài test này. Bạn có thể tự soạn thêm câu hỏi bằng tay.</span>
+              <span>Hạn mức Token của Job không đủ để tạo {targetCount} câu hỏi ({targetCount * 5} Token). Vui lòng soạn thêm thủ công hoặc nạp Token.</span>
             </div>
           )}
         </div>
@@ -90,15 +76,15 @@ const AIGenerateModal = ({ isOpen, onClose, onGenerate, loading, jobQuota }) => 
           <button 
             onClick={() => {
               if (!topic.trim()) return toast.error("Vui lòng nhập chủ đề câu hỏi!");
-              if (isOutOfQuota || count > maxAllowedQuestions) {
-                return toast.error(`Hạn mức chỉ còn tối đa ${maxAllowedQuestions} câu hỏi.`);
+              if (isOutOfQuota) {
+                return toast.error(`Hạn mức Token của Job không đủ để tạo ${targetCount} câu hỏi.`);
               }
-              onGenerate(topic, count, difficulty);
+              onGenerate(topic, targetCount, difficulty);
             }} 
             disabled={loading || isOutOfQuota} 
             className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2 cursor-pointer"
           >
-            {loading ? 'Đang phân tích...' : <><Sparkles className="w-5 h-5" /> {isOutOfQuota ? 'Hết lượt tạo AI' : `Tạo ngay (${count} câu)`}</>}
+            {loading ? 'Đang phân tích...' : <><Sparkles className="w-5 h-5" /> {isOutOfQuota ? 'Hết lượt tạo AI' : `Tạo ngay (${targetCount} câu)`}</>}
           </button>
         </div>
       </div>
@@ -121,6 +107,8 @@ export default function TestBuilder() {
   const [showAIModal, setShowAIModal] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   
+  const [currentJobId, setCurrentJobId] = useState(jobId || null);
+  const [jobQuestionsCount, setJobQuestionsCount] = useState(10);
   const [jobQuota, setJobQuota] = useState(0);
   const [showPublishConfirmModal, setShowPublishConfirmModal] = useState(false);
 
@@ -128,18 +116,25 @@ export default function TestBuilder() {
   const checkedQuestions = parsedQuestions.filter(q => q.isChecked).length;
   const remainingAiQuestions = Math.floor(jobQuota / 5);
 
+  const fetchJobInfo = async (jId) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/jobs/${jId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setJobQuota(data.aiTokensQuota || 0);
+        if (data.testQuestionsCount) {
+          setJobQuestionsCount(data.testQuestionsCount);
+        }
+      }
+    } catch (error) {
+      console.warn("Lỗi fetch job info:", error);
+    }
+  };
+
   useEffect(() => {
     if (jobId) {
-      const fetchJob = async () => {
-        try {
-          const res = await fetch(`${API_BASE}/api/jobs/${jobId}`);
-          if(res.ok) {
-            const data = await res.json();
-            setJobQuota(data.aiTokensQuota || 0);
-          }
-        } catch (error) {}
-      };
-      fetchJob();
+      setCurrentJobId(jobId);
+      fetchJobInfo(jobId);
     }
 
     if (isEditMode) {
@@ -154,6 +149,12 @@ export default function TestBuilder() {
           setDescription(data.description || '');
           setTimeLimit(data.timeLimit);
           setParsedQuestions(data.questions || []);
+
+          const targetJId = data.jobId?._id || data.jobId;
+          if (targetJId) {
+            setCurrentJobId(targetJId);
+            fetchJobInfo(targetJId);
+          }
         } catch (error) { toast.error(error.message); navigate('/moderator/test-bank'); } 
         finally { setLoading(false); }
       };
@@ -167,13 +168,27 @@ export default function TestBuilder() {
   const duplicateQuestion = (idx) => { const arr = [...parsedQuestions]; arr.splice(idx + 1, 0, JSON.parse(JSON.stringify(arr[idx]))); setParsedQuestions(arr); };
   const removeQuestion = (idx) => setParsedQuestions(parsedQuestions.filter((_, i) => i !== idx));
 
+  // Nút duyệt full trên đầu
+  const toggleApproveAll = () => {
+    if (parsedQuestions.length === 0) return;
+    const areAllChecked = parsedQuestions.every(q => q.isChecked);
+    const nextState = !areAllChecked;
+    setParsedQuestions(prev => prev.map(q => ({ ...q, isChecked: nextState })));
+    if (nextState) {
+      toast.success(`Đã duyệt tất cả ${parsedQuestions.length} câu hỏi!`);
+    } else {
+      toast.info('Đã bỏ chọn duyệt tất cả câu hỏi.');
+    }
+  };
+
   const handleAIGenerate = async (topic, count, difficulty) => {
     setIsAILoading(true);
     const token = localStorage.getItem('token');
+    const targetJId = currentJobId || jobId;
     try {
       const res = await fetch(`${API_BASE}/api/assessments/generate-ai`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ topic, quantity: count, difficulty, jobId })
+        body: JSON.stringify({ topic, quantity: count || jobQuestionsCount, difficulty, jobId: targetJId })
       });
       const data = await res.json();
       
@@ -183,13 +198,13 @@ export default function TestBuilder() {
           return;
       }
 
-      const aiQuestions = data.questions.map(q => ({...q, isChecked: false}));
+      const aiQuestions = (data.questions || []).map(q => ({ ...q, isChecked: true }));
       setParsedQuestions(prev => [...prev, ...aiQuestions]);
       setShowAIModal(false);
       if (typeof data.remainingJobQuota === 'number') {
         setJobQuota(data.remainingJobQuota);
       } else {
-        setJobQuota(prev => Math.max(0, prev - (count * 5)));
+        setJobQuota(prev => Math.max(0, prev - ((count || jobQuestionsCount) * 5)));
       }
       toast.success(`Đã tạo ${data.questions.length} câu hỏi thành công!`);
     } catch (error) { 
@@ -213,8 +228,15 @@ export default function TestBuilder() {
   const executeSave = async (status) => {
     setShowPublishConfirmModal(false);
     setIsSaving(true);
-    const payload = { assessmentName, description, timeLimit, questions: parsedQuestions, status };
-    if (!isEditMode && jobId) payload.jobId = jobId;
+    const targetJId = currentJobId || jobId;
+    const payload = { 
+      assessmentName, 
+      description, 
+      timeLimit, 
+      questions: parsedQuestions, 
+      status,
+      jobId: targetJId
+    };
 
     try {
       const url = isEditMode ? `${API_BASE}/api/assessments/${testId}` : `${API_BASE}/api/assessments/create`;
@@ -236,7 +258,14 @@ export default function TestBuilder() {
 
   return (
     <div className="bg-slate-50 min-h-screen flex flex-col font-sans">
-      <AIGenerateModal isOpen={showAIModal} onClose={() => setShowAIModal(false)} onGenerate={handleAIGenerate} loading={isAILoading} jobQuota={jobQuota} />
+      <AIGenerateModal 
+        isOpen={showAIModal} 
+        onClose={() => setShowAIModal(false)} 
+        onGenerate={handleAIGenerate} 
+        loading={isAILoading} 
+        jobQuota={jobQuota} 
+        fixedQuestionsCount={jobQuestionsCount}
+      />
 
       <header className="h-[76px] bg-white border-b border-slate-200 px-8 flex items-center justify-between shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-5">
@@ -247,8 +276,23 @@ export default function TestBuilder() {
           <input type="text" value={assessmentName} onChange={(e) => setAssessmentName(e.target.value)} className="border-none text-xl font-extrabold text-slate-800 outline-none w-[350px] bg-transparent focus:bg-slate-50 px-3 py-1.5 rounded-lg" placeholder="Tên bài kiểm tra..." />
           
           {totalQuestions > 0 && (
-            <div className={`px-4 py-1.5 rounded-xl border flex items-center gap-2 font-bold text-sm transition-colors ${checkedQuestions === totalQuestions ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-               <CheckCircle2 className="w-4 h-4" /> Đã duyệt: {checkedQuestions}/{totalQuestions}
+            <div className="flex items-center gap-2">
+              <div className={`px-3.5 py-1.5 rounded-xl border flex items-center gap-1.5 font-bold text-xs transition-colors ${checkedQuestions === totalQuestions ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                 <CheckCircle2 className="w-3.5 h-3.5" /> Đã duyệt: {checkedQuestions}/{totalQuestions}
+              </div>
+              <button
+                type="button"
+                onClick={toggleApproveAll}
+                className={`px-3.5 py-1.5 rounded-xl border flex items-center gap-1.5 font-black text-xs transition-all cursor-pointer shadow-xs ${
+                  checkedQuestions === totalQuestions 
+                    ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700' 
+                    : 'bg-white text-emerald-700 border-emerald-400 hover:bg-emerald-50'
+                }`}
+                title={checkedQuestions === totalQuestions ? "Bỏ chọn tất cả" : "Duyệt toàn bộ các câu hỏi"}
+              >
+                <CheckCheck className="w-4 h-4" />
+                <span>{checkedQuestions === totalQuestions ? 'Đã duyệt full' : 'Duyệt full trên đầu'}</span>
+              </button>
             </div>
           )}
 

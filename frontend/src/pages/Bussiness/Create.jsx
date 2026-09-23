@@ -72,6 +72,27 @@ const Create = () => {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (name === 'requireTest') {
+      const isChecking = checked;
+      setFormData(prev => ({ ...prev, requireTest: isChecking }));
+      const currentCount = Number(formData.testQuestionsCount) > 0 ? Number(formData.testQuestionsCount) : 10;
+      const currentNeeded = currentCount * 5;
+      if (isChecking && recruiterBalance < currentNeeded) {
+        setShowTokenModal(true);
+        toast.warning(`Số dư ví chỉ còn ${recruiterBalance} Token, không đủ ${currentNeeded} Token để tạo bài Test (${currentCount} câu hỏi). Vui lòng nạp thêm!`);
+      }
+      return;
+    }
+    if (name === 'testQuestionsCount') {
+      const count = Number(value) > 0 ? Number(value) : 10;
+      const needed = count * 5;
+      setFormData(prev => ({ ...prev, testQuestionsCount: value }));
+      if (formData.requireTest && recruiterBalance < needed) {
+        setShowTokenModal(true);
+        toast.warning(`Cần ${needed} Token cho ${count} câu hỏi, nhưng ví chỉ có ${recruiterBalance} Token. Vui lòng nạp thêm!`);
+      }
+      return;
+    }
     setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
   };
 
@@ -97,7 +118,13 @@ const Create = () => {
   const hasEnoughTokens = recruiterBalance >= testTokensNeeded;
 
   const handleSubmit = async (e, isDraft = false) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+
+    // 0. KIỂM TRA HẠN MỨC TOKEN ĐẦU TIÊN NẾU BẬT YÊU CẦU TEST
+    if (formData.requireTest && !hasEnoughTokens) {
+      setShowTokenModal(true);
+      return toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để gửi yêu cầu Test!`);
+    }
 
     // 1. VALIDATE THÔNG TIN CƠ BẢN
     if (!formData.title?.trim()) return toast.error('Vui lòng nhập tiêu đề công việc (*)');
@@ -150,10 +177,6 @@ const Create = () => {
       if (questionsCount < 5 || questionsCount > 50) {
         return toast.error('Số lượng câu hỏi bài test phải từ 5 đến 50 câu (*)');
       }
-      if (!hasEnoughTokens) {
-        setShowTokenModal(true);
-        return toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm!`);
-      }
     }
 
     setSubmitting(true);
@@ -186,7 +209,7 @@ const Create = () => {
           throw new Error(data.message || 'Tạo công việc thất bại');
       }
 
-      toast.success(isDraft ? 'Đã lưu Bản Nháp thành công!' : 'Đăng tin tuyển dụng thành công!');
+      toast.success(isDraft ? 'Đã lưu Bản Nháp thành công!' : 'Tạo công việc thành công!');
       setTimeout(() => navigate('/bussiness/post-job'), 1000);
     } catch (error) { 
       toast.error(error.message); 
@@ -210,7 +233,7 @@ const Create = () => {
           <ArrowLeft className="w-4 h-4 mr-2 group-hover:-translate-x-1 transition-transform" /> Quay lại Quản lý tuyển dụng
         </button>
 
-        <form onSubmit={(e) => handleSubmit(e, false)}>
+        <form onSubmit={(e) => handleSubmit(e, false)} noValidate>
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.3fr] gap-6">
             
             {/* CỘT TRÁI */}
@@ -505,7 +528,18 @@ const Create = () => {
             <button type="button" onClick={(e) => handleSubmit(e, true)} disabled={submitting} className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2 cursor-pointer">
               <Save className="w-4 h-4" /> Lưu Nháp
             </button>
-            <button type="submit" disabled={submitting} className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2 cursor-pointer">
+            <button 
+              type="submit" 
+              disabled={submitting} 
+              onClick={(e) => {
+                if (formData.requireTest && !hasEnoughTokens) {
+                  e.preventDefault();
+                  setShowTokenModal(true);
+                  toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để gửi yêu cầu Test!`);
+                }
+              }}
+              className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
+            >
               {submitting ? 'Đang xử lý...' : (formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job</>)}
             </button>
           </div>

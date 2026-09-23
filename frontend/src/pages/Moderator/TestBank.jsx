@@ -287,7 +287,7 @@ const TestBank = () => {
               <thead>
                 <tr className="text-xs uppercase tracking-wider text-slate-900 bg-slate-100 font-black border-b border-slate-300">
                   <th className="py-4 px-6 min-w-[280px]">Tên bài Test & Thông tin</th>
-                  <th className="py-4 px-6 min-w-[220px]">Tin tuyển dụng liên kết</th>
+                  <th className="py-4 px-6 min-w-[220px]">Công việc liên kết</th>
                   <th className="py-4 px-6 text-center min-w-[140px]">Số câu hỏi</th>
                   <th className="py-4 px-6 text-center min-w-[140px]">Thời lượng</th>
                   <th className="py-4 px-6 min-w-[150px]">Trạng thái</th>

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Assessment = require('../models/Assessment');
 const Job = require('../models/Job');
 const User = require('../models/User');
@@ -14,13 +15,18 @@ exports.generateAI = async (req, res) => {
 
         let currentJob = null;
         let currentUser = null;
-        const tokenCost = quantity * 5;
 
-        // 1. KIỂM TRA HẠN MỨC TOKEN
         if (jobId) {
             currentJob = await Job.findById(jobId);
             if (!currentJob) return res.status(404).json({ message: "Không tìm thấy Job." });
-            
+        }
+
+        // Cố định số lượng câu hỏi theo cấu hình của Job nếu có jobId
+        const finalQuantity = currentJob ? (currentJob.testQuestionsCount || 10) : (Number(quantity) || 10);
+        const tokenCost = finalQuantity * 5;
+
+        // 1. KIỂM TRA HẠN MỨC TOKEN
+        if (currentJob) {
             if ((currentJob.aiTokensQuota || 0) < tokenCost) {
                 return res.status(402).json({ 
                     message: `Hạn mức Token nội bộ của Job này không đủ (Cần ${tokenCost} Token, hiện có ${currentJob.aiTokensQuota || 0} Token). Vui lòng liên hệ Business nạp thêm.` 
@@ -36,7 +42,7 @@ exports.generateAI = async (req, res) => {
             }
         }
 
-        const prompt = `Vai trò: Chuyên gia tuyển dụng IT. Chủ đề: "${topic}". Trình độ: ${difficulty}. Ngôn ngữ: Tiếng Việt. Số lượng: ${quantity} câu hỏi. Nhiệm vụ: Tạo bộ câu hỏi trắc nghiệm (MCQ) có 4 đáp án, 1 đáp án đúng. Trả về mảng JSON. Cấu trúc bắt buộc: [{"question": "Nội dung...", "options": ["A", "B", "C", "D"], "correctAnswer": 0}]`;
+        const prompt = `Vai trò: Chuyên gia tuyển dụng IT. Chủ đề: "${topic}". Trình độ: ${difficulty}. Ngôn ngữ: Tiếng Việt. Số lượng: ${finalQuantity} câu hỏi. Nhiệm vụ: Tạo bộ câu hỏi trắc nghiệm (MCQ) có 4 đáp án, 1 đáp án đúng. Trả về mảng JSON. Cấu trúc bắt buộc: [{"question": "Nội dung...", "options": ["A", "B", "C", "D"], "correctAnswer": 0}]`;
 
         // 2. GỌI AI XỬ LÝ
         const aiData = await aiService.generateWithFallback(prompt, true, 0.4);
@@ -44,7 +50,8 @@ exports.generateAI = async (req, res) => {
         const questions = aiData.map(q => ({
             type: 'mcq', skill: topic, question: q.question,
             options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['A', 'B', 'C', 'D'],
-            correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0
+            correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0,
+            isChecked: true
         }));
 
         // 3. NẾU AI THÀNH CÔNG -> MỚI TRỪ TOKEN (Admin hoàn toàn miễn phí, không trừ token)
@@ -71,7 +78,19 @@ exports.generateAI = async (req, res) => {
 exports.createAssessment = async (req, res) => {
     try {
         const { assessmentName, timeLimit, questions, status, isPublic, description, startDate, endDate, tags, jobId } = req.body;
-        const newTest = new Assessment({ createdBy: req.user.id, jobId, assessmentName, timeLimit, questions, description, status: status || 'DRAFT', isPublic: isPublic || false, startDate, endDate, tags });
+        const newTest = new Assessment({ 
+            createdBy: req.user.id, 
+            jobId, 
+            assessmentName, 
+            timeLimit, 
+            questions, 
+            description, 
+            status: status || 'DRAFT', 
+            isPublic: isPublic || false, 
+            startDate, 
+            endDate, 
+            tags 
+        });
         const savedTest = await newTest.save();
 
         if (jobId) {
@@ -79,18 +98,27 @@ exports.createAssessment = async (req, res) => {
             const updatedJob = await Job.findByIdAndUpdate(
                 jobId, 
                 { 
-                    assessmentId: savedTest._id,
-                    ...(isPublished ? { testStatus: 'approved', status: 'active' } : { testStatus: 'pending' })
+                    $set: {
+                        assessmentId: savedTest._id,
+                        testStatus: isPublished ? 'approved' : 'pending',
+                        status: isPublished ? 'active' : 'draft'
+                    }
                 }, 
                 { new: true }
+            );
+
+            // Đồng bộ ngay assessmentId cho các hồ sơ ứng tuyển của Job này chưa hoàn thành bài test
+            await Application.updateMany(
+                { jobId, testStatus: { $ne: 'Completed' } },
+                { $set: { assessmentId: savedTest._id, hasTest: isPublished } }
             );
 
             if (updatedJob && updatedJob.recruiterId) {
                 if (isPublished) {
                     await createNotification({
                         userId: updatedJob.recruiterId,
-                        title: 'Bài test đã duyệt - Tin tuyển dụng đã kích hoạt!',
-                        message: `Chuyên gia đã hoàn tất và xuất bản bài test cho vị trí "${updatedJob.title}". Tin tuyển dụng của bạn hiện đã hoạt động.`,
+                        title: 'Bài test đã duyệt - Công việc đã kích hoạt!',
+                        message: `Chuyên gia đã hoàn tất và xuất bản bài test cho vị trí "${updatedJob.title}". Công việc của bạn hiện đã hoạt động.`,
                         type: 'job_approved',
                         link: `/bussiness/post-job`
                     });
@@ -98,7 +126,7 @@ exports.createAssessment = async (req, res) => {
                     await createNotification({
                         userId: updatedJob.recruiterId,
                         title: 'Bài test đang được soạn thảo (Bản nháp)',
-                        message: `Chuyên gia đã tạo bản nháp bài test cho vị trí "${updatedJob.title}". Tin tuyển dụng sẽ tự động kích hoạt khi bài test được xuất bản.`,
+                        message: `Chuyên gia đã tạo bản nháp bài test cho vị trí "${updatedJob.title}". Công việc sẽ tự động kích hoạt khi bài test được xuất bản.`,
                         type: 'test_draft',
                         link: `/bussiness/post-job`
                     });
@@ -113,32 +141,95 @@ exports.updateAssessment = async (req, res) => {
     try {
         const { id } = req.params;
         const updates = req.body;
-        const test = await Assessment.findOne({ _id: id, createdBy: req.user.id });
+        
+        let test = await Assessment.findById(id);
         if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
 
-        const prevStatus = test.status;
-        Object.keys(updates).forEach(key => test[key] = updates[key]);
-        const savedTest = await test.save();
+        // Tìm thông tin người dùng đang thực hiện
+        const currentUser = await User.findById(req.user.id);
+        const userEmail = (currentUser?.email || req.user.email || '').toLowerCase().trim();
+        const userRole = currentUser?.role || req.user.role;
+        const userSubRole = currentUser?.subRole || req.user.subRole;
+
+        // Kiểm tra quyền chỉnh sửa bài test
+        const isOwner = test.createdBy && String(test.createdBy) === String(req.user.id);
+        const isAdmin = userRole === 'admin';
+        const isModeratorRole = userRole === 'moderator' || userSubRole === 'moderator';
+        let isAssignedMod = false;
 
         const targetJobId = test.jobId || updates.jobId;
         if (targetJobId) {
-            const isPublished = updates.status === 'PUBLISHED' || test.status === 'PUBLISHED';
-            const updatedJob = await Job.findByIdAndUpdate(
-                targetJobId, 
-                { 
-                    assessmentId: savedTest._id,
-                    ...(isPublished ? { testStatus: 'approved', status: 'active' } : {})
-                }, 
-                { new: true }
+            const linkedJob = await Job.findById(targetJobId);
+            if (linkedJob) {
+                if (String(linkedJob.recruiterId) === String(req.user.id) || 
+                    (linkedJob.moderatorEmail && linkedJob.moderatorEmail.toLowerCase().trim() === userEmail)) {
+                    isAssignedMod = true;
+                }
+            }
+        }
+
+        if (!isOwner && !isAdmin && !isModeratorRole && !isAssignedMod) {
+            return res.status(403).json({ message: "Bạn không có quyền chỉnh sửa bài test này" });
+        }
+
+        const prevStatus = test.status;
+
+        // Cập nhật các trường dữ liệu và đánh dấu modified
+        if (updates.assessmentName) test.assessmentName = updates.assessmentName;
+        if (updates.description !== undefined) test.description = updates.description;
+        if (updates.timeLimit) test.timeLimit = updates.timeLimit;
+        if (updates.status) test.status = updates.status;
+        if (updates.tags) test.tags = updates.tags;
+        if (updates.isPublic !== undefined) test.isPublic = updates.isPublic;
+        if (targetJobId && !test.jobId) test.jobId = targetJobId;
+        if (!test.createdBy) test.createdBy = req.user.id;
+
+        if (updates.questions && Array.isArray(updates.questions)) {
+            test.questions = updates.questions.map(q => ({
+                type: q.type || 'mcq',
+                skill: q.skill || 'General',
+                question: q.question,
+                options: q.options || [],
+                correctAnswer: q.correctAnswer !== undefined ? q.correctAnswer : 0,
+                mediaUrl: q.mediaUrl,
+                mediaType: q.mediaType || 'none',
+                isChecked: q.isChecked !== undefined ? !!q.isChecked : false
+            }));
+            test.markModified('questions');
+        }
+
+        const savedTest = await test.save();
+
+        if (targetJobId) {
+            const isPublished = updates.status ? updates.status === 'PUBLISHED' : test.status === 'PUBLISHED';
+            const jobUpdate = {
+                assessmentId: savedTest._id,
+                testStatus: isPublished ? 'approved' : 'pending',
+                status: isPublished ? 'active' : 'draft'
+            };
+            const updatedJob = await Job.findByIdAndUpdate(targetJobId, { $set: jobUpdate }, { new: true });
+
+            // Đồng bộ ngay assessmentId cho các hồ sơ ứng tuyển của Job này chưa hoàn thành bài test
+            await Application.updateMany(
+                { jobId: targetJobId, testStatus: { $ne: 'Completed' } },
+                { $set: { assessmentId: savedTest._id, hasTest: isPublished } }
             );
 
             if (updatedJob && updatedJob.recruiterId) {
-                if (updates.status === 'PUBLISHED' && prevStatus !== 'PUBLISHED') {
+                if (isPublished && prevStatus !== 'PUBLISHED') {
                     await createNotification({
                         userId: updatedJob.recruiterId,
-                        title: 'Bài test đã duyệt - Tin tuyển dụng đã kích hoạt!',
-                        message: `Chuyên gia đã phê duyệt bài test cho vị trí "${updatedJob.title}". Tin tuyển dụng của bạn hiện đã hoạt động.`,
+                        title: 'Bài test đã duyệt - Công việc đã kích hoạt!',
+                        message: `Chuyên gia đã phê duyệt bài test cho vị trí "${updatedJob.title}". Công việc của bạn hiện đã hoạt động.`,
                         type: 'job_approved',
+                        link: `/bussiness/post-job`
+                    });
+                } else if (!isPublished) {
+                    await createNotification({
+                        userId: updatedJob.recruiterId,
+                        title: 'Bài test được lưu bản nháp',
+                        message: `Bài test cho vị trí "${updatedJob.title}" đang ở trạng thái bản nháp. Công việc tạm thời ở trạng thái chờ duyệt.`,
+                        type: 'test_draft',
                         link: `/bussiness/post-job`
                     });
                 } else {
@@ -153,12 +244,33 @@ exports.updateAssessment = async (req, res) => {
             }
         }
         res.json(savedTest);
-    } catch (err) { res.status(500).json({ message: err.message }); }
+    } catch (err) { 
+        console.error("Lỗi updateAssessment:", err);
+        res.status(500).json({ message: err.message }); 
+    }
 };
 
 exports.getMyTests = async (req, res) => {
     try {
-        const tests = await Assessment.find({ createdBy: req.user.id })
+        if (req.user.role === 'admin') {
+            const tests = await Assessment.find({})
+                .populate('jobId', 'title recruitmentDeadline deadline status location salary type tags')
+                .sort({ createdAt: -1 })
+                .lean();
+            return res.json(tests);
+        }
+
+        const user = await User.findById(req.user.id);
+        const orConditions = [{ createdBy: req.user.id }];
+        if (user?.email) {
+            const assignedJobs = await Job.find({ moderatorEmail: user.email.toLowerCase().trim() }).select('_id');
+            const jobIds = assignedJobs.map(j => j._id);
+            if (jobIds.length > 0) {
+                orConditions.push({ jobId: { $in: jobIds } });
+            }
+        }
+
+        const tests = await Assessment.find({ $or: orConditions })
             .populate('jobId', 'title recruitmentDeadline deadline status location salary type tags')
             .sort({ createdAt: -1 })
             .lean();
@@ -168,7 +280,11 @@ exports.getMyTests = async (req, res) => {
 
 exports.getTestById = async (req, res) => {
     try {
-        const test = await Assessment.findById(req.params.id);
+        const { id } = req.params;
+        if (!id || id === '[object Object]' || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: "ID bài test không hợp lệ" });
+        }
+        const test = await Assessment.findById(id);
         if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
         res.json(test);
     } catch (error) { res.status(500).json({ message: error.message }); }
@@ -176,8 +292,20 @@ exports.getTestById = async (req, res) => {
 
 exports.getTestForCandidate = async (req, res) => {
     try {
-        const test = await Assessment.findById(req.params.id).populate('jobId', 'title companyName companyLogo');
+        const { id } = req.params;
+        if (!id || id === '[object Object]' || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: "ID bài test không hợp lệ" });
+        }
+        let test = await Assessment.findById(id).populate('jobId', 'title companyName companyLogo assessmentId');
         if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
+
+        // Tự động lấy bài test mới nhất của Job nếu bài test này đã được cập nhật/thay thế
+        if (test.jobId && test.jobId.assessmentId && String(test.jobId.assessmentId) !== String(test._id)) {
+            const latestTest = await Assessment.findById(test.jobId.assessmentId).populate('jobId', 'title companyName companyLogo assessmentId');
+            if (latestTest) {
+                test = latestTest;
+            }
+        }
 
         // Tự động ghi nhận thời gian bắt đầu làm bài và kiểm tra trạng thái
         if (req.user?.id && test.jobId) {
@@ -218,8 +346,16 @@ exports.submitTest = async (req, res) => {
         const { answers, duration, tabSwitches } = req.body; 
         const userId = req.user.id;
 
-        const test = await Assessment.findById(id);
+        let test = await Assessment.findById(id).populate('jobId', 'title assessmentId');
         if (!test) return res.status(404).json({ message: "Không tìm thấy bài test" });
+
+        // Tự động dùng bài test mới nhất của Job nếu bài test này đã được cập nhật
+        if (test.jobId && test.jobId.assessmentId && String(test.jobId.assessmentId) !== String(test._id)) {
+            const latestTest = await Assessment.findById(test.jobId.assessmentId).populate('jobId', 'title assessmentId');
+            if (latestTest) {
+                test = latestTest;
+            }
+        }
 
         let correctCount = 0;
         const totalQuestions = test.questions.length;
