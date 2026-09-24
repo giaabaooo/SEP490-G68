@@ -519,15 +519,31 @@ const JobDetail = () => {
             <div className="mb-10">
                 <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2"><div className="w-1.5 h-6 bg-blue-500 rounded-full"></div> Yêu cầu ứng viên</h2>
                 <ul className="space-y-4">
-                {job.requirements?.map((req, idx) => {
-                    // ĐÃ FIX: Dùng Regex cắt bỏ cụm (xx% - Trọng điểm) hoặc (xx%) để không lộ cho ứng viên
-                    const cleanReq = req.replace(/\s*\(\d+%[^)]*\)/g, '');
+                {(() => {
+                  const reqList = (job.requirements && job.requirements.length > 0)
+                    ? job.requirements
+                    : (job.requirementCategories && job.requirementCategories.length > 0)
+                      ? job.requirementCategories.map(c => c.name)
+                      : [];
+
+                  if (reqList.length === 0) {
+                    return <li className="text-slate-500 italic text-sm">Chưa có yêu cầu cụ thể</li>;
+                  }
+
+                  return reqList.map((req, idx) => {
+                    const cleanReq = String(req)
+                      .replace(/\s*\([\d.]+%[^)]*\)/g, '')
+                      .replace(/^[-*•\d.)]+\s*/, '')
+                      .trim();
+                    if (!cleanReq) return null;
                     return (
                         <li key={idx} className="flex items-start gap-3 text-slate-600 font-medium text-[15px]">
-                        <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2.5 shrink-0"></div><span className="leading-relaxed">{cleanReq}</span>
+                          <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mt-2.5 shrink-0"></div>
+                          <span className="leading-relaxed">{cleanReq}</span>
                         </li>
                     );
-                })}
+                  });
+                })()}
                 </ul>
             </div>
 

@@ -33,6 +33,62 @@ const TokenTopupModal = ({ isOpen, onClose, requiredTokens, currentBalance }) =>
     )
 };
 
+// Helper chuyển đổi danh sách Bands thành text Yêu cầu ứng viên
+const generateRequirementsText = (cats) => {
+  return cats
+    .filter(c => c && c.name && c.name.trim())
+    .map(c => {
+      const name = c.name.trim();
+      const weight = Number(c.weight) || 0;
+      if (weight > 0) {
+        return `- ${name} (${weight}%${c.isKey ? ' - Trọng điểm' : ''})`;
+      }
+      return `- ${name}`;
+    })
+    .join('\n');
+};
+
+// Helper đồng bộ từ text Yêu cầu ứng viên xuống danh sách Bands
+const syncRequirementsToBands = (text, prevCats = []) => {
+  if (!text || !text.trim()) return [{ name: '', weight: 0, isKey: false }];
+  const lines = text.split('\n');
+  const result = [];
+
+  lines.forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return;
+
+    // Tìm pattern phần trăm và trọng điểm: ví dụ (35% - Trọng điểm) hoặc (35%)
+    const weightMatch = line.match(/\(([\d.]+)%\s*(-?\s*Trọng điểm)?\)/i);
+    let weight = 0;
+    let isKey = false;
+    let name = line;
+
+    if (weightMatch) {
+      weight = parseFloat(weightMatch[1]) || 0;
+      isKey = Boolean(weightMatch[2]);
+      name = line.replace(/\(([\d.]+)%\s*(-?\s*Trọng điểm)?\)/i, '');
+    }
+
+    // Loại bỏ dấu gạch đầu dòng -, *, •, 1., 1)
+    name = name.replace(/^[-*•\d.)]+\s*/, '').trim();
+    if (!name) return;
+
+    // Nếu không có phần trăm trong text, tìm trong prevCats xem trước đó có thiết lập chưa
+    if (!weightMatch) {
+      const existing = prevCats.find(c => c && c.name && c.name.trim().toLowerCase() === name.toLowerCase());
+      if (existing) {
+        weight = existing.weight;
+        isKey = existing.isKey;
+      }
+    }
+
+    result.push({ name, weight, isKey });
+  });
+
+  return result.length > 0 ? result : [{ name: '', weight: 0, isKey: false }];
+};
+
 const Create = () => {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
@@ -61,7 +117,7 @@ const Create = () => {
 
   const [formData, setFormData] = useState({
     title: '', salary: '', location: 'Hà Nội', type: 'Full-time', experience: 'Không yêu cầu kinh nghiệm',
-    deadline: '', tags: '', description: '', benefits: '', requireTest: false, moderatorEmail: '',
+    deadline: '', tags: '', description: '', requirements: '', benefits: '', requireTest: false, moderatorEmail: '',
     vacancies: 1, useAiReview: true, testQuestionsCount: 10,
   });
 
@@ -70,8 +126,20 @@ const Create = () => {
     { name: '', weight: 100, isKey: false }
   ]);
 
+  // Đồng bộ từ ô Textarea "Yêu cầu ứng viên" xuống danh sách "Yêu cầu chuyên môn (Bands)"
+  const handleRequirementsChange = (e) => {
+    const text = e.target.value;
+    setFormData(prev => ({ ...prev, requirements: text }));
+    const newCats = syncRequirementsToBands(text, categories);
+    setCategories(newCats);
+  };
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (name === 'requirements') {
+      handleRequirementsChange(e);
+      return;
+    }
     if (name === 'requireTest') {
       const isChecking = checked;
       setFormData(prev => ({ ...prev, requireTest: isChecking }));
@@ -98,18 +166,27 @@ const Create = () => {
 
   const handleCategoryChange = (index, field, value) => {
     const newCats = [...categories];
-    newCats[index][field] = value;
+    newCats[index] = { ...newCats[index], [field]: value };
     setCategories(newCats);
+    setFormData(prev => ({
+      ...prev,
+      requirements: generateRequirementsText(newCats)
+    }));
   };
 
   const addCategory = () => {
-    setCategories([...categories, { name: '', weight: 0, isKey: false }]);
+    const newCats = [...categories, { name: '', weight: 0, isKey: false }];
+    setCategories(newCats);
   };
 
   const removeCategory = (index) => {
     const newCats = categories.filter((_, i) => i !== index);
-    if(newCats.length === 0) newCats.push({ name: '', weight: 100, isKey: false });
-    setCategories(newCats);
+    const finalCats = newCats.length === 0 ? [{ name: '', weight: 0, isKey: false }] : newCats;
+    setCategories(finalCats);
+    setFormData(prev => ({
+      ...prev,
+      requirements: generateRequirementsText(finalCats)
+    }));
   };
 
   const totalWeight = categories.reduce((sum, cat) => sum + (Number(cat.weight) || 0), 0);
@@ -152,20 +229,22 @@ const Create = () => {
       if (!formData.benefits?.trim()) return toast.error('Vui lòng nhập quyền lợi & đãi ngộ (*)');
 
       // 3. VALIDATE YÊU CẦU CHUYÊN MÔN (BANDS)
-      if (!categories || categories.length === 0) {
+      const validCategories = categories.filter(c => c && c.name && c.name.trim());
+      if (validCategories.length === 0) {
         return toast.error('Vui lòng thiết lập ít nhất một tiêu chí chuyên môn (Bands) (*)');
       }
       if (categories.some(c => !c.name?.trim())) {
         return toast.error('Vui lòng nhập đầy đủ tên cho tất cả các tiêu chí chuyên môn (*)');
       }
-      if (categories.some(c => Number(c.weight) <= 0)) {
-        return toast.error('Trọng số của mỗi tiêu chí phải lớn hơn 0% (*)');
+      const hasPositiveWeight = categories.some(c => Number(c.weight) > 0);
+      if (!hasPositiveWeight) {
+        return toast.error('Phải có ít nhất một tiêu chí chuyên môn có trọng số (%) lớn hơn 0 (*)');
       }
       if (totalWeight > 100) {
         return toast.error(`Tổng trọng số các tiêu chí đã vượt quá 100% (Hiện tại: ${totalWeight}%). Vui lòng giảm bớt!`);
       }
       if (totalWeight < 100) {
-        return toast.error(`Tổng trọng số các tiêu chí chưa đủ 100% (Hiện tại: ${totalWeight}%). Vui lòng phân bổ thêm ${100 - totalWeight}%!`);
+        return toast.error(`Tổng trọng số các tiêu chí đánh giá chưa đủ 100% (Hiện tại: ${totalWeight}%). Vui lòng phân bổ thêm ${100 - totalWeight}%!`);
       }
 
       // 4. VALIDATE BÀI TEST & MODERATOR NẾU BẬT
@@ -187,7 +266,9 @@ const Create = () => {
     const token = localStorage.getItem('token');
     
     try {
-      const requirementsText = categories.map(c => `- ${c.name} (${c.weight}%${c.isKey ? ' - Trọng điểm' : ''})`).join('\n');
+      const requirementsText = formData.requirements?.trim()
+        ? formData.requirements
+        : generateRequirementsText(categories);
       
       const payload = { 
           ...formData, 
@@ -196,7 +277,11 @@ const Create = () => {
           status: isDraft ? 'draft' : (formData.requireTest ? 'pending' : 'active'),
           isDraft: isDraft,
           requirements: requirementsText, 
-          requirementCategories: categories 
+          requirementCategories: categories.map(c => ({
+            name: c.name.trim(),
+            weight: Number(c.weight) || 0,
+            isKey: !!c.isKey
+          }))
       };
 
       const res = await fetch(`${API_BASE}/api/jobs`, {
@@ -428,6 +513,12 @@ const Create = () => {
                    <textarea required name="description" rows="5" value={formData.description} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Tham gia phát triển dự án...&#10;- Báo cáo tiến độ công việc..." />
                 </div>
 
+                {/* Input Yêu cầu ứng viên */}
+                <div className="mb-5">
+                   <label className="block text-[13px] font-bold text-slate-700 mb-2">Yêu cầu ứng viên <span className="text-red-500">*</span></label>
+                   <textarea required name="requirements" rows="4" value={formData.requirements} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Kỹ năng chuyên môn, kinh nghiệm thực tế..." />
+                </div>
+
                 <div className="mb-5">
                    <label className="block text-[13px] font-bold text-slate-700 mb-2">Quyền lợi & Đãi ngộ <span className="text-red-500">*</span></label>
                    <textarea required name="benefits" rows="4" value={formData.benefits} onChange={handleChange} className="w-full p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 text-sm" placeholder="- Lương tháng 13..." />
@@ -458,7 +549,19 @@ const Create = () => {
                             <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2 bg-white p-3 rounded-xl border border-slate-200">
                                 <input type="text" placeholder="Tên tiêu chí (VD: Frontend React)" value={cat.name} onChange={(e) => handleCategoryChange(idx, 'name', e.target.value)} className="flex-1 min-w-[150px] p-2 text-sm border-b border-slate-200 focus:border-blue-500 outline-none font-medium" />
                                 <div className="flex items-center gap-2 shrink-0">
-                                    <input type="number" min="1" max="100" value={cat.weight} onChange={(e) => handleCategoryChange(idx, 'weight', e.target.value)} className="w-16 p-2 text-sm text-center font-bold border rounded-lg bg-slate-50" title="Trọng số (%)" />
+                                    <input 
+                                      type="number" 
+                                      min="0" 
+                                      max="100" 
+                                      value={cat.weight === 0 && cat.weight !== '0' ? 0 : (cat.weight ?? '')} 
+                                      onChange={(e) => {
+                                        const val = e.target.value === '' ? '' : Math.max(0, Math.min(100, Number(e.target.value)));
+                                        handleCategoryChange(idx, 'weight', val);
+                                      }} 
+                                      className="w-16 p-2 text-sm text-center font-bold border rounded-lg bg-slate-50 focus:bg-white" 
+                                      title="Trọng số (%) - Để 0 hoặc trống nếu là mục phụ" 
+                                      placeholder="0"
+                                    />
                                     <span className="text-xs font-bold text-slate-500">%</span>
                                     
                                     {/* GIẢI THÍCH TRỌNG ĐIỂM BẰNG TOOLTIP NỔI */}
@@ -494,14 +597,14 @@ const Create = () => {
                     {totalWeight < 100 && (
                       <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-medium flex items-center gap-2">
                         <Info className="w-4 h-4 shrink-0 text-amber-600" />
-                        <span>Tổng trọng số hiện tại là <strong>{totalWeight}%</strong> (Còn thiếu <strong>{100 - totalWeight}%</strong> để đạt 100%).</span>
+                        <span>Tổng trọng số hiện tại là <strong>{totalWeight}%</strong> (Còn thiếu <strong>{100 - totalWeight}%</strong> để đạt 100%). Các mục không quan trọng có thể để 0%.</span>
                       </div>
                     )}
 
                     {totalWeight === 100 && (
                       <div className="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 font-bold flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
-                        <span>Tổng trọng số đã đạt 100% hợp lệ.</span>
+                        <span>Tổng trọng số đã đạt 100% hợp lệ. Các mục không điền % sẽ được tính là tiêu chí phụ.</span>
                       </div>
                     )}
                 </div>
