@@ -4,9 +4,10 @@ import { toast } from 'react-toastify';
 import { 
   FileText, CircleDollarSign, Briefcase, MapPin, 
   Calendar, ClipboardCheck, AlignLeft, Send, Save, ArrowLeft,
-  CheckCircle2, AlertCircle, AlertTriangle, X, Sparkles, Plus, Trash2, Users, Loader2, Info
+  CheckCircle2, AlertCircle, AlertTriangle, X, Sparkles, Plus, Trash2, Users, Loader2, Info, Eye, LockKeyhole
 } from 'lucide-react';
 import { fetchProvinces } from '../../services/locationService';
+import AssessmentPreviewModal from '../../components/business/AssessmentPreviewModal';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
@@ -39,6 +40,9 @@ const EditJob = () => {
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [provinces, setProvinces] = useState([]);
   const [recruiterBalance, setRecruiterBalance] = useState(0);
+  const [showAssessmentModal, setShowAssessmentModal] = useState(false);
+  const [assessmentLoading, setAssessmentLoading] = useState(false);
+  const [jobAssessments, setJobAssessments] = useState([]);
 
   useEffect(() => {
     fetchProvinces().then(setProvinces).catch(console.error);
@@ -148,18 +152,42 @@ const EditJob = () => {
   const testTokensNeeded = questionsCount * 5;
   const hasEnoughTokens = recruiterBalance >= testTokensNeeded;
 
-  const handleSubmit = async (e, isDraft = false) => {
+  const openAssessmentPreview = async () => {
+    if (!id) return;
+    setShowAssessmentModal(true);
+    setAssessmentLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/api/assessments/job/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Không thể tải bài test');
+      setJobAssessments(Array.isArray(data) ? data : []);
+    } catch (error) {
+      toast.error(error.message);
+      setShowAssessmentModal(false);
+    } finally {
+      setAssessmentLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e, isDraft = false, forcedStatus = null) => {
     if (e && e.preventDefault) e.preventDefault();
 
     const isDraftAction = isDraft || formData.status === 'draft';
 
     // Xác định chính xác trạng thái mong muốn:
     let resolvedStatus = 'active';
-    if (isDraftAction) {
+    if (forcedStatus) {
+      resolvedStatus = forcedStatus;
+    } else if (isDraftAction) {
       resolvedStatus = 'draft';
     } else if (formData.status === 'closed') {
       // Người dùng chủ động chọn đóng hoặc giữ đóng tin
       resolvedStatus = 'closed';
+    } else if (formData.status === 'ready' && formData.testStatus === 'approved') {
+      resolvedStatus = 'active';
     } else if (formData.status === 'pending') {
       resolvedStatus = 'pending';
     } else if (formData.requireTest && formData.testStatus !== 'approved') {
@@ -285,6 +313,12 @@ const EditJob = () => {
   return (
     <div className="create-job-page animate-fade-in pb-12">
       <TokenTopupModal isOpen={showTokenModal} onClose={() => setShowTokenModal(false)} />
+      <AssessmentPreviewModal
+        isOpen={showAssessmentModal}
+        onClose={() => setShowAssessmentModal(false)}
+        tests={jobAssessments}
+        loading={assessmentLoading}
+      />
       <div className="job-form-container max-w-[1050px] mx-auto p-4">
         
         <button onClick={() => navigate('/bussiness/post-job')} className="flex items-center text-slate-500 hover:text-blue-600 font-bold text-sm mb-6 bg-white px-4 py-2 rounded-full shadow-sm border border-slate-200 w-fit transition-colors group">
@@ -310,10 +344,11 @@ const EditJob = () => {
                   <label className="block text-[13px] font-bold text-slate-700 mb-2">Trạng thái công việc</label>
                   <select 
                     name="status" value={formData.status} onChange={handleChange} 
-                    className={`w-full p-3 font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 ${formData.status === 'active' ? 'text-emerald-700 bg-emerald-50' : formData.status === 'closed' ? 'text-red-700 bg-red-50' : formData.status === 'pending' ? 'text-amber-700 bg-amber-50' : 'text-slate-700 bg-slate-50'}`}
+                    className={`w-full p-3 font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 ${formData.status === 'active' ? 'text-emerald-700 bg-emerald-50' : formData.status === 'closed' ? 'text-red-700 bg-red-50' : formData.status === 'ready' ? 'text-blue-700 bg-blue-50' : formData.status === 'pending' ? 'text-amber-700 bg-amber-50' : 'text-slate-700 bg-slate-50'}`}
                   >
                     <option value="active">🟢 Đang mở tuyển (Active)</option>
-                    {formData.requireTest && <option value="pending">🟠 Đang chờ SME duyệt test (Pending)</option>}
+                    {formData.requireTest && formData.testStatus !== 'approved' && <option value="pending">🟠 Đang chờ SME duyệt test (Pending)</option>}
+                    {formData.requireTest && formData.testStatus === 'approved' && <option value="ready">🔵 Đã có bài test - Sẵn sàng đăng</option>}
                     <option value="draft">🟡 Bản nháp (Draft)</option>
                     <option value="closed">🔴 Đã đóng (Closed)</option>
                   </select>
@@ -405,8 +440,8 @@ const EditJob = () => {
                         <input 
                           type="checkbox" 
                           name="requireTest" 
-                          disabled={isDeadlineExpired}
-                          checked={isDeadlineExpired ? false : formData.requireTest} 
+                          disabled={isDeadlineExpired || formData.testStatus === 'approved'}
+                          checked={formData.requireTest}
                           onChange={(e) => {
                             if (isDeadlineExpired) return;
                             handleChange(e);
@@ -414,14 +449,39 @@ const EditJob = () => {
                           className="w-5 h-5 accent-blue-600 disabled:cursor-not-allowed cursor-pointer" 
                         />
                         <div>
-                          <span className="text-sm font-bold text-slate-700 block">Yêu cầu tạo Test & Kiểm duyệt</span>
+                          <span className="text-sm font-bold text-slate-700 block">
+                            {formData.testStatus === 'approved' ? 'Đã có bài test được duyệt' : 'Yêu cầu tạo Test & Kiểm duyệt'}
+                          </span>
                           {isDeadlineExpired && (
                             <span className="text-[11px] font-bold text-red-500 block mt-0.5">⚠️ Công việc đã quá hạn, không thể tạo hoặc cập nhật bài test.</span>
                           )}
                         </div>
                       </label>
 
-                      {!isDeadlineExpired && formData.requireTest && (
+                      {formData.requireTest && formData.testStatus === 'approved' && (
+                        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 font-black text-emerald-800">
+                                <CheckCircle2 className="h-5 w-5" /> Moderator đã publish bài test
+                              </div>
+                              <p className="mt-1 text-xs font-medium text-emerald-700">
+                                Bài test đã được khóa nội dung. HR có thể xem câu hỏi và đáp án trước khi mở tuyển.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={openAssessmentPreview}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-emerald-700 shadow-sm ring-1 ring-emerald-200 hover:bg-emerald-100"
+                            >
+                              <Eye className="h-4 w-4" /> Xem bài test
+                              <LockKeyhole className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {!isDeadlineExpired && formData.requireTest && formData.testStatus !== 'approved' && (
                         <div className="mt-4 bg-white p-5 rounded-xl border border-blue-100 shadow-sm space-y-4 animate-fade-in">
                           <div>
                             <label className="block text-xs font-bold text-slate-700 mb-2">Email người kiểm duyệt (SME) <span className="text-red-500">*</span></label>
@@ -617,6 +677,9 @@ const EditJob = () => {
               className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
             >
               {submitting ? 'Đang xử lý...' : (
+                formData.status === 'ready' && formData.testStatus === 'approved' ? (
+                  <><Send className="w-4 h-4" /> Mở tin tuyển dụng</>
+                ) :
                 formData.status === 'draft' ? (
                   formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job Ngay</>
                 ) : (

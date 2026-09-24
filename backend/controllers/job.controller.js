@@ -42,7 +42,7 @@ const serializeJob = async (job) => {
     type: job.type || "Full-time", experience: job.experience || "Không yêu cầu kinh nghiệm",
     salary: job.salary || "", tags: Array.isArray(job.tags) ? job.tags : parseStringArray(job.tags),
     benefits: Array.isArray(job.benefits) ? job.benefits : parseLines(job.benefits),
-    status: job.status === "active" ? "Active" : job.status === "pending" ? "Pending" : job.status === "draft" ? "Draft" : "Closed",
+    status: job.status === "active" ? "Active" : job.status === "ready" ? "Ready" : job.status === "pending" ? "Pending" : job.status === "draft" ? "Draft" : "Closed",
     deadline: job.recruitmentDeadline ? job.recruitmentDeadline.toISOString() : null,
     postedAt: job.createdAt, recruiterId: recruiter?._id || job.recruiterId,
     vacancies: job.vacancies || 1, // <<< SỬA Ở ĐÂY
@@ -58,6 +58,23 @@ const serializeJob = async (job) => {
 
 exports.getJobs = async (req, res) => {
   try {
+    const now = new Date();
+    await Job.updateMany(
+      { recruitmentDeadline: { $lt: now }, status: { $in: ["active", "pending", "ready"] } },
+      { $set: { status: "closed" } }
+    );
+    await Job.updateMany(
+      {
+        status: "pending",
+        testStatus: "approved",
+        $or: [
+          { recruitmentDeadline: null },
+          { recruitmentDeadline: { $gte: now } }
+        ]
+      },
+      { $set: { status: "ready" } }
+    );
+
     const query = {};
     if (req.query.recruiterId) {
       query.recruiterId = req.query.recruiterId; query.status = "active"; 
@@ -86,7 +103,7 @@ exports.getJobs = async (req, res) => {
     const formattedJobs = await Promise.all(jobs.map((job) => serializeJob(job)));
 
     // Sắp xếp các Job còn hạn lên đầu, Job hết hạn / đã đóng xếp sau
-    const now = Date.now();
+    const nowTimestamp = Date.now();
     const sortedJobs = formattedJobs.sort((a, b) => {
       const isExpiredA = (() => {
         if ((a.status || '').toLowerCase() === 'closed') return true;
@@ -97,7 +114,7 @@ exports.getJobs = async (req, res) => {
         if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) {
           dEnd.setHours(23, 59, 59, 999);
         }
-        return dEnd.getTime() < now;
+        return dEnd.getTime() < nowTimestamp;
       })();
 
       const isExpiredB = (() => {
@@ -109,7 +126,7 @@ exports.getJobs = async (req, res) => {
         if (dEnd.getHours() === 0 && dEnd.getMinutes() === 0 && dEnd.getSeconds() === 0) {
           dEnd.setHours(23, 59, 59, 999);
         }
-        return dEnd.getTime() < now;
+        return dEnd.getTime() < nowTimestamp;
       })();
 
       if (!isExpiredA && isExpiredB) return -1;
@@ -133,10 +150,13 @@ exports.getJobById = async (req, res) => {
 
     // Cập nhật trạng thái nếu quá hạn
     if (job.recruitmentDeadline && new Date(job.recruitmentDeadline).getTime() < new Date().getTime()) {
-      if (job.status === "active") {
+      if (["active", "pending", "ready"].includes(job.status)) {
         job.status = "closed";
         await job.save();
       }
+    } else if (job.status === "pending" && job.testStatus === "approved") {
+      job.status = "ready";
+      await job.save();
     }
 
     const formattedJob = await serializeJob(job);
@@ -360,6 +380,19 @@ exports.updateJob = async (req, res) => {
 
     const targetRequireTest = requireTest !== undefined ? requireTest : job.requireTest;
     job.requireTest = targetRequireTest;
+
+    if (status === 'active' && parsedDeadline) {
+      const deadlineEnd = new Date(parsedDeadline);
+      if (deadlineEnd.getHours() === 0 && deadlineEnd.getMinutes() === 0 && deadlineEnd.getSeconds() === 0) {
+        deadlineEnd.setHours(23, 59, 59, 999);
+      }
+      if (deadlineEnd.getTime() < Date.now()) {
+        return res.status(400).json({ message: "Không thể mở lại công việc đã hết hạn tuyển dụng" });
+      }
+      if (targetRequireTest && job.testStatus !== 'approved') {
+        return res.status(400).json({ message: "Bài test chưa được Moderator publish nên chưa thể mở tuyển" });
+      }
+    }
 
     if (!targetRequireTest) {
       job.testStatus = null;

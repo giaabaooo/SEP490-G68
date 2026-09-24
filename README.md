@@ -305,6 +305,7 @@ Hệ thống Backend cung cấp hơn 40+ RESTful APIs theo tiền tố `/api`:
 | | `GET` | `/api/interview/history` | Xem lại lịch sử các buổi phỏng vấn thử |
 | **Assessments** | `POST` | `/api/assessments/generate-ai` | AI tự động sinh câu hỏi trắc nghiệm theo JD |
 | | `POST` | `/api/assessments/create` | Tạo bài test đánh giá năng lực (Moderator) |
+| | `GET` | `/api/assessments/job/:jobId` | HR/Moderator xem danh sách bài test và đáp án của job |
 | | `GET` | `/api/assessments/:id/take` | Lấy đề thi cho ứng viên làm bài |
 | | `POST` | `/api/assessments/:id/submit` | Nộp bài thi và nhận điểm số đánh giá |
 | **Roadmap** | `GET` | `/api/roadmaps/:sourceId` | Lấy lộ trình học tập đã lưu |

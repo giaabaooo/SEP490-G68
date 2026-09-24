@@ -140,7 +140,13 @@ const JobDetail = () => {
         setShowUpgradeModal(true);
         return;
     }
-    navigate('/candidate/ai-interview', { state: { jobPosition: job.title } });
+    navigate('/candidate/ai-interview', {
+      state: {
+        jobPosition: job.title,
+        jobId: job._id || job.id,
+        job,
+      },
+    });
   };
 
   const isExpired = job?.deadline ? new Date(job.deadline).getTime() < new Date().getTime() : false;

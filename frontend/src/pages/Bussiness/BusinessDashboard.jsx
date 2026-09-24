@@ -136,7 +136,7 @@ const BusinessDashboard = () => {
 
   const toggleJobStatus = async (jobId, currentStatus, job) => {
     const statusLower = (currentStatus || '').toLowerCase();
-    if (statusLower === 'pending' || (job?.requireTest && job?.testStatus === 'pending' && statusLower !== 'draft')) {
+    if (statusLower === 'pending' && job?.testStatus !== 'approved') {
       toast.error('Công việc đang chờ SME kiểm duyệt bài test, chưa thể thay đổi trạng thái!');
       return;
     }
@@ -318,6 +318,7 @@ const BusinessDashboard = () => {
                     }
                     const cvCount = appCounts[job._id || job.id] || 0;
                     const jobStatus = (job.status || '').toLowerCase();
+                    const isWaitingForTest = jobStatus === 'pending' && job.testStatus !== 'approved';
 
                     return (
                       <tr key={job._id || job.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/80 transition-colors group">
@@ -354,6 +355,8 @@ const BusinessDashboard = () => {
                                 ? 'bg-slate-100 text-slate-700'
                                 : jobStatus === 'active'
                                 ? 'bg-emerald-100 text-emerald-700'
+                                : jobStatus === 'ready'
+                                ? 'bg-blue-100 text-blue-700'
                                 : 'bg-amber-100 text-amber-700'
                             }`}>
                               <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
@@ -363,6 +366,8 @@ const BusinessDashboard = () => {
                                   ? 'bg-slate-400'
                                   : jobStatus === 'active'
                                   ? 'bg-emerald-500'
+                                  : jobStatus === 'ready'
+                                  ? 'bg-blue-500'
                                   : 'bg-amber-500 animate-pulse'
                               }`}></span>
                               {
@@ -372,6 +377,8 @@ const BusinessDashboard = () => {
                                   ? 'Bản nháp'
                                   : jobStatus === 'active'
                                   ? (job.requireTest ? 'Đã duyệt test' : 'Hoạt động')
+                                  : jobStatus === 'ready'
+                                  ? 'Sẵn sàng đăng'
                                   : 'Đang chờ SME'
                               }
                             </span>
@@ -397,16 +404,16 @@ const BusinessDashboard = () => {
 
                             <button
                               onClick={() => toggleJobStatus(job._id || job.id, jobStatus, job)}
-                              disabled={jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft' && jobStatus !== 'closed')}
+                              disabled={isWaitingForTest}
                               title={
-                                jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft' && jobStatus !== 'closed')
+                                isWaitingForTest
                                   ? 'Đang chờ SME duyệt bài test, chưa thể thay đổi'
                                   : jobStatus === 'active'
                                   ? 'Đóng tin này'
                                   : 'Mở lại tin'
                               }
                               className={`p-2 rounded-xl transition-colors cursor-pointer ${
-                                jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft' && jobStatus !== 'closed')
+                                isWaitingForTest
                                   ? 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
                                   : jobStatus === 'active'
                                   ? 'bg-red-50 text-red-600 hover:bg-red-100'

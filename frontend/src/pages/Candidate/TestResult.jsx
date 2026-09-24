@@ -388,8 +388,12 @@ export default function TestResult() {
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => navigate('/candidate/ai-interview', { 
-                                            state: { jobPosition: app.jobId?.title || test?.topicName || '' } 
+                                        onClick={() => navigate('/candidate/ai-interview', {
+                                            state: {
+                                                jobPosition: app.jobId?.title || test?.topicName || '',
+                                                jobId: app.jobId?._id || app.jobId?.id || '',
+                                                job: app.jobId || null,
+                                            }
                                         })}
                                         className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer"
                                     >

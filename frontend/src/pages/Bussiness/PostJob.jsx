@@ -202,6 +202,8 @@ const PostJob = () => {
                             ? 'bg-slate-100 text-slate-700'
                             : jobStatus === 'active'
                             ? 'bg-emerald-100 text-emerald-700'
+                            : jobStatus === 'ready'
+                            ? 'bg-blue-100 text-blue-700'
                             : 'bg-amber-100 text-amber-700'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
@@ -211,6 +213,8 @@ const PostJob = () => {
                               ? 'bg-slate-400'
                               : jobStatus === 'active'
                               ? 'bg-emerald-500'
+                              : jobStatus === 'ready'
+                              ? 'bg-blue-500'
                               : 'bg-amber-500 animate-pulse'
                           }`}></span>
                           {
@@ -220,6 +224,8 @@ const PostJob = () => {
                               ? 'Bản nháp'
                               : jobStatus === 'active'
                               ? (job.requireTest ? 'Đã duyệt test' : 'Hoạt động')
+                              : jobStatus === 'ready'
+                              ? 'Sẵn sàng đăng'
                               : 'Đang chờ SME'
                           }
                         </span>

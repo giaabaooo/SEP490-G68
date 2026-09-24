@@ -150,6 +150,7 @@ exports.createApplication = async (req, res) => {
     const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ message: 'Công việc không tồn tại' });
     if (job.status === 'closed') return res.status(400).json({ message: 'Công việc này đã đóng.' });
+    if (job.status !== 'active') return res.status(400).json({ message: 'Công việc chưa được nhà tuyển dụng mở nhận hồ sơ.' });
     if (job.recruitmentDeadline && new Date(job.recruitmentDeadline).getTime() < new Date().getTime()) return res.status(400).json({ message: 'Đã hết hạn ứng tuyển.' });
 
     const user = await User.findById(userId);
