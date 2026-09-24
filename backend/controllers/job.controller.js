@@ -379,8 +379,11 @@ exports.updateJob = async (req, res) => {
         if (job.testStatus !== 'approved') {
           job.testStatus = null;
         }
+      } else if (status === 'closed') {
+        // NGƯỜI DÙNG CHỦ ĐỘNG ĐÓNG TIN: Giữ nguyên closed, KHÔNG tự chuyển sang pending
+        job.status = 'closed';
       } else {
-        // KHÔNG PHẢI LƯU NHÁP -> Người dùng bấm "Lưu & Gửi Yêu CẦU Test" hoặc "Xuất bản":
+        // KHÔNG PHẢI LƯU NHÁP VÀ KHÔNG PHẢI CLOSED -> Người dùng bấm "Lưu & Gửi Yêu CẦU Test" hoặc "Xuất bản":
         if (job.testStatus !== 'approved') {
           // Cần gửi yêu cầu tới moderator
           const needsTokens = (job.aiTokensQuota || 0) < requiredTokens;
@@ -427,7 +430,7 @@ exports.updateJob = async (req, res) => {
             })();
           }
         } else {
-          // Bài test đã approved, có thể active
+          // Bài test đã approved, có thể active hoặc closed
           job.status = status || 'active';
         }
       }
@@ -437,20 +440,40 @@ exports.updateJob = async (req, res) => {
       job.status = 'closed';
       // THÔNG BÁO CHO MODERATOR NẾU TIN TUYỂN DỤNG ĐÓNG
       if (job.moderatorEmail) {
-        const modUser = await User.findOne({ email: job.moderatorEmail });
-        if (modUser) {
-          await createNotification({
-            userId: modUser._id,
-            title: 'Công việc đã đóng tuyển dụng',
-            message: `Vị trí "${job.title}" đã được nhà tuyển dụng đóng tuyển dụng.`,
-            type: 'job_closed',
-            link: '/moderator/requests'
-          });
+        try {
+          const modUser = await User.findOne({ email: job.moderatorEmail });
+          if (modUser) {
+            await createNotification({
+              userId: modUser._id,
+              title: 'Công việc đã đóng tuyển dụng',
+              message: `Vị trí "${job.title}" đã được nhà tuyển dụng đóng tuyển dụng.`,
+              type: 'job_closed',
+              link: '/moderator/requests'
+            });
+          }
+        } catch (modCloseErr) {
+          console.error("[updateJob] Moderator close notification error:", modCloseErr.message);
         }
       }
     }
 
     await job.save();
+
+    // Thông báo cho nhà tuyển dụng khi cập nhật thành công
+    try {
+      await createNotification({
+        userId: req.user.id,
+        title: isDraft ? `Đã lưu bản nháp: ${job.title}` : (job.status === 'closed' ? `Đã đóng công việc: ${job.title}` : `Đã cập nhật công việc: ${job.title}`),
+        message: isDraft 
+          ? `Bản nháp công việc "${job.title}" đã được cập nhật.` 
+          : (job.status === 'closed' 
+              ? `Công việc "${job.title}" đã được đóng tuyển dụng.` 
+              : `Thông tin công việc "${job.title}" đã được cập nhật thành công.`),
+        type: 'general',
+        link: '/bussiness/post-job'
+      });
+    } catch (nErr) {}
+
     const formattedJob = await serializeJob(job);
     res.status(200).json({ 
       message: isDraft ? "Đã lưu bản nháp thành công" : "Cập nhật công việc thành công", 

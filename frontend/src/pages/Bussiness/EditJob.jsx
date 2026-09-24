@@ -87,6 +87,8 @@ const EditJob = () => {
           requirements: data.requirements ? (Array.isArray(data.requirements) ? data.requirements.join('\n') : data.requirements) : '',
           benefits: data.benefits ? (Array.isArray(data.benefits) ? data.benefits.join('\n') : data.benefits) : '',
           status: data.status ? data.status.toLowerCase() : 'active',
+          testStatus: data.testStatus || null,
+          aiTokensQuota: data.aiTokensQuota || 0,
           requireTest: data.requireTest || false, moderatorEmail: data.moderatorEmail || '',
           vacancies: data.vacancies || 1, useAiReview: data.useAiReview !== false, 
           testQuestionsCount: data.testQuestionsCount || 10,
@@ -149,25 +151,48 @@ const EditJob = () => {
   const handleSubmit = async (e, isDraft = false) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    // 0. CHỈ KIỂM TRA HẠN MỨC TOKEN NẾU GỬI YÊU CẦU TEST CHÍNH THỨC (KHÔNG PHẢI LƯU NHÁP)
-    if (!isDraft && formData.requireTest && !hasEnoughTokens) {
+    const isDraftAction = isDraft || formData.status === 'draft';
+
+    // Xác định chính xác trạng thái mong muốn:
+    let resolvedStatus = 'active';
+    if (isDraftAction) {
+      resolvedStatus = 'draft';
+    } else if (formData.status === 'closed') {
+      // Người dùng chủ động chọn đóng hoặc giữ đóng tin
+      resolvedStatus = 'closed';
+    } else if (formData.status === 'pending') {
+      resolvedStatus = 'pending';
+    } else if (formData.requireTest && formData.testStatus !== 'approved') {
+      // Chỉ khi có yêu cầu test và bài test CHƯA ĐƯỢC DUYỆT thì mới là pending (chờ SME)
+      resolvedStatus = 'pending';
+    } else {
+      resolvedStatus = formData.status || 'active';
+    }
+
+    // 0. CHỈ KIỂM TRA HẠN MỨC TOKEN NẾU GỬI YÊU CẦU TEST MỚI (CHƯA ĐỦ QUOTA VÀ ĐANG MUỐN KÍCH HOẠT TEST)
+    const currentQuota = Number(formData.aiTokensQuota) || 0;
+    const additionalTokensNeeded = Math.max(0, testTokensNeeded - currentQuota);
+    if (!isDraftAction && resolvedStatus !== 'closed' && formData.requireTest && formData.testStatus !== 'approved' && additionalTokensNeeded > 0 && recruiterBalance < additionalTokensNeeded) {
       setShowTokenModal(true);
-      return toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để lưu yêu cầu Test!`);
+      return toast.error(`Số dư Token không đủ (Cần thêm ${additionalTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để kích hoạt bài Test!`);
     }
 
     // 1. TIÊU ĐỀ LÀ BẮT BUỘC (KỂ CẢ KHI LƯU NHÁP)
     if (!formData.title?.trim()) return toast.error('Vui lòng nhập tiêu đề công việc (*)');
 
     // NẾU KHÔNG PHẢI LƯU NHÁP, BẮT BUỘC ĐIỀN ĐỦ TOÀN BỘ CÁC MỤC
-    if (!isDraft) {
+    if (!isDraftAction) {
       if (!formData.vacancies || Number(formData.vacancies) <= 0) return toast.error('Số lượng tuyển dụng phải lớn hơn 0 (*)');
       if (!formData.deadline) return toast.error('Vui lòng chọn hạn nộp hồ sơ (*)');
 
-      const deadlineDate = new Date(formData.deadline);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (deadlineDate < today) {
-        return toast.error('Hạn nộp hồ sơ không được là ngày trong quá khứ (*)');
+      // Chỉ kiểm tra hạn nộp trong quá khứ nếu trạng thái là active (đang mở tuyển)
+      if (resolvedStatus === 'active') {
+        const deadlineDate = new Date(formData.deadline);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (deadlineDate < today) {
+          return toast.error('Hạn nộp hồ sơ không được là ngày trong quá khứ khi mở tuyển (*)');
+        }
       }
 
       if (!formData.salary?.trim()) return toast.error('Vui lòng nhập mức lương (*)');
@@ -198,7 +223,7 @@ const EditJob = () => {
       }
 
       // 4. VALIDATE BÀI TEST & MODERATOR NẾU BẬT
-      if (formData.requireTest) {
+      if (formData.requireTest && resolvedStatus !== 'closed') {
         if (!formData.moderatorEmail?.trim()) {
           return toast.error('Vui lòng nhập Email người kiểm duyệt Bài Test (*)');
         }
@@ -217,11 +242,6 @@ const EditJob = () => {
     
     try {
       const requirementsText = categories.map(c => `- ${c.name} (${c.weight}%${c.isKey ? ' - Trọng điểm' : ''})`).join('\n');
-
-      const isDraftAction = isDraft || formData.status === 'draft';
-      const resolvedStatus = isDraftAction 
-        ? 'draft' 
-        : (formData.requireTest ? 'pending' : (formData.status || 'active'));
 
       const payload = { 
           ...formData, 
@@ -246,7 +266,15 @@ const EditJob = () => {
           throw new Error(data.message || 'Thao tác thất bại');
       }
 
-      toast.success(isDraft ? 'Đã lưu Bản Nháp thành công!' : (formData.requireTest ? 'Đã gửi yêu cầu tạo bài test tới Moderator!' : 'Cập nhật công việc thành công!'));
+      const successMsg = isDraftAction 
+        ? 'Đã lưu Bản Nháp thành công!' 
+        : (resolvedStatus === 'closed' 
+            ? 'Đã cập nhật công việc sang trạng thái Đã đóng!' 
+            : (resolvedStatus === 'pending' && formData.testStatus !== 'approved'
+                ? 'Đã gửi yêu cầu tạo bài test tới Moderator!' 
+                : 'Cập nhật công việc thành công!'));
+
+      toast.success(successMsg);
       setTimeout(() => navigate('/bussiness/post-job'), 1000);
     } catch (error) { toast.error(error.message); } finally { setSubmitting(false); }
   };
@@ -586,13 +614,6 @@ const EditJob = () => {
             <button 
               type="submit" 
               disabled={submitting} 
-              onClick={(e) => {
-                if (formData.requireTest && !hasEnoughTokens) {
-                  e.preventDefault();
-                  setShowTokenModal(true);
-                  toast.error(`Số dư Token không đủ (Cần ${testTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để lưu yêu cầu Test!`);
-                }
-              }}
               className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
             >
               {submitting ? 'Đang xử lý...' : (

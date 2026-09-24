@@ -196,28 +196,31 @@ const PostJob = () => {
                         </span>
                       ) : (
                         <span className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider inline-flex items-center ${
-                          jobStatus === 'active' ? 'bg-emerald-100 text-emerald-700' : 
-                          jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
-                            ? 'bg-amber-100 text-amber-700'
+                          jobStatus === 'closed'
+                            ? 'bg-red-100 text-red-600'
                             : jobStatus === 'draft'
                             ? 'bg-slate-100 text-slate-700'
-                            : 'bg-red-100 text-red-600'
+                            : jobStatus === 'active'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : 'bg-amber-100 text-amber-700'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
-                            jobStatus === 'active' ? 'bg-emerald-500' : 
-                            jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
-                              ? 'bg-amber-500 animate-pulse'
+                            jobStatus === 'closed'
+                              ? 'bg-red-500'
                               : jobStatus === 'draft'
                               ? 'bg-slate-400'
-                              : 'bg-red-500'
+                              : jobStatus === 'active'
+                              ? 'bg-emerald-500'
+                              : 'bg-amber-500 animate-pulse'
                           }`}></span>
                           {
-                            jobStatus === 'active' ? (job.requireTest ? 'Đã duyệt test' : 'Hoạt động') : 
-                            jobStatus === 'pending' || (job.requireTest && job.testStatus === 'pending' && jobStatus !== 'draft')
-                              ? 'Đang chờ SME'
+                            jobStatus === 'closed'
+                              ? 'Đã đóng'
                               : jobStatus === 'draft'
                               ? 'Bản nháp'
-                              : 'Đã đóng'
+                              : jobStatus === 'active'
+                              ? (job.requireTest ? 'Đã duyệt test' : 'Hoạt động')
+                              : 'Đang chờ SME'
                           }
                         </span>
                       )}

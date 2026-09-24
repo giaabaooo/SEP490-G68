@@ -13,9 +13,30 @@ const FloatingNotificationToast = () => {
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
   const DISPLAY_DURATION = 6000; // 6 giây tự biến mất
+  const STORAGE_KEY = 'careerio_shown_notifs';
 
-  // Khởi tạo các ID đã có sẵn trong DB lúc load trang để tránh popup dồn dập các thông báo cũ
+  // Khởi tạo các ID đã có sẵn trong DB lúc load trang để tránh popup các thông báo cũ
   const isInitialLoadRef = useRef(true);
+
+  // Lấy danh sách ID đã từng hiển thị từ localStorage để không bao giờ hiện lại
+  const getShownIds = () => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+    } catch {
+      return new Set();
+    }
+  };
+
+  const markIdAsShown = (id) => {
+    try {
+      const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      if (!list.includes(id)) {
+        list.push(id);
+        if (list.length > 200) list.splice(0, list.length - 200); // Giữ tối đa 200 ID gần nhất
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+      }
+    } catch {}
+  };
 
   const checkNotifications = async () => {
     const token = localStorage.getItem('token');
@@ -30,23 +51,25 @@ const FloatingNotificationToast = () => {
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) return;
 
-      if (isInitialLoadRef.current) {
-        // Lần đầu tải: lấy thông báo chưa đọc mới nhất nếu có (trong vòng 1 giờ qua) để nhắc người dùng
-        isInitialLoadRef.current = false;
-        data.forEach(n => seenIdsRef.current.add(n._id));
+      const shownSet = getShownIds();
 
-        const newestUnread = data.find(n => !n.isRead);
-        if (newestUnread) {
-          // Cho phép hiện thông báo chưa đọc mới nhất lúc vừa vào trang
-          showToast(newestUnread);
-        }
+      // LẦN ĐẦU TIÊN TẢI TRANG (khi login hoặc reload):
+      // Đánh dấu tất cả thông báo hiện có trong DB là ĐÃ BIẾT -> TUYỆT ĐỐI KHÔNG HIỆN POPUP THÔNG BÁO CŨ
+      if (isInitialLoadRef.current) {
+        isInitialLoadRef.current = false;
+        data.forEach(n => {
+          seenIdsRef.current.add(n._id);
+          markIdAsShown(n._id);
+        });
         return;
       }
 
-      // Các lần polling sau: tìm thông báo chưa đọc mà chưa hiển thị
-      const newNotif = data.find(n => !n.isRead && !seenIdsRef.current.has(n._id));
+      // CÁC LẦN POLLING TIẾP THEO:
+      // CHỈ hiển thị popup nếu có thông báo MỚI TINH phát sinh trong lúc đang dùng (chưa từng thấy & chưa từng hiển thị)
+      const newNotif = data.find(n => !seenIdsRef.current.has(n._id) && !shownSet.has(n._id));
       if (newNotif) {
         seenIdsRef.current.add(newNotif._id);
+        markIdAsShown(newNotif._id);
         showToast(newNotif);
       }
     } catch (err) {
@@ -73,13 +96,29 @@ const FloatingNotificationToast = () => {
     }, 50);
 
     timerRef.current = setTimeout(() => {
-      dismissToast();
+      dismissToast(false); // Hết 6s tự biến mất
     }, DISPLAY_DURATION);
   };
 
-  const dismissToast = () => {
+  const dismissToast = (markAsRead = true) => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
+    if (activeToast?._id) {
+      seenIdsRef.current.add(activeToast._id);
+      markIdAsShown(activeToast._id);
+
+      if (markAsRead) {
+        const token = localStorage.getItem('token');
+        if (token) {
+          fetch(`${API_BASE}/api/notifications/${activeToast._id}/read`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(() => {});
+        }
+      }
+    }
+
     setActiveToast(null);
   };
 
@@ -99,7 +138,7 @@ const FloatingNotificationToast = () => {
       }
     } catch (err) {}
 
-    dismissToast();
+    dismissToast(true);
 
     // Điều hướng tới đúng trang
     if (targetLink) {

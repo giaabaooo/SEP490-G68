@@ -1,5 +1,5 @@
-// File: backend/utils/notificationHelper.js
 const Notification = require('../models/Notification');
+const mongoose = require('mongoose');
 
 /**
  * Tạo thông báo hệ thống cho người dùng
@@ -13,15 +13,28 @@ const Notification = require('../models/Notification');
  */
 exports.createNotification = async ({ userId, title, message, type = 'general', link = '', relatedApplicationId = null }) => {
   try {
-    if (!userId) return null;
-    return await Notification.create({
-      userId,
-      title: title.trim(),
-      message: message.trim(),
-      type,
-      link: link.trim(),
-      relatedApplicationId
-    });
+    if (!userId || !title || !message) return null;
+    const cleanUserId = typeof userId === 'object' && userId._id ? userId._id : userId;
+    if (!mongoose.isValidObjectId(cleanUserId)) return null;
+
+    const notifData = {
+      userId: cleanUserId,
+      title: String(title).trim(),
+      message: String(message).trim(),
+      type: type || 'general',
+      link: link ? String(link).trim() : ''
+    };
+
+    if (relatedApplicationId) {
+      const cleanAppId = typeof relatedApplicationId === 'object' && relatedApplicationId._id 
+        ? relatedApplicationId._id 
+        : relatedApplicationId;
+      if (mongoose.isValidObjectId(cleanAppId)) {
+        notifData.relatedApplicationId = cleanAppId;
+      }
+    }
+
+    return await Notification.create(notifData);
   } catch (err) {
     console.error('Lỗi khi tạo notification:', err.message);
     return null;
