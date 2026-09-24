@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, X, ExternalLink, Sparkles, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { Bell, X, ExternalLink, Sparkles, Clock } from 'lucide-react';
 import { formatNotificationTime } from '../../utils/timeAgo';
 
 const FloatingNotificationToast = () => {
@@ -9,32 +9,46 @@ const FloatingNotificationToast = () => {
   const timerRef = useRef(null);
   const progressIntervalRef = useRef(null);
   const seenIdsRef = useRef(new Set());
+  const mountTimeRef = useRef(Date.now());
+  const isInitialLoadRef = useRef(true);
   const navigate = useNavigate();
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
   const DISPLAY_DURATION = 6000; // 6 giây tự biến mất
-  const STORAGE_KEY = 'careerio_shown_notifs';
 
-  // Khởi tạo các ID đã có sẵn trong DB lúc load trang để tránh popup các thông báo cũ
-  const isInitialLoadRef = useRef(true);
+  const getStorageKey = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return user?._id ? `careerio_shown_notifs_${user._id}` : 'careerio_shown_notifs';
+    } catch {
+      return 'careerio_shown_notifs';
+    }
+  };
 
-  // Lấy danh sách ID đã từng hiển thị từ localStorage để không bao giờ hiện lại
+  // Lấy danh sách ID đã từng hiển thị từ localStorage
   const getShownIds = () => {
     try {
-      return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+      return new Set(JSON.parse(localStorage.getItem(getStorageKey()) || '[]'));
     } catch {
       return new Set();
     }
   };
 
-  const markIdAsShown = (id) => {
+  const markIdsAsShown = (ids) => {
+    if (!ids || ids.length === 0) return;
     try {
-      const list = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      if (!list.includes(id)) {
-        list.push(id);
-        if (list.length > 200) list.splice(0, list.length - 200); // Giữ tối đa 200 ID gần nhất
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-      }
+      const key = getStorageKey();
+      const currentList = JSON.parse(localStorage.getItem(key) || '[]');
+      const set = new Set(currentList);
+      ids.forEach(id => {
+        if (id) {
+          set.add(id);
+          seenIdsRef.current.add(id);
+        }
+      });
+      const updatedList = Array.from(set);
+      if (updatedList.length > 300) updatedList.splice(0, updatedList.length - 300);
+      localStorage.setItem(key, JSON.stringify(updatedList));
     } catch {}
   };
 
@@ -52,25 +66,43 @@ const FloatingNotificationToast = () => {
       if (!Array.isArray(data) || data.length === 0) return;
 
       const shownSet = getShownIds();
+      const now = Date.now();
 
-      // LẦN ĐẦU TIÊN TẢI TRANG (khi login hoặc reload):
-      // Đánh dấu tất cả thông báo hiện có trong DB là ĐÃ BIẾT -> TUYỆT ĐỐI KHÔNG HIỆN POPUP THÔNG BÁO CŨ
+      // LẦN ĐẦU TIÊN TẢI HOẶC VỪA MỚI LOGIN:
+      // Luôn ghi nhận TOÀN BỘ thông báo hiện tại là đã biết -> TUYỆT ĐỐI KHÔNG POPUP THÔNG BÁO CŨ
       if (isInitialLoadRef.current) {
         isInitialLoadRef.current = false;
-        data.forEach(n => {
-          seenIdsRef.current.add(n._id);
-          markIdAsShown(n._id);
-        });
+        markIdsAsShown(data.map(n => n._id));
         return;
       }
 
-      // CÁC LẦN POLLING TIẾP THEO:
-      // CHỈ hiển thị popup nếu có thông báo MỚI TINH phát sinh trong lúc đang dùng (chưa từng thấy & chưa từng hiển thị)
-      const newNotif = data.find(n => !seenIdsRef.current.has(n._id) && !shownSet.has(n._id));
+      // ĐIỀU KIỆN ĐỂ POPUP TOAST THỜI GIAN THỰC:
+      // 1. Chưa từng hiển thị (không có trong shownSet và seenIdsRef)
+      // 2. Phải là thông báo CHƯA ĐỌC (!n.isRead)
+      // 3. Thời gian tạo phải MỚI TINH (trong vòng 60 giây gần nhất VÀ sau lúc mở ứng dụng mountTimeRef)
+      const newNotif = data.find(n => {
+        if (!n || n.isRead) return false;
+        if (seenIdsRef.current.has(n._id) || shownSet.has(n._id)) return false;
+        const createdMs = n.createdAt ? new Date(n.createdAt).getTime() : 0;
+        const isRecent = (now - createdMs) <= 60 * 1000; // Không quá 60s
+        const isAfterMount = createdMs >= (mountTimeRef.current - 5000);
+        return isRecent && isAfterMount;
+      });
+
+      // Bất kỳ thông báo cũ nào phát hiện được thì âm thầm đánh dấu đã biết, không bao giờ popup
+      const oldUnshownIds = data
+        .filter(n => !shownSet.has(n._id) && ((now - new Date(n.createdAt).getTime()) > 60 * 1000 || n.isRead))
+        .map(n => n._id);
+      if (oldUnshownIds.length > 0) {
+        markIdsAsShown(oldUnshownIds);
+      }
+
       if (newNotif) {
-        seenIdsRef.current.add(newNotif._id);
-        markIdAsShown(newNotif._id);
+        markIdsAsShown([newNotif._id]);
         showToast(newNotif);
+        try {
+          window.dispatchEvent(new CustomEvent('new_notification_received', { detail: newNotif }));
+        } catch (e) {}
       }
     } catch (err) {
       // Bỏ qua lỗi polling im lặng
@@ -78,7 +110,6 @@ const FloatingNotificationToast = () => {
   };
 
   const showToast = (notif) => {
-    // Xóa timer cũ nếu đang có
     if (timerRef.current) clearTimeout(timerRef.current);
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
@@ -105,8 +136,7 @@ const FloatingNotificationToast = () => {
     if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
 
     if (activeToast?._id) {
-      seenIdsRef.current.add(activeToast._id);
-      markIdAsShown(activeToast._id);
+      markIdsAsShown([activeToast._id]);
 
       if (markAsRead) {
         const token = localStorage.getItem('token');
@@ -126,6 +156,10 @@ const FloatingNotificationToast = () => {
     if (!activeToast) return;
     const targetLink = activeToast.link;
     const notifId = activeToast._id;
+
+    try {
+      window.dispatchEvent(new CustomEvent('app_notification_clicked', { detail: activeToast }));
+    } catch (e) {}
 
     // Đánh dấu đã đọc trên server
     try {
@@ -153,11 +187,10 @@ const FloatingNotificationToast = () => {
   };
 
   useEffect(() => {
-    // Check ngay khi mount
     checkNotifications();
 
-    // Polling định kỳ mỗi 8 giây
-    const interval = setInterval(checkNotifications, 8000);
+    // Polling định kỳ mỗi 6 giây
+    const interval = setInterval(checkNotifications, 6000);
     return () => {
       clearInterval(interval);
       if (timerRef.current) clearTimeout(timerRef.current);

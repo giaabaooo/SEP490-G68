@@ -69,6 +69,9 @@ const Navbar = () => {
     if (!n.isRead) {
       await handleMarkAsRead(n._id);
     }
+    try {
+      window.dispatchEvent(new CustomEvent('app_notification_clicked', { detail: n }));
+    } catch (e) {}
     if (n.link) {
       navigate(n.link);
     } else if (n.relatedApplicationId) {

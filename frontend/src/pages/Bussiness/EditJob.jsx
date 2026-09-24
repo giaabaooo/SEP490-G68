@@ -72,6 +72,7 @@ const EditJob = () => {
   const [categories, setCategories] = useState([
     { name: '', weight: 100, isKey: false }
   ]);
+  const [isPublishedWithoutTest, setIsPublishedWithoutTest] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -103,6 +104,11 @@ const EditJob = () => {
         } else {
             setCategories([{ name: 'Đánh giá chung', weight: 100, isKey: true }]);
         }
+
+        const published = (data.status === 'active' || data.status === 'closed') || (data.postedAt && data.status !== 'draft');
+        if (published && !data.requireTest) {
+          setIsPublishedWithoutTest(true);
+        }
       } catch (error) { toast.error(error.message); navigate('/bussiness/post-job'); } finally { setLoading(false); }
     };
     fetchJob();
@@ -111,6 +117,10 @@ const EditJob = () => {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
     if (name === 'requireTest') {
+      if (isPublishedWithoutTest) {
+        toast.warning("Công việc đã được xuất bản trước đó, không thể yêu cầu thêm bài test từ Moderator");
+        return;
+      }
       const isChecking = checked;
       setFormData(prev => ({ ...prev, requireTest: isChecking }));
       const currentCount = Number(formData.testQuestionsCount) > 0 ? Number(formData.testQuestionsCount) : 10;
@@ -198,6 +208,10 @@ const EditJob = () => {
     }
 
     // 0. CHỈ KIỂM TRA HẠN MỨC TOKEN NẾU GỬI YÊU CẦU TEST MỚI (CHƯA ĐỦ QUOTA VÀ ĐANG MUỐN KÍCH HOẠT TEST)
+    if (isPublishedWithoutTest && formData.requireTest) {
+      return toast.error("Công việc đã được xuất bản trước đó, không thể yêu cầu thêm bài test từ Moderator");
+    }
+
     const currentQuota = Number(formData.aiTokensQuota) || 0;
     const additionalTokensNeeded = Math.max(0, testTokensNeeded - currentQuota);
     if (!isDraftAction && resolvedStatus !== 'closed' && formData.requireTest && formData.testStatus !== 'approved' && additionalTokensNeeded > 0 && recruiterBalance < additionalTokensNeeded) {
@@ -435,15 +449,15 @@ const EditJob = () => {
                   return (
                     <>
                       <label className={`flex items-center gap-3 p-4 bg-white rounded-xl border transition-all ${
-                        isDeadlineExpired ? 'opacity-60 cursor-not-allowed border-slate-200 bg-slate-50' : 'border-blue-200 cursor-pointer hover:border-blue-400'
+                        isDeadlineExpired || isPublishedWithoutTest ? 'opacity-60 cursor-not-allowed border-slate-200 bg-slate-50' : 'border-blue-200 cursor-pointer hover:border-blue-400'
                       }`}>
                         <input 
                           type="checkbox" 
                           name="requireTest" 
-                          disabled={isDeadlineExpired || formData.testStatus === 'approved'}
+                          disabled={isDeadlineExpired || formData.testStatus === 'approved' || isPublishedWithoutTest}
                           checked={formData.requireTest}
                           onChange={(e) => {
-                            if (isDeadlineExpired) return;
+                            if (isDeadlineExpired || isPublishedWithoutTest) return;
                             handleChange(e);
                           }} 
                           className="w-5 h-5 accent-blue-600 disabled:cursor-not-allowed cursor-pointer" 
@@ -454,6 +468,9 @@ const EditJob = () => {
                           </span>
                           {isDeadlineExpired && (
                             <span className="text-[11px] font-bold text-red-500 block mt-0.5">⚠️ Công việc đã quá hạn, không thể tạo hoặc cập nhật bài test.</span>
+                          )}
+                          {isPublishedWithoutTest && (
+                            <span className="text-[11px] font-bold text-amber-600 block mt-0.5">⚠️ Công việc đã được xuất bản (Publish). Không thể yêu cầu thêm bài test từ Moderator.</span>
                           )}
                         </div>
                       </label>

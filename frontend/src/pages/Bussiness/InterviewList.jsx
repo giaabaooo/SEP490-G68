@@ -193,6 +193,14 @@ const InterviewList = () => {
 
       if (!res.ok) throw new Error('Không thể cập nhật trạng thái');
       toast.success(confirmModal.targetStatus === 'Offered' ? 'Đã đề nghị nhận việc thành công!' : 'Đã chuyển hồ sơ sang Từ chối');
+      try {
+        localStorage.setItem('careerio_app_update_event', JSON.stringify({ applicationId: appId, status: confirmModal.targetStatus, timestamp: Date.now() }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const channel = new BroadcastChannel('careerio_app_channel');
+          channel.postMessage({ type: 'APPLICATION_STATUS_UPDATED', applicationId: appId, status: confirmModal.targetStatus, timestamp: Date.now() });
+          channel.close();
+        }
+      } catch (bcErr) {}
       setConfirmModal({ isOpen: false, app: null, targetStatus: null });
       loadData();
     } catch (e) {

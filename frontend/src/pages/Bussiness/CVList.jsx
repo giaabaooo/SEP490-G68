@@ -40,6 +40,7 @@ const CVList = () => {
   const [emailContent, setEmailContent] = useState('');
   const [emailType, setEmailType] = useState('Pass');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [showAllRejected, setShowAllRejected] = useState(false);
 
   // Modal xác nhận chuyển trạng thái (Nhận việc / Từ chối) để tránh HR bấm nhầm
   const [confirmModal, setConfirmModal] = useState({
@@ -278,6 +279,16 @@ const CVList = () => {
 
       toast.success(`Cập nhật trạng thái sang: ${getStatusLabel(newStatus)}`);
       setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: newStatus } : app));
+
+      // Phát tín hiệu cập nhật thời gian thực sang các tab khác (ví dụ: tab Ứng viên đang mở)
+      try {
+        localStorage.setItem('careerio_app_update_event', JSON.stringify({ applicationId: appId, status: newStatus, timestamp: Date.now() }));
+        if (typeof BroadcastChannel !== 'undefined') {
+          const channel = new BroadcastChannel('careerio_app_channel');
+          channel.postMessage({ type: 'APPLICATION_STATUS_UPDATED', applicationId: appId, status: newStatus, timestamp: Date.now() });
+          channel.close();
+        }
+      } catch (bcErr) {}
     } catch (err) {
       toast.error(err.message || 'Không thể cập nhật trạng thái');
     }
@@ -484,20 +495,57 @@ const CVList = () => {
       {viewMode === 'pipeline' ? (
         <div className="flex gap-4 overflow-x-auto pb-6 items-start hide-scrollbar" style={{ minHeight: '600px' }}>
           {['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].map((status) => {
-            const columnApps = applications.filter((app) => app.status === status);
+            const allColumnApps = applications.filter((app) => app.status === status);
+            const totalRejectedInDb = status === 'Rejected' ? allColumnApps.length : 0;
+
+            let columnApps = allColumnApps;
+            if (status === 'Rejected' && !showAllRejected) {
+              const now = Date.now();
+              const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000; // 48 giờ (1-2 ngày)
+              columnApps = allColumnApps.filter(app => {
+                const time = new Date(app.updatedAt || app.appliedAt || app.createdAt).getTime();
+                return (now - time) <= TWO_DAYS_MS;
+              });
+            }
+
             const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Đánh giá năng lực', Interviewing: 'Phỏng vấn', Offered: 'Nhận việc', Rejected: 'Từ chối' };
             const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-purple-500 bg-purple-50/10', Interviewing: 'border-t-4 border-t-blue-500 bg-blue-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
             
             return (
               <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-1 min-w-[220px] max-w-[290px] rounded-2xl border border-slate-200 p-3.5 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
-                <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-                  <h3 className="font-bold text-black text-xs tracking-tight">{statusNames[status]}</h3>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-black shadow-sm border border-slate-100">{columnApps.length}</span>
+                <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                  <div>
+                    <h3 className="font-bold text-black text-xs tracking-tight">{statusNames[status]}</h3>
+                    {status === 'Rejected' && (
+                      <span className="text-[10px] text-slate-500 font-medium block">
+                        {showAllRejected ? 'Tất cả' : '2 ngày gần nhất'}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-black shadow-sm border border-slate-100">
+                      {status === 'Rejected' && totalRejectedInDb > columnApps.length ? `${columnApps.length}/${totalRejectedInDb}` : columnApps.length}
+                    </span>
+                  </div>
                 </div>
+
+                {status === 'Rejected' && totalRejectedInDb > 0 && (
+                  <div className="mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowAllRejected(!showAllRejected)}
+                      className="w-full py-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-bold transition-all flex items-center justify-center gap-1 border border-slate-200 shadow-2xs cursor-pointer"
+                    >
+                      {showAllRejected ? 'Thu gọn (chỉ hiện 48h)' : `Xem tất cả (${totalRejectedInDb} CV)`}
+                    </button>
+                  </div>
+                )}
                 
                 <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                   {columnApps.length === 0 ? (
-                    <div className="py-10 border-2 border-dashed border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-black text-[10px] font-medium bg-white/40">Kéo thả vào đây</div>
+                    <div className="py-10 border-2 border-dashed border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-black text-[10px] font-medium bg-white/40">
+                      {status === 'Rejected' && totalRejectedInDb > 0 ? 'Không có CV từ chối trong 48h qua' : 'Kéo thả vào đây'}
+                    </div>
                   ) : (
                     columnApps.map((app) => (
                       <div key={app._id || app.id} draggable onDragStart={(e) => handleDragStart(e, app._id || app.id)} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-400 transition-all cursor-grab active:cursor-grabbing group relative overflow-hidden">

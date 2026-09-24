@@ -378,6 +378,14 @@ exports.updateJob = async (req, res) => {
     if (testQuestionsCount !== undefined) job.testQuestionsCount = questionsCount;
     if (moderatorEmail !== undefined) job.moderatorEmail = moderatorEmail.toLowerCase().trim();
 
+    // Không cho phép bật yêu cầu bài test Moderator nếu công việc đã từng được xuất bản (Active/Closed) mà không có bài test
+    const isPreviouslyPublished = (job.status === 'active' || job.status === 'closed') || (job.postedAt && job.status !== 'draft');
+    if (isPreviouslyPublished && !job.requireTest && requireTest === true) {
+      return res.status(400).json({ 
+        message: "Công việc đã được xuất bản trước đó, không thể yêu cầu thêm bài test từ Moderator" 
+      });
+    }
+
     const targetRequireTest = requireTest !== undefined ? requireTest : job.requireTest;
     job.requireTest = targetRequireTest;
 

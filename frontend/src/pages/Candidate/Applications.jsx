@@ -33,30 +33,120 @@ const Applications = () => {
     return `${API_BASE}/${target}`;
   };
 
-  useEffect(() => {
-    const fetchApplications = async () => {
+  const fetchApplications = async (silent = false) => {
+    if (!silent) {
       setLoading(true);
       setError(null);
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch(`${API_BASE}/api/applications`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.message || 'Không thể tải hồ sơ ứng tuyển');
-        }
-        setApplications(data.data || []);
-      } catch (err) {
+    }
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API_BASE}/api/applications`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Không thể tải hồ sơ ứng tuyển');
+      }
+      const apps = data.data || [];
+      setApplications(apps);
+      return apps;
+    } catch (err) {
+      if (!silent) {
         setError(err.message || 'Lỗi');
         toast.error(err.message || 'Lỗi khi tải hồ sơ ứng tuyển');
-      } finally {
+      }
+      return null;
+    } finally {
+      if (!silent) {
         setLoading(false);
       }
+    }
+  };
+
+  useEffect(() => {
+    fetchApplications(false);
+
+    // 1. Polling thời gian thực mỗi 3.5 giây (silent refetch không nháy màn hình)
+    const interval = setInterval(() => {
+      fetchApplications(true);
+    }, 3500);
+
+    // 2. Lắng nghe khi người dùng chuyển lại tab (focus hoặc visibilitychange)
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        fetchApplications(true);
+      }
     };
-    fetchApplications();
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    // 3. Lắng nghe cập nhật chéo giữa 2 tab (Cross-tab sync khi HR cập nhật ở tab khác)
+    const handleStorageChange = (e) => {
+      if (e.key === 'careerio_app_update_event') {
+        fetchApplications(true);
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+
+    let appChannel = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        appChannel = new BroadcastChannel('careerio_app_channel');
+        appChannel.onmessage = (event) => {
+          if (event.data?.type === 'APPLICATION_STATUS_UPDATED') {
+            fetchApplications(true);
+          }
+        };
+      } catch (e) {}
+    }
+
+    // 4. Lắng nghe sự kiện click thông báo (khi đang ở chính trang này)
+    const handleNotificationClicked = async (event) => {
+      const notif = event?.detail;
+      const updatedApps = await fetchApplications(true);
+      
+      if (notif?.relatedApplicationId && updatedApps && updatedApps.length > 0) {
+        setExpandedCards(prev => ({
+          ...prev,
+          [notif.relatedApplicationId]: true
+        }));
+
+        const appIndex = updatedApps.findIndex(a => (a._id || a.id) === notif.relatedApplicationId);
+        if (appIndex !== -1) {
+          const targetPage = Math.floor(appIndex / appsPerPage) + 1;
+          setCurrentPage(targetPage);
+          setTimeout(() => {
+            const el = document.getElementById(`application-card-${notif.relatedApplicationId}`);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }, 350);
+        }
+      }
+      toast.info('Đã cập nhật trạng thái ứng tuyển mới nhất!', { toastId: 'app-refreshed' });
+    };
+
+    // 5. Lắng nghe khi có thông báo mới được phát hiện từ polling background
+    const handleNewNotification = () => {
+      fetchApplications(true);
+    };
+
+    window.addEventListener('app_notification_clicked', handleNotificationClicked);
+    window.addEventListener('new_notification_received', handleNewNotification);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('storage', handleStorageChange);
+      if (appChannel) {
+        try { appChannel.close(); } catch (e) {}
+      }
+      window.removeEventListener('app_notification_clicked', handleNotificationClicked);
+      window.removeEventListener('new_notification_received', handleNewNotification);
+    };
   }, []);
 
   const toggleExpand = (id) => {
@@ -238,7 +328,7 @@ const Applications = () => {
               const sortedEvents = [...timelineEvents].reverse();
 
               return (
-                <div key={app._id || app.id} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgb(0,0,0,0.06)] hover:border-emerald-300 transition-all duration-300">
+                <div key={app._id || app.id} id={`application-card-${app._id || app.id}`} className="bg-white rounded-[24px] border border-slate-200 overflow-hidden shadow-[0_2px_12px_rgb(0,0,0,0.03)] hover:shadow-[0_8px_24px_rgb(0,0,0,0.06)] hover:border-emerald-300 transition-all duration-300">
                   <div className="p-6">
                     <div className="flex gap-5 mb-5">
                       <div className="w-16 h-16 shrink-0 border border-slate-100 rounded-2xl p-2 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
