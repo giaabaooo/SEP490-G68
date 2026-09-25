@@ -84,7 +84,7 @@ exports.getMyCVs = async (req, res) => {
 exports.getCVById = async (req, res) => {
   try {
     const { id } = req.params;
-    const cv = await CV.findById(id).populate('user', 'fullName email avatar');
+    const cv = await CV.findOne({ _id: id, user: req.user.id }).populate('user', 'fullName email avatar');
     if (!cv) {
       return res.status(404).json({ message: 'Không tìm thấy CV' });
     }

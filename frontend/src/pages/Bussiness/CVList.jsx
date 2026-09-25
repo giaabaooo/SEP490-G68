@@ -19,7 +19,7 @@ const CVList = () => {
   const [selectedJobId, setSelectedJobId] = useState(currentJobId || 'all');
 
   const [applications, setApplications] = useState([]);
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
@@ -29,7 +29,7 @@ const CVList = () => {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [viewMode, setViewMode] = useState('list'); 
+  const [viewMode, setViewMode] = useState('list');
 
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [selectedAiData, setSelectedAiData] = useState(null);
@@ -130,12 +130,12 @@ const CVList = () => {
   };
 
   const getStatusLabel = (status) => {
-    const labels = { 
-      Applied: 'Hồ sơ mới', 
-      Testing: 'Đánh giá năng lực', 
-      Interviewing: 'Đang xem xét', 
-      Offered: 'Phù hợp', 
-      Rejected: 'Không phù hợp' 
+    const labels = {
+      Applied: 'Hồ sơ mới',
+      Testing: 'Đánh giá năng lực',
+      Interviewing: 'Đang xem xét',
+      Offered: 'Phù hợp',
+      Rejected: 'Không phù hợp'
     };
     return labels[status] || status;
   };
@@ -217,15 +217,15 @@ const CVList = () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.append('search', debouncedSearch);
       if (viewMode === 'list' && activeFilter && activeFilter !== 'All') params.append('status', activeFilter);
-      
+
       const activeJobId = selectedJobId !== 'all' ? selectedJobId : null;
       if (activeJobId) {
         params.append('jobId', activeJobId);
-        params.append('sort', '-aiScore'); 
+        params.append('sort', '-aiScore');
       } else {
         params.append('sort', '-appliedAt');
       }
-      
+
       params.append('page', page);
       params.append('limit', viewMode === 'pipeline' ? 100 : limit);
 
@@ -276,7 +276,7 @@ const CVList = () => {
           channel.postMessage({ type: 'APPLICATION_STATUS_UPDATED', applicationId: appId, status: newStatus, timestamp: Date.now() });
           channel.close();
         }
-      } catch (bcErr) {}
+      } catch (bcErr) { }
     } catch (err) {
       toast.error(err.message || 'Không thể cập nhật trạng thái');
     }
@@ -307,20 +307,20 @@ const CVList = () => {
       const job = `"${app.jobId?.title || 'N/A'}"`;
       const cvScore = app.aiScore || 0;
       const jobRequiresTest = app.hasTest || !!app.assessmentId || !!app.jobId?.requireTest;
-      const testScore = app.testScore !== undefined && app.testScore !== null 
-        ? app.testScore 
+      const testScore = app.testScore !== undefined && app.testScore !== null
+        ? app.testScore
         : app.status === 'Rejected'
-        ? 'Không phù hợp'
-        : app.status === 'Offered'
-        ? 'Phù hợp'
-        : (jobRequiresTest ? 'Chưa làm' : 'Không có bài test');
+          ? 'Không phù hợp'
+          : app.status === 'Offered'
+            ? 'Phù hợp'
+            : (jobRequiresTest ? 'Chưa làm' : 'Không có bài test');
       const tabSwitches = app.tabSwitches || 0;
       const date = `"${new Date(app.appliedAt || app.createdAt || Date.now()).toLocaleDateString('vi-VN')}"`;
       const status = `"${getStatusLabel(app.status)}"`;
       csvRows.push([name, email, job, cvScore, testScore, tabSwitches, date, status].join(','));
     });
 
-    const csvString = '\uFEFF' + csvRows.join('\n'); 
+    const csvString = '\uFEFF' + csvRows.join('\n');
     const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -403,11 +403,11 @@ const CVList = () => {
 
   return (
     <div className="animate-fade-in pb-12">
-      <AiDetailModal 
-        isOpen={aiModalOpen} 
-        onClose={() => setAiModalOpen(false)} 
-        data={selectedAiData} 
-        candidateName={selectedAiData?.userId?.fullName} 
+      <AiDetailModal
+        isOpen={aiModalOpen}
+        onClose={() => setAiModalOpen(false)}
+        data={selectedAiData}
+        candidateName={selectedAiData?.userId?.fullName}
         onReEvaluate={handleReEvaluate}
         isReEvaluating={isReEvaluating}
       />
@@ -430,18 +430,18 @@ const CVList = () => {
               <Search className="w-4 h-4 text-black absolute left-3.5 top-1/2 -translate-y-1/2" />
             </div>
 
-            <select 
-              value={selectedJobId} 
-              onChange={(e) => { 
+            <select
+              value={selectedJobId}
+              onChange={(e) => {
                 const newId = e.target.value;
-                setSelectedJobId(newId); 
-                setPage(1); 
+                setSelectedJobId(newId);
+                setPage(1);
                 if (newId && newId !== 'all') {
                   setSearchParams({ jobId: newId });
                 } else {
                   setSearchParams({});
                 }
-              }} 
+              }}
               className="w-full sm:w-56 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-black focus:outline-none focus:border-blue-500"
             >
               <option value="all">Tất cả vị trí ({jobs.length})</option>
@@ -493,7 +493,7 @@ const CVList = () => {
 
             const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Đánh giá năng lực', Offered: 'Phù hợp', Rejected: 'Không phù hợp' };
             const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-purple-500 bg-purple-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
-            
+
             return (
               <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-1 min-w-[240px] max-w-[320px] rounded-2xl border border-slate-200 p-3.5 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
@@ -523,7 +523,7 @@ const CVList = () => {
                     </button>
                   </div>
                 )}
-                
+
                 <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                   {columnApps.length === 0 ? (
                     <div className="py-10 border-2 border-dashed border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-black text-[10px] font-medium bg-white/40">
@@ -560,16 +560,16 @@ const CVList = () => {
                         <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
                           <div className="flex items-center justify-between gap-1">
                             <div className="flex gap-1 items-center">
-                              <button 
-                                onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} 
-                                className="p-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer" 
+                              <button
+                                onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }}
+                                className="p-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
                                 title="Xem CV"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                               </button>
-                              <button 
-                                onClick={() => handleOpenNotifyModal(app)} 
-                                className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-colors cursor-pointer" 
+                              <button
+                                onClick={() => handleOpenNotifyModal(app)}
+                                className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg transition-colors cursor-pointer"
                                 title="Gửi thông báo"
                               >
                                 <Mail className="w-3.5 h-3.5" />
@@ -577,18 +577,18 @@ const CVList = () => {
                             </div>
                             <div className="flex gap-1.5 items-center">
                               {status !== 'Offered' && (
-                                <button 
-                                  onClick={() => handleOpenConfirmModal(app, 'Offered')} 
-                                  className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer border border-emerald-200 shadow-2xs" 
+                                <button
+                                  onClick={() => handleOpenConfirmModal(app, 'Offered')}
+                                  className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer border border-emerald-200 shadow-2xs"
                                   title="Đánh giá phù hợp"
                                 >
                                   Phù hợp
                                 </button>
                               )}
                               {status !== 'Rejected' && (
-                                <button 
-                                  onClick={() => handleOpenConfirmModal(app, 'Rejected')} 
-                                  className="px-2.5 py-1 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer border border-red-200 shadow-2xs" 
+                                <button
+                                  onClick={() => handleOpenConfirmModal(app, 'Rejected')}
+                                  className="px-2.5 py-1 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer border border-red-200 shadow-2xs"
                                   title="Đánh giá không phù hợp"
                                 >
                                   K.Phù hợp
@@ -625,109 +625,110 @@ const CVList = () => {
                 {!loading && !error && applications.length === 0 && <tr><td colSpan={7} className="p-16 text-center"><p className="text-black font-medium italic">Chưa có ứng viên nào ứng tuyển vào vị trí này.</p></td></tr>}
 
                 {applications.map((app, index) => {
-                   const hasDoneTest = app.testStatus === 'Completed' || (app.testScore !== undefined && app.testScore !== null);
-                   const jobRequiresTest = app.hasTest || !!app.assessmentId || !!app.jobId?.requireTest;
+                  const hasDoneTest = app.testStatus === 'Completed' || (app.testScore !== undefined && app.testScore !== null);
+                  const jobRequiresTest = app.hasTest || !!app.assessmentId || !!app.jobId?.requireTest;
 
-                   return (
-                  <tr key={app._id || app.id} className="hover:bg-slate-50/60 transition-colors group animate-fade-in">
-                    <td className="p-5 pl-6 text-sm font-medium text-black">{(page - 1) * limit + index + 1}</td>
-                    <td className="p-5">
-                      <div className="flex items-center gap-4">
-                        <img src={app.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userId?.fullName || 'U')}&background=eff6ff&color=3b82f6`} alt={app.userId?.fullName || 'Ứng viên'} className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
-                        <div>
-                          <p className="font-bold text-black text-sm flex items-center gap-1.5">
-                            <button 
-                              onClick={() => navigate(`/bussiness/candidate/${app._id || app.id}`)}
-                              className="hover:text-blue-600 transition-colors text-left"
-                            >
-                              {app.userId?.fullName || 'N/A'}
-                            </button>
-                            {app.mailSentStatus && app.mailSentStatus !== 'Pending' && <span className={`w-1.5 h-1.5 rounded-full inline-block ${app.mailSentStatus === 'Sent_Pass' ? 'bg-emerald-500' : 'bg-red-500'}`} title={app.mailSentStatus === 'Sent_Pass' ? 'Đã báo đạt' : 'Đã báo loại'}></span>}
-                          </p>
-                          <p className="text-xs font-medium text-black truncate max-w-[200px]" title={app.userId?.email}>{app.userId?.email || `ID: #${(app._id || app.id).toString().slice(-6).toUpperCase()}`}</p>
-                          {app.jobId?.title && (
-                            <span className="inline-block mt-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md" title={app.jobId.title}>
-                              {app.jobId.title}
-                            </span>
-                          )}
+                  return (
+                    <tr key={app._id || app.id} className="hover:bg-slate-50/60 transition-colors group animate-fade-in">
+                      <td className="p-5 pl-6 text-sm font-medium text-black">{(page - 1) * limit + index + 1}</td>
+                      <td className="p-5">
+                        <div className="flex items-center gap-4">
+                          <img src={app.userId?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(app.userId?.fullName || 'U')}&background=eff6ff&color=3b82f6`} alt={app.userId?.fullName || 'Ứng viên'} className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
+                          <div>
+                            <p className="font-bold text-black text-sm flex items-center gap-1.5">
+                              <button
+                                onClick={() => navigate(`/bussiness/candidate/${app._id || app.id}`)}
+                                className="hover:text-blue-600 transition-colors text-left"
+                              >
+                                {app.userId?.fullName || 'N/A'}
+                              </button>
+                              {app.mailSentStatus && app.mailSentStatus !== 'Pending' && <span className={`w-1.5 h-1.5 rounded-full inline-block ${app.mailSentStatus === 'Sent_Pass' ? 'bg-emerald-500' : 'bg-red-500'}`} title={app.mailSentStatus === 'Sent_Pass' ? 'Đã báo đạt' : 'Đã báo loại'}></span>}
+                            </p>
+                            <p className="text-xs font-medium text-black truncate max-w-[200px]" title={app.userId?.email}>{app.userId?.email || `ID: #${(app._id || app.id).toString().slice(-6).toUpperCase()}`}</p>
+                            {app.jobId?.title && (
+                              <span className="inline-block mt-1 text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md" title={app.jobId.title}>
+                                {app.jobId.title}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="p-5 text-center">
-                      <div className="flex justify-center">
-                        <button onClick={() => handleOpenAiModal(app)} title="Click để xem phân tích chi tiết" className={`px-4 py-2 rounded-xl border flex items-center gap-1.5 transition-all shadow-sm ${getAiScoreStyle(app.aiScore ?? 0)}`}>
-                          {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-4 h-4" />}
-                          <span className="font-black text-sm">{(app.aiScore ?? 0)}% Match</span>
-                        </button>
-                      </div>
-                    </td>
+                      <td className="p-5 text-center">
+                        <div className="flex justify-center">
+                          <button onClick={() => handleOpenAiModal(app)} title="Click để xem phân tích chi tiết" className={`px-4 py-2 rounded-xl border flex items-center gap-1.5 transition-all shadow-sm ${getAiScoreStyle(app.aiScore ?? 0)}`}>
+                            {(app.aiScore ?? 0) >= 80 && <Sparkles className="w-4 h-4" />}
+                            <span className="font-black text-sm">{(app.aiScore ?? 0)}% Match</span>
+                          </button>
+                        </div>
+                      </td>
 
-                    <td className="p-5 text-center">
-                       {hasDoneTest ? (
+                      <td className="p-5 text-center">
+                        {hasDoneTest ? (
                           <div className="flex flex-col items-center">
-                             <div className="flex items-center gap-1.5 w-full justify-center">
-                                <span className={`font-black text-[15px] ${app.testScore >= 50 ? 'text-emerald-600' : 'text-red-500'}`}>{app.testScore}</span>
-                                <span className="text-xs text-slate-400 font-bold">/100</span>
-                             </div>
-                             <span className="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded mt-1 border border-emerald-200">Hoàn thành</span>
-                             {app.tabSwitches > 0 && (
-                                <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded mt-1 border border-red-200 flex items-center gap-0.5" title={`Hệ thống phát hiện rời màn hình ${app.tabSwitches} lần trong khi thi`}>
-                                   <AlertTriangle className="w-3 h-3 text-red-500" />
-                                   {app.tabSwitches} lần rời tab
-                                </span>
-                             )}
+                            <div className="flex items-center gap-1.5 w-full justify-center">
+                              <span className={`font-black text-[15px] ${app.testScore >= 50 ? 'text-emerald-600' : 'text-red-500'}`}>{app.testScore}</span>
+                              <span className="text-xs text-slate-400 font-bold">/100</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-50 px-2 py-0.5 rounded mt-1 border border-emerald-200">Hoàn thành</span>
+                            {app.tabSwitches > 0 && (
+                              <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded mt-1 border border-red-200 flex items-center gap-0.5" title={`Hệ thống phát hiện rời màn hình ${app.tabSwitches} lần trong khi thi`}>
+                                <AlertTriangle className="w-3 h-3 text-red-500" />
+                                {app.tabSwitches} lần rời tab
+                              </span>
+                            )}
                           </div>
-                       ) : app.status === 'Rejected' ? (
+                        ) : app.status === 'Rejected' ? (
                           <span className="text-[11px] font-medium text-slate-400 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5" title="Hồ sơ đã bị từ chối trước khi làm bài test">
-                             <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
-                             Đã dừng tuyển
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                            Đã dừng tuyển
                           </span>
-                       ) : app.status === 'Offered' ? (
+                        ) : app.status === 'Offered' ? (
                           <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                             Đã nhận việc
+                            Đã nhận việc
                           </span>
-                       ) : jobRequiresTest ? (
+                        ) : jobRequiresTest ? (
                           <div className="flex flex-col items-center gap-1.5">
-                             <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">Chưa làm bài</span>
-                             <button
-                               onClick={() => handleOpenNotifyModal(app, 'testReminder')}
-                               className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
-                               title="Gửi email nhắc nhở ứng viên hoàn thành bài test"
-                             >
-                               <Mail className="w-3 h-3 text-blue-600" />
-                               <span>Nhắc làm bài</span>
-                             </button>
+                            <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg">Chưa làm bài</span>
+                            <button
+                              onClick={() => handleOpenNotifyModal(app, 'testReminder')}
+                              className="text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1 rounded-md border border-blue-200 flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                              title="Gửi email nhắc nhở ứng viên hoàn thành bài test"
+                            >
+                              <Mail className="w-3 h-3 text-blue-600" />
+                              <span>Nhắc làm bài</span>
+                            </button>
                           </div>
-                       ) : (
+                        ) : (
                           <span className="text-[11px] font-medium text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-lg inline-flex items-center gap-1.5">
-                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                             Không có bài test
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            Không có bài test
                           </span>
-                       )}
-                    </td>
+                        )}
+                      </td>
 
-                    <td className="p-5">
-                      {(() => {
-                        const badge = getDetailedStatusBadge(app);
-                        return (
-                          <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${badge.style}`}>
-                            {badge.label}
-                          </span>
-                        );
-                      })()}
-                    </td>
+                      <td className="p-5">
+                        {(() => {
+                          const badge = getDetailedStatusBadge(app);
+                          return (
+                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${badge.style}`}>
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
+                      </td>
 
-                    <td className="p-5 pr-6 text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <button onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Xem CV"><Eye className="w-4 h-4" /></button>
-                        <button onClick={() => handleOpenNotifyModal(app)} className="p-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer shadow-2xs" title="Gửi thông báo"><Mail className="w-4 h-4" /></button>
-                        <button onClick={() => handleOpenConfirmModal(app, 'Offered')} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Đánh giá phù hợp"><CheckCircle className="w-4 h-4" /></button>
-                        <button onClick={() => handleOpenConfirmModal(app, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Đánh giá không phù hợp"><XCircle className="w-4 h-4" /></button>
-                      </div>
-                    </td>
-                  </tr>
-                )})}
+                      <td className="p-5 pr-6 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Xem CV"><Eye className="w-4 h-4" /></button>
+                          {/* <button onClick={() => handleOpenNotifyModal(app)} className="p-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer shadow-2xs" title="Gửi thông báo"><Mail className="w-4 h-4" /></button> */}
+                          <button onClick={() => handleOpenConfirmModal(app, 'Offered')} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Đánh giá phù hợp"><CheckCircle className="w-4 h-4" /></button>
+                          <button onClick={() => handleOpenConfirmModal(app, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Đánh giá không phù hợp"><XCircle className="w-4 h-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -752,7 +753,7 @@ const CVList = () => {
               <h3 className="text-xl font-black text-black">Gửi thông báo cho ứng viên</h3>
               <button className="w-8 h-8 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-black hover:text-black transition-colors text-xl font-bold" onClick={() => setIsNotifyModalOpen(false)}>&times;</button>
             </div>
-            
+
             <div className="mb-5 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-sm">
               <p className="text-black mb-1">Ứng viên: <strong className="text-black">{selectedApp.userId?.fullName}</strong></p>
               <p className="text-black">Vị trí ứng tuyển: <strong className="text-black">{selectedApp.jobId?.title}</strong></p>
@@ -762,7 +763,7 @@ const CVList = () => {
               <label className="text-xs font-black text-black uppercase tracking-wider block mb-2">Mẫu thông báo nhanh</label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { key: 'suitable', label: 'Phù hợp', type: 'Pass' }, 
+                  { key: 'suitable', label: 'Phù hợp', type: 'Pass' },
                   { key: 'unsuitable', label: 'Không phù hợp', type: 'Reject' }
                 ].map((t) => (
                   <button
@@ -774,11 +775,10 @@ const CVList = () => {
                         setEmailType(t.type);
                       }
                     }}
-                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer text-center ${
-                      t.key === 'suitable' 
-                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200' 
+                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer text-center ${t.key === 'suitable'
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
                         : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
-                    }`}
+                      }`}
                   >{t.label}</button>
                 ))}
               </div>
@@ -814,20 +814,19 @@ const CVList = () => {
 
       {/* Modal xác nhận Đổi trạng thái Phù hợp / Không phù hợp để tránh HR bấm nhầm */}
       {confirmModal.isOpen && confirmModal.app && (
-        <div 
+        <div
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in"
           onClick={() => setConfirmModal({ isOpen: false, app: null, targetStatus: null })}
         >
-          <div 
+          <div
             className="bg-white rounded-[28px] w-full max-w-md p-6 sm:p-7 border border-slate-200 shadow-2xl animate-scale-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3.5 mb-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                confirmModal.targetStatus === 'Offered' 
-                  ? 'bg-emerald-100 text-emerald-600 border border-emerald-200' 
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${confirmModal.targetStatus === 'Offered'
+                  ? 'bg-emerald-100 text-emerald-600 border border-emerald-200'
                   : 'bg-rose-100 text-rose-600 border border-rose-200'
-              }`}>
+                }`}>
                 {confirmModal.targetStatus === 'Offered' ? (
                   <CheckCircle className="w-6 h-6" />
                 ) : (
@@ -873,11 +872,10 @@ const CVList = () => {
               <button
                 type="button"
                 onClick={handleConfirmStatus}
-                className={`px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5 ${
-                  confirmModal.targetStatus === 'Offered'
+                className={`px-5 py-2.5 text-white rounded-xl text-sm font-bold shadow-md transition-all cursor-pointer flex items-center gap-1.5 ${confirmModal.targetStatus === 'Offered'
                     ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
                     : 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
-                }`}
+                  }`}
               >
                 {confirmModal.targetStatus === 'Offered' ? (
                   <>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -89,31 +89,14 @@ const TemplateCV = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [userCvs, setUserCvs] = useState([]);
   
   const navigate = useNavigate();
   const location = useLocation();
   const aiReviewData = location.state?.aiReviewData; 
   const pendingFile = location.state?.pendingFile || window.__pendingCvFile; 
   const passedCvData = location.state?.cvData;
+  const sourceCvId = location.state?.sourceCvId;
   const isFromAIReview = !!location.state?.fromAIReview || !!aiReviewData;
-
-  useEffect(() => {
-    const fetchCVs = async () => {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/cv/my-cvs`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setUserCvs(data || []);
-        }
-      } catch (err) {}
-    };
-    fetchCVs();
-  }, []);
 
   const recommendedTemplates = [
     { name: "Tech CV", targetIndustry: "Web / App Developer", designConfig: { primaryColor: "#8b5cf6", fontFamily: "Roboto", layout: "2-col" } },
@@ -152,14 +135,27 @@ const TemplateCV = () => {
     // =========================================================================
     if (isFromAIReview) {
       // 1.1 Nếu đã có cvData sẵn từ hệ thống
-      if (passedCvData) {
+      let sourceCv = passedCvData;
+      if (!sourceCv && sourceCvId) {
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/api/cv/${sourceCvId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (response.ok) sourceCv = await response.json();
+        } catch (error) {
+          console.error('Không thể tải CV đã chọn:', error);
+        }
+      }
+
+      if (sourceCv) {
         toast.success("AI đã tự động áp dụng dữ liệu CV của bạn vào mẫu mới!");
         navigate('/candidate/cv-builder', { 
           state: { 
             cvData: {
-              ...passedCvData,
+              ...sourceCv,
               design: {
-                ...(passedCvData.design || {}),
+                ...(sourceCv.design || {}),
                 color: templateConfig.primaryColor,
                 font: templateConfig.fontFamily,
                 layout: templateConfig.layout
@@ -212,51 +208,9 @@ const TemplateCV = () => {
         return;
       }
 
-      // 1.3 Nếu không có file trực tiếp, kiểm tra CV gần nhất của ứng viên trên hệ thống
-      if (userCvs.length > 0) {
-        toast.success("AI đã tự động lấy dữ liệu CV gần nhất của bạn đưa vào mẫu!");
-        const latestCv = userCvs[0];
-        navigate('/candidate/cv-builder', {
-          state: {
-            cvData: {
-              ...latestCv,
-              design: {
-                ...(latestCv.design || {}),
-                color: templateConfig.primaryColor,
-                font: templateConfig.fontFamily,
-                layout: templateConfig.layout
-              }
-            },
-            dynamicConfig: templateConfig,
-            aiReviewData: aiReviewData
-          }
-        });
-        return;
-      }
-
-      // 1.4 Fallback nếu chưa lưu CV nào: Lấy thông tin cá nhân từ User Profile
-      let defaultPersonal = null;
-      try {
-        const u = JSON.parse(localStorage.getItem('user'));
-        if (u) {
-          defaultPersonal = {
-            fullName: u.fullName || '',
-            email: u.email || '',
-            phone: u.phone || '',
-            address: u.address || u.city || '',
-            avatar: u.avatar || '',
-            jobTitle: u.targetPosition || ''
-          };
-        }
-      } catch {}
-
-      navigate('/candidate/cv-builder', { 
-        state: { 
-           dynamicConfig: templateConfig,
-           aiReviewData: aiReviewData,
-           initialPersonal: defaultPersonal
-        } 
-      });
+      // Không thay thế CV vừa review bằng CV mới cập nhật nhất, vì điều đó có
+      // thể khiến người dùng chỉnh sửa nhầm một CV khác.
+      toast.error('Không xác định được CV vừa đánh giá. Vui lòng quay lại và chọn đúng CV hoặc tải lại file CV.');
       return;
     }
 

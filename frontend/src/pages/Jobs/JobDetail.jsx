@@ -275,8 +275,6 @@ const JobDetail = () => {
       let cvToEdit = null;
       if (selectedCvId) {
           cvToEdit = myCVs.find(cv => String(cv._id) === String(selectedCvId));
-      } else if (myCVs.length > 0) {
-          cvToEdit = myCVs[0];
       }
 
       if (selectedFile) {
@@ -289,6 +287,7 @@ const JobDetail = () => {
               aiReviewData: reviewData, 
               pendingFile: selectedFile,
               cvData: cvToEdit,
+              sourceCvId: selectedCvId || null,
               autoFillFromReview: true
           } 
       });
