@@ -495,15 +495,13 @@ exports.updateStatus = async (req, res) => {
       const statusNamesVi = { 
         Applied: 'Hồ sơ mới nộp', 
         Testing: 'Làm bài kiểm tra', 
-        Interviewing: 'Đang phỏng vấn', 
-        Offered: 'Đề nghị nhận việc (Offer)', 
-        Rejected: 'Đã từ chối' 
+        Offered: 'Được đánh giá Phù hợp', 
+        Rejected: 'Chưa phù hợp' 
       };
       const statusDetailMsg = {
         Testing: `Hồ sơ của bạn cho vị trí "${updatedApp.jobId?.title}" đã được duyệt để làm bài test chuyên môn. Vui lòng truy cập hệ thống để làm bài kiểm tra.`,
-        Interviewing: `Chúc mừng! Hồ sơ của bạn cho vị trí "${updatedApp.jobId?.title}" đã được chọn vào vòng Phỏng vấn. Nhà tuyển dụng sẽ sớm liên hệ lịch hẹn chi tiết với bạn.`,
-        Offered: `Chúc mừng! Bạn đã nhận được lời mời nhận việc (Offer) cho vị trí "${updatedApp.jobId?.title}". Vui lòng đăng nhập hệ thống để xem chi tiết thông tin.`,
-        Rejected: `Cảm ơn bạn đã quan tâm và ứng tuyển vị trí "${updatedApp.jobId?.title}". Sau khi cân nhắc kỹ lưỡng, hồ sơ của bạn chưa phù hợp với tiêu chí tuyển dụng trong đợt này. Chúc bạn sớm tìm được cơ hội phù hợp!`
+        Offered: `Chúc mừng! Hồ sơ của bạn cho vị trí "${updatedApp.jobId?.title}" đã được Nhà tuyển dụng đánh giá là PHÙ HỢP. Nhà tuyển dụng sẽ sớm liên hệ để trao đổi các bước tiếp theo.`,
+        Rejected: `Cảm ơn bạn đã quan tâm và ứng tuyển vị trí "${updatedApp.jobId?.title}". Sau khi cân nhắc kỹ lưỡng, hồ sơ của bạn hiện chưa phù hợp với tiêu chí tuyển dụng trong đợt này. Chúc bạn sớm tìm được cơ hội phù hợp!`
       };
 
       await createNotification({ 
@@ -515,11 +513,11 @@ exports.updateStatus = async (req, res) => {
         relatedApplicationId: updatedApp._id 
       });
 
-      if (updatedApp.userId?.email && ['Testing', 'Interviewing', 'Offered', 'Rejected'].includes(status)) {
+      if (updatedApp.userId?.email && ['Testing', 'Offered', 'Rejected'].includes(status)) {
         const actionUrl = status === 'Testing' && updatedApp.assessmentId 
           ? `${frontendUrl}/candidate/test/${updatedApp.assessmentId}`
           : `${frontendUrl}/candidate/applications`;
-        const actionText = status === 'Testing' ? 'Vào làm bài Test ngay' : (status === 'Offered' ? 'Xem thư mời nhận việc' : 'Xem chi tiết hồ sơ');
+        const actionText = status === 'Testing' ? 'Vào làm bài Test ngay' : (status === 'Offered' ? 'Xem kết quả ứng tuyển' : 'Xem chi tiết hồ sơ');
         const emailHtml = generateCandidateEmailHtml({
           candidateName: updatedApp.userId?.fullName,
           jobTitle: updatedApp.jobId?.title,

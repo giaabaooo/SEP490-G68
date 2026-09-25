@@ -108,25 +108,13 @@ const CVList = () => {
     : 'Tất cả vị trí tuyển dụng';
 
   const templates = {
-    test: {
-      subject: 'Thư mời thực hiện bài đánh giá năng lực - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nChúng tôi rất ấn tượng với hồ sơ của bạn và muốn mời bạn tham gia thực hiện bài đánh giá kỹ năng chuyên môn.\n\nVui lòng hoàn thành bài đánh giá của bạn trước thời hạn quy định.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+    suitable: {
+      subject: (jobTitle) => `Thông báo kết quả ứng tuyển: Hồ sơ phù hợp - ${jobTitle} - Careerio`,
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nSau quá trình xem xét và đánh giá năng lực, chúng tôi rất vui mừng thông báo hồ sơ của bạn được đánh giá là PHÙ HỢP với tiêu chí tuyển dụng của công ty.\n\nBộ phận Nhân sự sẽ sớm liên hệ trực tiếp với bạn để trao đổi các bước tiếp theo.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     },
-    testReminder: {
-      subject: '[Nhắc nhở] Hoàn thành bài kiểm tra năng lực - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nChúng tôi nhận thấy bạn vẫn chưa hoàn thành bài kiểm tra năng lực cho vị trí ${jobTitle}.\n\nĐể tiếp tục quá trình xét duyệt hồ sơ ứng tuyển, bạn vui lòng đăng nhập vào hệ thống và hoàn thành bài test trong thời gian sớm nhất.\n\nNếu cần hỗ trợ kỹ thuật hoặc có bất kỳ câu hỏi nào, vui lòng phản hồi lại email này.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
-    },
-    interview: {
-      subject: 'Thư mời phỏng vấn - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã hoàn thành bài đánh giá năng lực cho vị trí ${jobTitle}.\n\nChúng tôi muốn mời bạn tham gia một buổi phỏng vấn trực tuyến để thảo luận chi tiết hơn về kinh nghiệm của bạn.\n\nThời gian dự kiến: [Vui lòng điền giờ và ngày tại đây]\nHình thức: Phỏng vấn trực tuyến qua Google Meet.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
-    },
-    offer: {
-      subject: 'Thư mời nhận việc (Job Offer) - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nChúc mừng bạn! Chúng tôi rất vui mừng được gửi lời mời hợp tác chính thức đến bạn cho vị trí ${jobTitle}.\n\nChi tiết về mức lương, phúc lợi sẽ được gửi kèm trong hợp đồng chính thức.\n\nChào mừng bạn gia nhập đội ngũ của chúng tôi!\nTrân trọng,\nBộ phận Nhân sự.`
-    },
-    reject: {
-      subject: 'Thư cảm ơn ứng tuyển - Careerio',
-      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã dành thời gian quan tâm và ứng tuyển vị trí ${jobTitle}.\n\nChúng tôi rất tiếc khi chưa thể đồng hành cùng bạn lần này. Thông tin hồ sơ của bạn đã được lưu lại cho các cơ hội phù hợp hơn trong tương lai.\n\nChúc bạn luôn may mắn và thành công!\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+    unsuitable: {
+      subject: (jobTitle) => `Thông báo kết quả ứng tuyển vị trí ${jobTitle} - Careerio`,
+      content: (candidateName, jobTitle) => `Thân gửi ${candidateName},\n\nCảm ơn bạn đã dành thời gian quan tâm và tham gia ứng tuyển vào vị trí ${jobTitle} tại công ty chúng tôi.\n\nSau khi xem xét kỹ lưỡng hồ sơ và kết quả đánh giá, chúng tôi rất tiếc phải thông báo hiện tại hồ sơ của bạn CHƯA PHÙ HỢP với các tiêu chí tuyển dụng trong đợt này.\n\nThông tin của bạn đã được lưu lại trong hệ thống dữ liệu ứng viên tiềm năng của chúng tôi cho các cơ hội phù hợp hơn trong tương lai.\n\nChúc bạn luôn gặt hái nhiều thành công trên con đường sự nghiệp!\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     }
   };
 
@@ -145,9 +133,9 @@ const CVList = () => {
     const labels = { 
       Applied: 'Hồ sơ mới', 
       Testing: 'Đánh giá năng lực', 
-      Interviewing: 'Phỏng vấn', 
-      Offered: 'Nhận việc', 
-      Rejected: 'Từ chối' 
+      Interviewing: 'Đang xem xét', 
+      Offered: 'Phù hợp', 
+      Rejected: 'Không phù hợp' 
     };
     return labels[status] || status;
   };
@@ -179,19 +167,19 @@ const CVList = () => {
     }
     if (app.status === 'Interviewing') {
       return {
-        label: 'Phỏng vấn',
+        label: 'Đang xem xét',
         style: 'bg-blue-50 text-blue-700 border-blue-200'
       };
     }
     if (app.status === 'Offered') {
       return {
-        label: 'Nhận việc',
+        label: 'Phù hợp',
         style: 'bg-emerald-50 text-emerald-700 border-emerald-200'
       };
     }
     if (app.status === 'Rejected') {
       return {
-        label: 'Từ chối',
+        label: 'Không phù hợp',
         style: 'bg-red-50 text-red-600 border-red-200'
       };
     }
@@ -322,9 +310,9 @@ const CVList = () => {
       const testScore = app.testScore !== undefined && app.testScore !== null 
         ? app.testScore 
         : app.status === 'Rejected'
-        ? 'Đã dừng tuyển'
+        ? 'Không phù hợp'
         : app.status === 'Offered'
-        ? 'Đã nhận việc'
+        ? 'Phù hợp'
         : (jobRequiresTest ? 'Chưa làm' : 'Không có bài test');
       const tabSwitches = app.tabSwitches || 0;
       const date = `"${new Date(app.appliedAt || app.createdAt || Date.now()).toLocaleDateString('vi-VN')}"`;
@@ -348,19 +336,15 @@ const CVList = () => {
   const handleOpenNotifyModal = (app, forcedTemplateKey = null) => {
     setSelectedApp(app);
     setIsNotifyModalOpen(true);
-    let templateKey = forcedTemplateKey || 'test';
-    let type = 'Pass';
-    if (!forcedTemplateKey) {
-      if (app.status === 'Interviewing') templateKey = 'interview';
-      else if (app.status === 'Offered') templateKey = 'offer';
-      else if (app.status === 'Rejected') { templateKey = 'reject'; type = 'Reject'; }
-    }
+    let templateKey = forcedTemplateKey || (app.status === 'Rejected' ? 'unsuitable' : 'suitable');
+    let type = templateKey === 'unsuitable' ? 'Reject' : 'Pass';
 
     const candidateName = app.userId?.fullName || 'Ứng viên';
     const title = app.jobId?.title || 'Vị trí ứng tuyển';
     setEmailType(type);
-    setEmailSubject(templates[templateKey]?.subject || '');
-    setEmailContent(templates[templateKey]?.content ? templates[templateKey].content(candidateName, title) : '');
+    const tmpl = templates[templateKey] || templates.suitable;
+    setEmailSubject(typeof tmpl.subject === 'function' ? tmpl.subject(title) : tmpl.subject);
+    setEmailContent(tmpl.content ? tmpl.content(candidateName, title) : '');
   };
 
   const handleSendNotification = async (e) => {
@@ -473,9 +457,8 @@ const CVList = () => {
                 <option value="All">Trạng thái: Tất cả</option>
                 <option value="Applied">Hồ sơ mới</option>
                 <option value="Testing">Đánh giá năng lực</option>
-                <option value="Interviewing">Đang phỏng vấn</option>
-                <option value="Offered">Đề nghị nhận việc</option>
-                <option value="Rejected">Đã từ chối</option>
+                <option value="Offered">Phù hợp</option>
+                <option value="Rejected">Không phù hợp</option>
               </select>
             )}
           </div>
@@ -494,7 +477,7 @@ const CVList = () => {
 
       {viewMode === 'pipeline' ? (
         <div className="flex gap-4 overflow-x-auto pb-6 items-start hide-scrollbar" style={{ minHeight: '600px' }}>
-          {['Applied', 'Testing', 'Interviewing', 'Offered', 'Rejected'].map((status) => {
+          {['Applied', 'Testing', 'Offered', 'Rejected'].map((status) => {
             const allColumnApps = applications.filter((app) => app.status === status);
             const totalRejectedInDb = status === 'Rejected' ? allColumnApps.length : 0;
 
@@ -508,11 +491,11 @@ const CVList = () => {
               });
             }
 
-            const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Đánh giá năng lực', Interviewing: 'Phỏng vấn', Offered: 'Nhận việc', Rejected: 'Từ chối' };
-            const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-purple-500 bg-purple-50/10', Interviewing: 'border-t-4 border-t-blue-500 bg-blue-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
+            const statusNames = { Applied: 'Hồ sơ mới', Testing: 'Đánh giá năng lực', Offered: 'Phù hợp', Rejected: 'Không phù hợp' };
+            const columnStyles = { Applied: 'border-t-4 border-t-slate-400 bg-slate-50/50', Testing: 'border-t-4 border-t-purple-500 bg-purple-50/10', Offered: 'border-t-4 border-t-emerald-500 bg-emerald-50/10', Rejected: 'border-t-4 border-t-red-500 bg-red-50/10' };
             
             return (
-              <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-1 min-w-[220px] max-w-[290px] rounded-2xl border border-slate-200 p-3.5 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
+              <div key={status} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)} className={`flex-1 min-w-[240px] max-w-[320px] rounded-2xl border border-slate-200 p-3.5 shadow-sm min-h-[500px] ${columnStyles[status]}`}>
                 <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
                   <div>
                     <h3 className="font-bold text-black text-xs tracking-tight">{statusNames[status]}</h3>
@@ -544,7 +527,7 @@ const CVList = () => {
                 <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
                   {columnApps.length === 0 ? (
                     <div className="py-10 border-2 border-dashed border-slate-200/80 rounded-2xl flex flex-col items-center justify-center text-black text-[10px] font-medium bg-white/40">
-                      {status === 'Rejected' && totalRejectedInDb > 0 ? 'Không có CV từ chối trong 48h qua' : 'Kéo thả vào đây'}
+                      {status === 'Rejected' && totalRejectedInDb > 0 ? 'Không có CV không phù hợp trong 48h qua' : 'Kéo thả vào đây'}
                     </div>
                   ) : (
                     columnApps.map((app) => (
@@ -575,15 +558,6 @@ const CVList = () => {
                         </div>
 
                         <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex flex-col gap-2">
-                          {status === 'Testing' && app.testStatus === 'Completed' && (
-                            <button 
-                              onClick={() => updateApplicationStatus(app._id || app.id, 'Interviewing')} 
-                              className="w-full py-1.5 px-3 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-lg text-xs font-bold transition-all border border-blue-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs" 
-                              title="Duyệt ứng viên vào vòng Phỏng vấn"
-                            >
-                              <UserCheck className="w-3.5 h-3.5" /> Mời Phỏng vấn
-                            </button>
-                          )}
                           <div className="flex items-center justify-between gap-1">
                             <div className="flex gap-1 items-center">
                               <button 
@@ -606,18 +580,18 @@ const CVList = () => {
                                 <button 
                                   onClick={() => handleOpenConfirmModal(app, 'Offered')} 
                                   className="px-2.5 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer border border-emerald-200 shadow-2xs" 
-                                  title="Đề nghị nhận việc"
+                                  title="Đánh giá phù hợp"
                                 >
-                                  Nhận
+                                  Phù hợp
                                 </button>
                               )}
                               {status !== 'Rejected' && (
                                 <button 
                                   onClick={() => handleOpenConfirmModal(app, 'Rejected')} 
                                   className="px-2.5 py-1 bg-red-50 text-red-700 hover:bg-red-600 hover:text-white rounded-lg text-xs font-bold transition-colors cursor-pointer border border-red-200 shadow-2xs" 
-                                  title="Từ chối hồ sơ"
+                                  title="Đánh giá không phù hợp"
                                 >
-                                  Loại
+                                  K.Phù hợp
                                 </button>
                               )}
                             </div>
@@ -748,8 +722,8 @@ const CVList = () => {
                       <div className="flex items-center justify-center gap-2">
                         <button onClick={() => { const url = getPublicCvUrl(app.appliedCvFileUrl, app.appliedCvId || app.userId?.cvUrl); if (url) window.open(url, '_blank'); }} className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Xem CV"><Eye className="w-4 h-4" /></button>
                         <button onClick={() => handleOpenNotifyModal(app)} className="p-2 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer shadow-2xs" title="Gửi thông báo"><Mail className="w-4 h-4" /></button>
-                        <button onClick={() => handleOpenConfirmModal(app, 'Offered')} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Đề nghị nhận việc"><CheckCircle className="w-4 h-4" /></button>
-                        <button onClick={() => handleOpenConfirmModal(app, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Từ chối hồ sơ"><XCircle className="w-4 h-4" /></button>
+                        <button onClick={() => handleOpenConfirmModal(app, 'Offered')} className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Đánh giá phù hợp"><CheckCircle className="w-4 h-4" /></button>
+                        <button onClick={() => handleOpenConfirmModal(app, 'Rejected')} className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-colors cursor-pointer shadow-2xs" title="Đánh giá không phù hợp"><XCircle className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -786,22 +760,25 @@ const CVList = () => {
 
             <div className="mb-6">
               <label className="text-xs font-black text-black uppercase tracking-wider block mb-2">Mẫu thông báo nhanh</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {[
-                  { key: 'test', label: 'Mời làm test' }, 
-                  { key: 'testReminder', label: 'Nhắc làm bài test' },
-                  { key: 'interview', label: 'Mời phỏng vấn' }, 
-                  { key: 'offer', label: 'Mời nhận việc' }, 
-                  { key: 'reject', label: 'Thư từ chối' }
+                  { key: 'suitable', label: 'Phù hợp', type: 'Pass' }, 
+                  { key: 'unsuitable', label: 'Không phù hợp', type: 'Reject' }
                 ].map((t) => (
                   <button
                     key={t.key} type="button"
                     onClick={() => {
-                      setEmailSubject(templates[t.key].subject);
-                      setEmailContent(templates[t.key].content(selectedApp.userId?.fullName || 'Ứng viên', selectedApp.jobId?.title || 'Vị trí ứng tuyển'));
-                      setEmailType(t.key === 'reject' ? 'Reject' : 'Pass');
+                      if (templates[t.key]) {
+                        setEmailSubject(templates[t.key].subject);
+                        setEmailContent(templates[t.key].content(selectedApp.userId?.fullName || 'Ứng viên', selectedApp.jobId?.title || 'Vị trí ứng tuyển'));
+                        setEmailType(t.type);
+                      }
                     }}
-                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold text-black transition-all border border-slate-200/50 cursor-pointer text-center"
+                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer text-center ${
+                      t.key === 'suitable' 
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200' 
+                        : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                    }`}
                   >{t.label}</button>
                 ))}
               </div>
@@ -835,7 +812,7 @@ const CVList = () => {
         </div>
       )}
 
-      {/* Modal xác nhận Đổi trạng thái Nhận việc / Từ chối để tránh HR bấm nhầm */}
+      {/* Modal xác nhận Đổi trạng thái Phù hợp / Không phù hợp để tránh HR bấm nhầm */}
       {confirmModal.isOpen && confirmModal.app && (
         <div 
           className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in"
@@ -859,7 +836,7 @@ const CVList = () => {
               </div>
               <div>
                 <h3 className="text-lg font-black text-slate-900 leading-tight">
-                  {confirmModal.targetStatus === 'Offered' ? 'Xác nhận nhận việc' : 'Xác nhận từ chối hồ sơ'}
+                  {confirmModal.targetStatus === 'Offered' ? 'Xác nhận ứng viên Phù hợp' : 'Xác nhận hồ sơ Không phù hợp'}
                 </h3>
                 <p className="text-xs text-slate-500 font-medium mt-0.5">Thao tác thay đổi trạng thái tuyển dụng</p>
               </div>
@@ -875,11 +852,11 @@ const CVList = () => {
               <p className="text-xs mt-2 pt-2 border-t border-slate-200/80">
                 {confirmModal.targetStatus === 'Offered' ? (
                   <span className="text-emerald-700 font-semibold">
-                    Ứng viên sẽ được chuyển sang trạng thái <strong>Đề nghị nhận việc (Offered)</strong>.
+                    Ứng viên sẽ được đánh giá là <strong>Phù hợp</strong> cho vị trí tuyển dụng này.
                   </span>
                 ) : (
                   <span className="text-rose-700 font-semibold">
-                    Ứng viên sẽ được chuyển sang trạng thái <strong>Từ chối (Rejected)</strong> và quá trình xét tuyển vị trí này sẽ kết thúc.
+                    Ứng viên sẽ được chuyển sang trạng thái <strong>Không phù hợp</strong> cho vị trí tuyển dụng này.
                   </span>
                 )}
               </p>
@@ -905,12 +882,12 @@ const CVList = () => {
                 {confirmModal.targetStatus === 'Offered' ? (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    <span>Xác nhận nhận việc</span>
+                    <span>Xác nhận Phù hợp</span>
                   </>
                 ) : (
                   <>
                     <XCircle className="w-4 h-4" />
-                    <span>Xác nhận từ chối</span>
+                    <span>Xác nhận K.Phù hợp</span>
                   </>
                 )}
               </button>

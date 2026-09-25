@@ -197,23 +197,20 @@ const Applications = () => {
 
               // Xác định các bước trên thanh Stepper
               const steps = jobHasTest 
-                ? ['Hồ sơ mới', 'Đánh giá năng lực', 'Phỏng vấn', 'Kết quả']
-                : ['Hồ sơ mới', 'Phỏng vấn', 'Kết quả'];
+                ? ['Hồ sơ mới', 'Đánh giá năng lực', 'Kết quả']
+                : ['Hồ sơ mới', 'Xét duyệt hồ sơ', 'Kết quả'];
 
-              // Tính toán index active của Stepper
+              // Tính toán index active của Stepper (Bỏ phỏng vấn: 3 bước: 0, 1, 2)
               let activeStepIndex = 0;
-              let isTestDoneWaitingInterview = false;
+              let isTestDoneWaitingReview = false;
 
               if (jobHasTest) {
                 if (['Offered', 'Rejected'].includes(app.status)) {
-                  activeStepIndex = 3;
-                } else if (app.status === 'Interviewing') {
                   activeStepIndex = 2;
                 } else if (app.status === 'Testing') {
                   if (app.testStatus === 'Completed') {
-                    // Đã làm xong test, hoàn tất bước Đánh giá năng lực và đang chờ duyệt Phỏng vấn
-                    activeStepIndex = 1.5;
-                    isTestDoneWaitingInterview = true;
+                    activeStepIndex = 1;
+                    isTestDoneWaitingReview = true;
                   } else {
                     activeStepIndex = 1;
                   }
@@ -223,10 +220,8 @@ const Applications = () => {
               } else {
                 if (['Offered', 'Rejected'].includes(app.status)) {
                   activeStepIndex = 2;
-                } else if (app.status === 'Interviewing') {
-                  activeStepIndex = 1;
                 } else {
-                  activeStepIndex = 0;
+                  activeStepIndex = 1;
                 }
               }
 
@@ -276,26 +271,15 @@ const Applications = () => {
                 }
               }
 
-              // 3. Sự kiện Phỏng vấn
-              if (['Interviewing', 'Offered'].includes(app.status)) {
+              // 3. Sự kiện Đang xét duyệt sau khi làm Test
+              if (jobHasTest && app.testStatus === 'Completed' && app.status === 'Testing') {
                 timelineEvents.push({
-                  key: 'interviewing',
-                  title: 'Nhà tuyển dụng mời tham gia Phỏng vấn',
+                  key: 'awaiting_review',
+                  title: 'Chờ NTD xét duyệt kết quả đánh giá',
                   time: updatedDate,
-                  desc: 'Chúc mừng bạn! Hồ sơ và năng lực đã vượt qua vòng sơ loại. Nhà tuyển dụng đang sắp xếp Lịch phỏng vấn và sẽ liên hệ chi tiết.',
-                  isDone: app.status === 'Offered',
-                  isCurrent: app.status === 'Interviewing',
-                  badge: 'Đang diễn ra',
-                  badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
-                });
-              } else if (jobHasTest && app.testStatus === 'Completed' && app.status === 'Testing') {
-                timelineEvents.push({
-                  key: 'awaiting_interview',
-                  title: 'Chờ NTD đánh giá kết quả & xếp lịch Phỏng vấn',
-                  time: updatedDate,
-                  desc: 'Bạn đã hoàn tất bài test. NTD sẽ xem lại điểm số cùng CV của bạn để quyết định gửi lịch phỏng vấn.',
+                  desc: 'Bạn đã hoàn tất bài test. NTD đang đối chiếu kết quả với tiêu chuẩn tuyển dụng để đưa ra phản hồi.',
                   isCurrent: true,
-                  badge: 'Chờ xếp lịch'
+                  badge: 'Đang xét duyệt'
                 });
               }
 
@@ -303,12 +287,12 @@ const Applications = () => {
               if (app.status === 'Offered') {
                 timelineEvents.push({
                   key: 'offered',
-                  title: 'Đề nghị nhận việc (Job Offer)',
+                  title: 'Hồ sơ được đánh giá: Phù hợp',
                   time: updatedDate,
-                  desc: 'Chúc mừng bạn đã trúng tuyển! Hãy kiểm tra hòm thư email hoặc trao đổi trực tiếp với NTD để xác nhận nhận việc.',
+                  desc: 'Chúc mừng bạn! Hồ sơ và kết quả của bạn đã được Nhà tuyển dụng đánh giá là PHÙ HỢP. Nhà tuyển dụng sẽ sớm liên hệ trực tiếp với bạn.',
                   isDone: true,
                   isCurrent: true,
-                  badge: 'Trúng tuyển 🎉',
+                  badge: 'Phù hợp 🎉',
                   badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 });
               } else if (app.status === 'Rejected') {
@@ -316,10 +300,10 @@ const Applications = () => {
                   key: 'rejected',
                   title: 'Kết quả: Chưa phù hợp đợt tuyển dụng này',
                   time: updatedDate,
-                  desc: 'Cảm ơn bạn đã dành thời gian ứng tuyển. Hồ sơ hiện chưa phù hợp với đợt này. Chúc bạn thành công ở các cơ hội tiếp theo!',
+                  desc: 'Cảm ơn bạn đã dành thời gian ứng tuyển. Hồ sơ hiện chưa phù hợp với tiêu chí của đợt này. Chúc bạn thành công ở các cơ hội tiếp theo!',
                   isDone: true,
                   isCurrent: true,
-                  badge: 'Đã từ chối',
+                  badge: 'K.Phù hợp',
                   badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
                 });
               }
@@ -375,12 +359,7 @@ const Applications = () => {
                         )}
                         {app.status === 'Offered' && (
                           <div className="mt-3 inline-block px-3 py-1 bg-emerald-50 text-emerald-600 text-[11px] font-black uppercase tracking-widest rounded-lg border border-emerald-100">
-                            🎉 Chúc mừng bạn đã nhận được Đề nghị nhận việc (Offer)!
-                          </div>
-                        )}
-                        {app.status === 'Interviewing' && (
-                          <div className="mt-3 inline-block px-3 py-1 bg-blue-50 text-blue-600 text-[11px] font-black uppercase tracking-widest rounded-lg border border-blue-100">
-                            📅 Đang trong vòng Phỏng vấn
+                            🎉 Chúc mừng bạn: Hồ sơ được đánh giá Phù hợp!
                           </div>
                         )}
                         {app.status === 'Testing' && app.testStatus === 'Completed' && (
@@ -403,7 +382,7 @@ const Applications = () => {
                             <p className="text-xs text-indigo-700 mt-0.5">
                               {app.testStatus === 'In_Progress' 
                                 ? 'Bạn đang có bài test chưa nộp. Hãy tiếp tục làm bài để hoàn tất hồ sơ.'
-                                : 'Vị trí này yêu cầu hoàn thành bài kiểm tra online để NTD xét duyệt vào vòng Phỏng vấn.'}
+                                : 'Vị trí này yêu cầu hoàn thành bài kiểm tra online để NTD xét duyệt kết quả.'}
                             </p>
                           </div>
                         </div>
@@ -432,8 +411,8 @@ const Applications = () => {
                       ></div>
 
                       {steps.map((step, index) => {
-                        const isCompleted = isTestDoneWaitingInterview ? index <= 1 : index < activeStepIndex;
-                        const isCurrent = isTestDoneWaitingInterview ? index === 2 : index === activeStepIndex;
+                        const isCompleted = isTestDoneWaitingReview ? index <= 0 : index < activeStepIndex;
+                        const isCurrent = isTestDoneWaitingReview ? index === 1 : index === activeStepIndex;
                         const isRejected = app.status === 'Rejected' && isCurrent;
 
                         let dotBg = 'bg-white border-slate-200 text-slate-300';
@@ -449,7 +428,7 @@ const Applications = () => {
 
                         let stepLabel = step;
                         if (index === steps.length - 1 && isCurrent) {
-                          stepLabel = app.status === 'Offered' ? 'Nhận việc' : app.status === 'Rejected' ? 'Từ chối' : step;
+                          stepLabel = app.status === 'Offered' ? 'Phù hợp' : app.status === 'Rejected' ? 'K.Phù hợp' : step;
                         }
 
                         return (

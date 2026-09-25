@@ -61,7 +61,7 @@ exports.generateAI = async (req, res) => {
             type: 'mcq', skill: topic, question: q.question,
             options: Array.isArray(q.options) && q.options.length === 4 ? q.options : ['A', 'B', 'C', 'D'],
             correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0,
-            isChecked: true
+            isChecked: false
         }));
 
         // 3. NẾU AI THÀNH CÔNG -> MỚI TRỪ TOKEN (Admin hoàn toàn miễn phí, không trừ token)

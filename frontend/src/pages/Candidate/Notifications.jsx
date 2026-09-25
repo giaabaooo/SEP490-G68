@@ -66,6 +66,41 @@ const Notifications = () => {
     if (!n.isRead) {
       handleMarkAsRead(n._id);
     }
+
+    if (n.type === 'moderator_request' || (n.title && n.title.includes('Yêu cầu tạo bài Test'))) {
+      if (n.link && (n.link.includes('/moderator/job-detail/') || n.link.includes('/moderator/jd/'))) {
+        navigate(n.link);
+        return;
+      }
+      const titleMatch = n.message?.match(/cho vị trí "([^"]+)"/);
+      const jobName = titleMatch ? titleMatch[1] : null;
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${API_BASE}/api/jobs/moderator-requests`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const requests = await res.json();
+          if (Array.isArray(requests) && requests.length > 0) {
+            let matched = null;
+            if (jobName) {
+              matched = requests.find(r => r.jobTitle?.trim().toLowerCase() === jobName.trim().toLowerCase()) ||
+                        requests.find(r => r.jobTitle?.toLowerCase().includes(jobName.toLowerCase()));
+            }
+            if (!matched && requests.length === 1) {
+              matched = requests[0];
+            }
+            if (matched && (matched.id || matched._id)) {
+              navigate(`/moderator/job-detail/${matched.id || matched._id}`);
+              return;
+            }
+          }
+        }
+      } catch (err) {}
+      navigate('/moderator/requests');
+      return;
+    }
+
     if (n.link) {
       navigate(n.link);
     } else if (n.relatedApplicationId) {

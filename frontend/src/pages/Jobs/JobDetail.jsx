@@ -386,8 +386,8 @@ const JobDetail = () => {
                                      : 'Cần làm bài kiểm tra năng lực'
                              ) :
                              myLatestStatus === 'Interviewing' ? 'Đang trong vòng phỏng vấn' :
-                             myLatestStatus === 'Offered' ? 'Đề nghị nhận việc (Offer)' :
-                             myLatestStatus === 'Rejected' ? 'Đã từ chối' : myLatestStatus
+                             myLatestStatus === 'Offered' ? 'Phù hợp' :
+                             myLatestStatus === 'Rejected' ? 'Không phù hợp' : myLatestStatus
                          }
                      </span>
 

@@ -279,7 +279,7 @@ exports.createJob = async (req, res) => {
                 title: 'Yêu cầu tạo bài Test chuyên môn mới',
                 message: `Bạn được phân công xây dựng bài test (${questionsCount} câu hỏi) cho vị trí "${job.title}" từ ${companyDisplayName}.`,
                 type: 'moderator_request',
-                link: '/moderator/requests'
+                link: `/moderator/job-detail/${job._id}`
               });
 
               await sendEmail(
@@ -290,7 +290,7 @@ exports.createJob = async (req, res) => {
                   <p>Xin chào,</p>
                   <p>Nhà tuyển dụng <strong>${companyDisplayName}</strong> đã chỉ định bạn làm Chuyên gia kiểm duyệt và xây dựng bài test (${questionsCount} câu hỏi) cho vị trí: <strong>${job.title}</strong>.</p>
                   <p>Vui lòng đăng nhập hệ thống để xem chi tiết JD và tiến hành biên soạn bộ đề.</p>
-                  <a href="${frontendUrl}/moderator/requests" style="display:inline-block;background:#059669;color:#fff;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:12px;">Xem yêu cầu tạo Test</a>
+                  <a href="${frontendUrl}/moderator/job-detail/${job._id}" style="display:inline-block;background:#059669;color:#fff;padding:10px 22px;text-decoration:none;border-radius:6px;font-weight:bold;margin-top:12px;">Xem chi tiết JD & Yêu cầu</a>
                 </div>`
               );
           } else {

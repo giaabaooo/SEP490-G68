@@ -198,7 +198,7 @@ export default function TestBuilder() {
           return;
       }
 
-      const aiQuestions = (data.questions || []).map(q => ({ ...q, isChecked: true }));
+      const aiQuestions = (data.questions || []).map(q => ({ ...q, isChecked: false }));
       setParsedQuestions(prev => [...prev, ...aiQuestions]);
       setShowAIModal(false);
       if (typeof data.remainingJobQuota === 'number') {

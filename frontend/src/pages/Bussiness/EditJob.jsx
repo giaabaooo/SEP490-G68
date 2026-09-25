@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import { 
   FileText, CircleDollarSign, Briefcase, MapPin, 
   Calendar, ClipboardCheck, AlignLeft, Send, Save, ArrowLeft,
-  CheckCircle2, AlertCircle, AlertTriangle, X, Sparkles, Plus, Trash2, Users, Loader2, Info, Eye, LockKeyhole
+  CheckCircle2, AlertCircle, AlertTriangle, X, Sparkles, Plus, Trash2, Users, Loader2, Info, Eye, LockKeyhole, Clock
 } from 'lucide-react';
 import { fetchProvinces } from '../../services/locationService';
 import AssessmentPreviewModal from '../../components/business/AssessmentPreviewModal';
@@ -149,6 +149,7 @@ const EditJob = () => {
           benefits: data.benefits ? (Array.isArray(data.benefits) ? data.benefits.join('\n') : data.benefits) : '',
           status: data.status ? data.status.toLowerCase() : 'active',
           testStatus: data.testStatus || null,
+          assessmentId: data.assessmentId || null,
           aiTokensQuota: data.aiTokensQuota || 0,
           requireTest: data.requireTest || false, moderatorEmail: data.moderatorEmail || '',
           vacancies: data.vacancies || 1, useAiReview: data.useAiReview !== false, 
@@ -268,7 +269,7 @@ const EditJob = () => {
   const handleSubmit = async (e, isDraft = false, forcedStatus = null) => {
     if (e && e.preventDefault) e.preventDefault();
 
-    const isDraftAction = isDraft || formData.status === 'draft';
+    const isDraftAction = isDraft || forcedStatus === 'draft' || (!forcedStatus && formData.status === 'draft');
 
     // Xác định chính xác trạng thái mong muốn:
     let resolvedStatus = 'active';
@@ -295,9 +296,10 @@ const EditJob = () => {
       return toast.error("Công việc đã được xuất bản trước đó, không thể yêu cầu thêm bài test từ Moderator");
     }
 
+    const hasExistingTest = Boolean(formData.assessmentId || (formData.requireTest && formData.moderatorEmail));
     const currentQuota = Number(formData.aiTokensQuota) || 0;
     const additionalTokensNeeded = Math.max(0, testTokensNeeded - currentQuota);
-    if (!isDraftAction && resolvedStatus !== 'closed' && formData.requireTest && formData.testStatus !== 'approved' && additionalTokensNeeded > 0 && recruiterBalance < additionalTokensNeeded) {
+    if (!hasExistingTest && !isDraftAction && resolvedStatus !== 'closed' && formData.requireTest && formData.testStatus !== 'approved' && additionalTokensNeeded > 0 && recruiterBalance < additionalTokensNeeded) {
       setShowTokenModal(true);
       return toast.error(`Số dư Token không đủ (Cần thêm ${additionalTokensNeeded} Token, hiện có ${recruiterBalance} Token). Vui lòng nạp thêm để kích hoạt bài Test!`);
     }
@@ -446,17 +448,59 @@ const EditJob = () => {
                 </div>
 
                 <div className="mb-4">
-                  <label className="block text-[13px] font-bold text-slate-700 mb-2">Trạng thái công việc</label>
-                  <select 
-                    name="status" value={formData.status} onChange={handleChange} 
-                    className={`w-full p-3 font-bold border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-100 ${formData.status === 'active' ? 'text-emerald-700 bg-emerald-50' : formData.status === 'closed' ? 'text-red-700 bg-red-50' : formData.status === 'ready' ? 'text-blue-700 bg-blue-50' : formData.status === 'pending' ? 'text-amber-700 bg-amber-50' : 'text-slate-700 bg-slate-50'}`}
-                  >
-                    <option value="active">🟢 Đang mở tuyển (Active)</option>
-                    {formData.requireTest && formData.testStatus !== 'approved' && <option value="pending">🟠 Đang chờ SME duyệt test (Pending)</option>}
-                    {formData.requireTest && formData.testStatus === 'approved' && <option value="ready">🔵 Đã có bài test - Sẵn sàng đăng</option>}
-                    <option value="draft">🟡 Bản nháp (Draft)</option>
-                    <option value="closed">🔴 Đã đóng (Closed)</option>
-                  </select>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-[13px] font-bold text-slate-700">Trạng thái công việc</label>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                      Tự động cập nhật
+                    </span>
+                  </div>
+                  
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${
+                    formData.status === 'active' 
+                      ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900' 
+                      : formData.status === 'closed'
+                        ? 'bg-rose-50/80 border-rose-300 text-rose-900'
+                        : formData.status === 'ready'
+                          ? 'bg-blue-50/80 border-blue-300 text-blue-900'
+                          : formData.status === 'pending'
+                            ? 'bg-amber-50/80 border-amber-300 text-amber-900'
+                            : 'bg-slate-50 border-slate-300 text-slate-900'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <span className="relative flex h-3 w-3 shrink-0">
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                          formData.status === 'active' ? 'bg-emerald-400' : formData.status === 'closed' ? 'bg-rose-400' : 'bg-amber-400'
+                        }`}></span>
+                        <span className={`relative inline-flex rounded-full h-3 w-3 ${
+                          formData.status === 'active' 
+                            ? 'bg-emerald-500' 
+                            : formData.status === 'closed' 
+                              ? 'bg-rose-500' 
+                              : formData.status === 'ready'
+                                ? 'bg-blue-500'
+                                : formData.status === 'pending'
+                                  ? 'bg-amber-500'
+                                  : 'bg-slate-400'
+                        }`}></span>
+                      </span>
+                      <div>
+                        <span className="text-sm font-black block">
+                          {formData.status === 'active' && '🟢 Đang mở tuyển (Active)'}
+                          {formData.status === 'ready' && '🔵 Đã có bài test - Sẵn sàng đăng tuyển'}
+                          {formData.status === 'pending' && '🟠 Chờ SME kiểm duyệt bài test (Pending)'}
+                          {formData.status === 'draft' && '🟡 Bản nháp (Draft)'}
+                          {formData.status === 'closed' && '🔴 Đã đóng tuyển dụng (Closed)'}
+                        </span>
+                        <span className="text-[11px] font-medium text-slate-600 block mt-0.5">
+                          {formData.status === 'active' && 'Tin tuyển dụng đang hiển thị công khai và nhận hồ sơ ứng tuyển.'}
+                          {formData.status === 'ready' && 'Bài test đã được duyệt. Bạn có thể bấm Cập nhật để kích hoạt tuyển dụng.'}
+                          {formData.status === 'pending' && 'Bài test đang chờ Chuyên gia kiểm duyệt hoàn tất.'}
+                          {formData.status === 'draft' && 'Tin tuyển dụng đang ở chế độ bản nháp nội bộ, chưa công khai.'}
+                          {formData.status === 'closed' && 'Tin tuyển dụng đã ngừng nhận hồ sơ mới.'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 mb-4">
@@ -537,36 +581,43 @@ const EditJob = () => {
                 
                 {(() => {
                   const isDeadlineExpired = formData.deadline && new Date(formData.deadline).getTime() < new Date().getTime();
+                  const hasExistingTest = Boolean(formData.assessmentId || (formData.requireTest && formData.moderatorEmail));
+
                   return (
                     <>
                       <label className={`flex items-center gap-3 p-4 bg-white rounded-xl border transition-all ${
-                        isDeadlineExpired || isPublishedWithoutTest ? 'opacity-60 cursor-not-allowed border-slate-200 bg-slate-50' : 'border-blue-200 cursor-pointer hover:border-blue-400'
+                        isDeadlineExpired || isPublishedWithoutTest || hasExistingTest ? 'border-blue-200 bg-blue-50/20 cursor-default' : 'border-blue-200 cursor-pointer hover:border-blue-400'
                       }`}>
                         <input 
                           type="checkbox" 
                           name="requireTest" 
-                          disabled={isDeadlineExpired || formData.testStatus === 'approved' || isPublishedWithoutTest}
-                          checked={formData.requireTest}
+                          disabled={isDeadlineExpired || hasExistingTest || isPublishedWithoutTest}
+                          checked={formData.requireTest || hasExistingTest}
                           onChange={(e) => {
-                            if (isDeadlineExpired || isPublishedWithoutTest) return;
+                            if (isDeadlineExpired || isPublishedWithoutTest || hasExistingTest) return;
                             handleChange(e);
                           }} 
                           className="w-5 h-5 accent-blue-600 disabled:cursor-not-allowed cursor-pointer" 
                         />
                         <div>
                           <span className="text-sm font-bold text-slate-700 block">
-                            {formData.testStatus === 'approved' ? 'Đã có bài test được duyệt' : 'Yêu cầu tạo Test & Kiểm duyệt'}
+                            {hasExistingTest 
+                              ? (formData.testStatus === 'approved' 
+                                  ? 'Đã có bài test được duyệt (Published)' 
+                                  : 'Đã liên kết bài test (Đang biên soạn / Bản nháp)') 
+                              : 'Yêu cầu tạo Test & Kiểm duyệt'}
                           </span>
                           {isDeadlineExpired && (
                             <span className="text-[11px] font-bold text-red-500 block mt-0.5">⚠️ Công việc đã quá hạn, không thể tạo hoặc cập nhật bài test.</span>
                           )}
-                          {isPublishedWithoutTest && (
+                          {isPublishedWithoutTest && !hasExistingTest && (
                             <span className="text-[11px] font-bold text-amber-600 block mt-0.5">⚠️ Công việc đã được xuất bản (Publish). Không thể yêu cầu thêm bài test từ Moderator.</span>
                           )}
                         </div>
                       </label>
 
-                      {formData.requireTest && formData.testStatus === 'approved' && (
+                      {/* TRƯỜNG HỢP 1: ĐÃ CÓ BÀI TEST VÀ ĐÃ ĐƯỢC DUYỆT (APPROVED / PUBLISHED) */}
+                      {hasExistingTest && formData.testStatus === 'approved' && (
                         <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
                           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -576,11 +627,16 @@ const EditJob = () => {
                               <p className="mt-1 text-xs font-medium text-emerald-700">
                                 Bài test đã được khóa nội dung. HR có thể xem câu hỏi và đáp án trước khi mở tuyển.
                               </p>
+                              {formData.moderatorEmail && (
+                                <p className="mt-1 text-[11px] text-emerald-600 font-bold">
+                                  Chuyên gia kiểm duyệt: {formData.moderatorEmail}
+                                </p>
+                              )}
                             </div>
                             <button
                               type="button"
                               onClick={openAssessmentPreview}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-emerald-700 shadow-sm ring-1 ring-emerald-200 hover:bg-emerald-100"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-emerald-700 shadow-sm ring-1 ring-emerald-200 hover:bg-emerald-100 cursor-pointer shrink-0"
                             >
                               <Eye className="h-4 w-4" /> Xem bài test
                               <LockKeyhole className="h-3.5 w-3.5" />
@@ -589,7 +645,43 @@ const EditJob = () => {
                         </div>
                       )}
 
-                      {!isDeadlineExpired && formData.requireTest && formData.testStatus !== 'approved' && (
+                      {/* TRƯỜNG HỢP 2: ĐÃ CÓ BÀI TEST NHƯNG ĐANG Ở TRẠNG THÁI BẢN NHÁP (DRAFT / CHỜ DUYỆT) */}
+                      {hasExistingTest && formData.testStatus !== 'approved' && (
+                        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/70 p-5">
+                          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 font-black text-amber-900">
+                                <Clock className="h-5 w-5 text-amber-600" /> Bài test đang ở trạng thái Bản nháp
+                              </div>
+                              <p className="mt-1 text-xs font-medium text-amber-800 leading-relaxed">
+                                Chuyên gia kiểm duyệt đang chỉnh sửa hoặc lưu bản nháp bộ đề. Bạn vẫn có thể xem trước nội dung đang soạn thảo.
+                              </p>
+                              <div className="mt-2.5 flex flex-wrap items-center gap-3 text-xs font-bold text-amber-900">
+                                {formData.moderatorEmail && (
+                                  <span className="bg-white/80 px-2.5 py-1 rounded-lg border border-amber-200">
+                                    👤 Chuyên gia: <strong>{formData.moderatorEmail}</strong>
+                                  </span>
+                                )}
+                                {formData.testQuestionsCount && (
+                                  <span className="bg-white/80 px-2.5 py-1 rounded-lg border border-amber-200">
+                                    📝 Số câu hỏi: <strong>{formData.testQuestionsCount} câu</strong>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={openAssessmentPreview}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-black text-amber-800 shadow-sm ring-1 ring-amber-300 hover:bg-amber-100 cursor-pointer shrink-0"
+                            >
+                              <Eye className="h-4 w-4" /> Xem bài test nháp
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* TRƯỜNG HỢP 3: CHƯA CÓ BÀI TEST -> HIỆN FORM YÊU CẦU TẠO TEST MỚI */}
+                      {!hasExistingTest && !isDeadlineExpired && formData.requireTest && (
                         <div className="mt-4 bg-white p-5 rounded-xl border border-blue-100 shadow-sm space-y-4 animate-fade-in">
                           <div>
                             <label className="block text-xs font-bold text-slate-700 mb-2">Email người kiểm duyệt (SME) <span className="text-red-500">*</span></label>
@@ -779,34 +871,82 @@ const EditJob = () => {
             </div>
           </div>
 
-          <div className="flex justify-end gap-3 mt-8 pt-6 border-t border-slate-200">
-            <button type="button" className="px-6 py-3 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate('/bussiness/post-job')}>Hủy bỏ</button>
-            {(formData.status === 'draft' || !id) && (
-              <button 
-                type="button" 
-                onClick={(e) => handleSubmit(e, true)} 
-                disabled={submitting} 
-                className="px-6 py-3 rounded-xl bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-colors flex items-center gap-2 cursor-pointer"
-              >
-                <Save className="w-4 h-4" /> Lưu Nháp
-              </button>
-            )}
+          <div className="flex flex-wrap items-center justify-between gap-3 mt-8 pt-6 border-t border-slate-200">
             <button 
-              type="submit" 
-              disabled={submitting} 
-              className="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
+              type="button" 
+              className="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-600 font-bold text-sm hover:bg-slate-50 transition-colors cursor-pointer" 
+              onClick={() => navigate('/bussiness/post-job')}
             >
-              {submitting ? 'Đang xử lý...' : (
-                formData.status === 'ready' && formData.testStatus === 'approved' ? (
-                  <><Send className="w-4 h-4" /> Mở tin tuyển dụng</>
-                ) :
-                formData.status === 'draft' ? (
-                  formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job Ngay</>
-                ) : (
-                  <><Save className="w-4 h-4" /> Cập nhật Job</>
-                )
-              )}
+              Quay lại
             </button>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Nút Đóng / Mở lại tin tuyển dụng */}
+              {formData.status !== 'closed' ? (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={(e) => handleSubmit(e, false, 'closed')}
+                  className="px-5 py-2.5 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-bold text-sm hover:bg-rose-100 hover:border-rose-300 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  title="Đóng nhận hồ sơ cho tin tuyển dụng này"
+                >
+                  <X className="w-4 h-4 text-rose-600" /> Đóng tin tuyển dụng
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={(e) => handleSubmit(e, false, 'active')}
+                  className="px-5 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-bold text-sm hover:bg-emerald-100 hover:border-emerald-300 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  title="Mở lại nhận hồ sơ ứng tuyển"
+                >
+                  <Send className="w-4 h-4 text-emerald-600" /> Mở lại tuyển dụng
+                </button>
+              )}
+
+              {/* Nút Chuyển về Bản nháp / Lưu nháp */}
+              {formData.status !== 'draft' ? (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={(e) => handleSubmit(e, true, 'draft')}
+                  className="px-5 py-2.5 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 font-bold text-sm hover:bg-amber-100 hover:border-amber-300 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                  title="Lưu tin dưới dạng bản nháp nội bộ"
+                >
+                  <Save className="w-4 h-4 text-amber-600" /> Lưu bản nháp
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={submitting}
+                  onClick={(e) => handleSubmit(e, true, 'draft')}
+                  className="px-5 py-2.5 rounded-xl border border-slate-300 bg-slate-100 text-slate-700 font-bold text-sm hover:bg-slate-200 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4 text-slate-600" /> Lưu bản nháp
+                </button>
+              )}
+
+              {/* Nút Submit cập nhật / mở tuyển chính */}
+              <button 
+                type="submit" 
+                disabled={submitting} 
+                className="px-7 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? 'Đang xử lý...' : (
+                  formData.status === 'ready' && formData.testStatus === 'approved' ? (
+                    <><Send className="w-4 h-4" /> Mở tin tuyển dụng</>
+                  ) :
+                  formData.status === 'draft' ? (
+                    formData.requireTest ? 'Lưu & Gửi Yêu Cầu Test' : <><Send className="w-4 h-4" /> Đăng Job Ngay</>
+                  ) :
+                  formData.status === 'closed' ? (
+                    <><Save className="w-4 h-4" /> Lưu thông tin</>
+                  ) : (
+                    <><Save className="w-4 h-4" /> Cập nhật Job</>
+                  )
+                )}
+              </button>
+            </div>
           </div>
         </form>
       </div>

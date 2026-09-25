@@ -78,6 +78,7 @@ function App() {
           <Route path="/home" element={<Home />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/jobs/:id" element={<JobDetail />} />
+          <Route path="/jd/:id" element={<JobDetail />} />
           <Route path="/candidate/tests" element={<TestListPage />} />
           <Route path="/candidate/cv-templates" element={<TemplateCV />} /> 
 
@@ -103,6 +104,7 @@ function App() {
             <Route path="/moderator/edit-test/:testId" element={<TestBuilder />} />
             <Route path="/moderator/test-bank" element={<TestBank />} />
             <Route path="/moderator/job-detail/:jobId" element={<ModeratorJobDetail />} />
+            <Route path="/moderator/jd/:jobId" element={<ModeratorJobDetail />} />
 
             {/* Candidate */}
             <Route path="/candidate/applications" element={<Applications />} />

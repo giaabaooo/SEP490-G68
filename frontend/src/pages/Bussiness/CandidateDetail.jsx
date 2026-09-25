@@ -22,25 +22,13 @@ export default function CandidateDetail() {
   const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
   const templates = {
-    test: {
-      subject: 'Mời bạn thực hiện Bài kiểm tra năng lực (Online Assessment)',
-      content: (name, job) => `Xin chào ${name},\n\nChúng tôi rất ấn tượng với hồ sơ của bạn cho vị trí ${job}.\nĐể tiếp tục quy trình tuyển dụng, trân trọng mời bạn tham gia bài kiểm tra đánh giá năng lực chuyên môn trực tuyến trên hệ thống Careerio.\n\nVui lòng đăng nhập tài khoản và hoàn thành bài thi trong vòng 48 giờ tới.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
+    suitable: {
+      subject: 'Thông báo: Hồ sơ ứng tuyển được đánh giá Phù hợp',
+      content: (name, job) => `Thân gửi ${name},\n\nCảm ơn bạn đã quan tâm và ứng tuyển vào vị trí ${job} tại công ty chúng tôi.\n\nSau khi xem xét kỹ lưỡng hồ sơ và kết quả đánh giá, chúng tôi rất vui mừng thông báo rằng hồ sơ của bạn được đánh giá là PHÙ HỢP với các tiêu chí tuyển dụng của vị trí này.\n\nBộ phận tuyển dụng sẽ sớm liên hệ với bạn để trao đổi cụ thể về các bước tiếp theo.\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     },
-    testReminder: {
-      subject: 'Nhắc nhở: Bạn có Bài kiểm tra năng lực chưa hoàn thành',
-      content: (name, job) => `Xin chào ${name},\n\nNhà tuyển dụng xin nhắc bạn về bài kiểm tra chuyên môn cho vị trí ${job}.\nVui lòng sắp xếp thời gian làm bài sớm trước thời hạn để hồ sơ của bạn được xem xét ở vòng tiếp theo.\n\nTrân trọng!`
-    },
-    interview: {
-      subject: 'Thư mời phỏng vấn - Cơ hội nghề nghiệp tại công ty',
-      content: (name, job) => `Xin chào ${name},\n\nChúc mừng bạn đã vượt qua bài đánh giá chuyên môn cho vị trí ${job} với kết quả xuất sắc!\nChúng tôi trân trọng mời bạn tham gia buổi phỏng vấn trực tiếp với bộ phận chuyên môn.\nThời gian và hình thức phỏng vấn chi tiết sẽ được gửi kèm trong email tiếp theo.\n\nTrân trọng!`
-    },
-    offer: {
-      subject: 'Chúc mừng! Thư mời nhận việc (Offer Letter)',
-      content: (name, job) => `Xin chào ${name},\n\nChúng tôi rất vui mừng thông báo bạn đã trúng tuyển vị trí ${job}!\nThông tin chi tiết về mức lương, chế độ đãi ngộ và ngày bắt đầu nhận việc đã được phê duyệt.\n\nChúc mừng bạn đã gia nhập đội ngũ!`
-    },
-    reject: {
+    unsuitable: {
       subject: 'Thông báo về kết quả ứng tuyển',
-      content: (name, job) => `Xin chào ${name},\n\nCảm ơn bạn đã dành thời gian tham gia bài kiểm tra năng lực cho vị trí ${job}.\nSau khi xem xét kỹ lưỡng, rất tiếc kết quả chưa hoàn toàn phù hợp với yêu cầu hiện tại của vị trí này. Chúng tôi sẽ lưu hồ sơ của bạn cho các cơ hội tiếp theo.\n\nChúc bạn luôn thành công!`
+      content: (name, job) => `Thân gửi ${name},\n\nCảm ơn bạn đã dành thời gian quan tâm và ứng tuyển vào vị trí ${job} tại công ty chúng tôi.\n\nSau khi xem xét kỹ lưỡng hồ sơ và các tiêu chí tuyển dụng hiện tại, chúng tôi rất tiếc phải thông báo hiện tại hồ sơ của bạn chưa thực sự phù hợp với yêu cầu của vị trí này.\n\nThông tin của bạn sẽ được lưu trữ trong hệ thống và chúng tôi sẽ chủ động liên hệ lại khi có cơ hội nghề nghiệp phù hợp hơn trong tương lai.\n\nChúc bạn luôn thành công trên con đường sự nghiệp!\n\nTrân trọng,\nĐội ngũ Tuyển dụng.`
     }
   };
 
@@ -184,8 +172,8 @@ export default function CandidateDetail() {
            <button
              type="button"
              onClick={() => {
-               setEmailSubject(templates.interview.subject);
-               setEmailContent(templates.interview.content(candidate.name || 'Ứng viên', candidate.position || 'Vị trí ứng tuyển'));
+               setEmailSubject(templates.suitable.subject);
+               setEmailContent(templates.suitable.content(candidate.name || 'Ứng viên', candidate.position || 'Vị trí ứng tuyển'));
                setEmailType('Pass');
                setIsNotifyModalOpen(true);
              }}
@@ -413,23 +401,26 @@ export default function CandidateDetail() {
 
             <div className="mb-4">
               <label className="text-xs font-black text-slate-600 uppercase tracking-wider block mb-2">Chọn mẫu nhanh</label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 {[
-                  { key: 'interview', label: 'Mời phỏng vấn' }, 
-                  { key: 'test', label: 'Mời làm test' }, 
-                  { key: 'testReminder', label: 'Nhắc làm test' },
-                  { key: 'offer', label: 'Mời nhận việc' }, 
-                  { key: 'reject', label: 'Thư từ chối' }
+                  { key: 'suitable', label: 'Phù hợp', type: 'Pass' }, 
+                  { key: 'unsuitable', label: 'Không phù hợp', type: 'Reject' }
                 ].map((t) => (
                   <button
                     key={t.key} 
                     type="button"
                     onClick={() => {
-                      setEmailSubject(templates[t.key].subject);
-                      setEmailContent(templates[t.key].content(candidate.name || 'Ứng viên', candidate.position || 'Vị trí ứng tuyển'));
-                      setEmailType(t.key === 'reject' ? 'Reject' : 'Pass');
+                      if (templates[t.key]) {
+                        setEmailSubject(templates[t.key].subject);
+                        setEmailContent(templates[t.key].content(candidate.name || 'Ứng viên', candidate.position || 'Vị trí ứng tuyển'));
+                        setEmailType(t.type);
+                      }
                     }}
-                    className="px-3 py-2 bg-slate-100 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 rounded-xl text-xs font-bold text-slate-700 transition-all border border-slate-200 cursor-pointer text-center"
+                    className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer text-center ${
+                      t.key === 'suitable'
+                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
+                    }`}
                   >
                     {t.label}
                   </button>
